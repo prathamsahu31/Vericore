@@ -11,8 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import extraction_provider
 from app.api.schemas import (
+    AuditEventOut,
+    AuditTrailOut,
+    ChainIntegrityOut,
     ComplianceRowOut,
     FindingOut,
+    ReviewRequest,
     RiskFlagOut,
     VerificationSummary,
 )
@@ -32,7 +36,9 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.errors import NotFoundError
+from app.modules.audit_service import service as audit
 from app.modules.compliance_engine import service as compliance
+from app.modules.compliance_engine.scoring import effective_status
 
 router = APIRouter(tags=["verification"])
 
@@ -109,7 +115,8 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
         result = results.get(requirement.id)
         if result is None:
             continue
-        counts[str(result.status)] = counts.get(str(result.status), 0) + 1
+        shown = effective_status(result.status, result.override_status)
+        counts[str(shown)] = counts.get(str(shown), 0) + 1
         rows.append(
             ComplianceRowOut(
                 requirement_code=requirement.code,
@@ -127,6 +134,9 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
                 external_check_source=result.external_check_source,
                 evidence_field_ids=evidence_by_requirement.get(requirement.id, []),
                 override_status=result.override_status,
+                override_reason=result.override_reason,
+                override_at=result.override_at,
+                effective_status=effective_status(result.status, result.override_status),
             )
         )
 
@@ -146,7 +156,9 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
         bid_due_date=tender.bid_due_date if tender else None,
         compliance_score=bid.compliance_score,
         mandatory_gate_passed=bid.mandatory_gate_passed,
-        failed_mandatory=breakdown.get("failed_mandatory", []),
+        mandatory_failed=breakdown.get("mandatory_failed", []),
+        pending_review=breakdown.get("pending_review", []),
+        qualifiable=bool(breakdown.get("qualifiable", False)),
         risk_level=bid.risk_level,
         status_counts=counts,
         requirements=rows,
@@ -156,4 +168,35 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
             1 for c in checks if c.source is VerificationSource.SIMULATED
         ),
         external_checks_live=sum(1 for c in checks if c.source is VerificationSource.LIVE),
+    )
+
+
+@router.post("/bids/{bid_id}/review", response_model=VerificationSummary, status_code=201)
+def review(bid_id: uuid.UUID, payload: ReviewRequest, db: DbSession) -> VerificationSummary:
+    """Record an officer's judgement on one requirement.
+
+    The machine verdict is kept. The officer's verdict is stored beside it, both
+    are returned, and the gate is recomputed from the officer's (CLAUDE.md §5).
+    """
+    audit.review_requirement(
+        db,
+        bid_id=bid_id,
+        requirement_code=payload.requirement_code,
+        action=payload.action,
+        officer_id=payload.officer_id,
+        reason=payload.reason,
+        override_status=payload.override_status,
+    )
+    db.commit()
+    return _summary(db, bid_id)
+
+
+@router.get("/bids/{bid_id}/audit", response_model=AuditTrailOut)
+def get_audit_trail(bid_id: uuid.UUID, db: DbSession) -> AuditTrailOut:
+    """The trail for one bid, with the chain-integrity status at the top."""
+    integrity = audit.chain_integrity(db)
+    events = audit.audit_trail(db, bid_id=bid_id)
+    return AuditTrailOut(
+        integrity=ChainIntegrityOut(**integrity.__dict__),
+        events=[AuditEventOut.model_validate(e) for e in events],
     )

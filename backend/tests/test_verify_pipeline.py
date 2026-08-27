@@ -202,15 +202,119 @@ def test_the_score_is_recomputable_from_the_verdict_table(verified):
     assert compute(rows).value == Decimal(verified["compliance_score"])
 
 
-def test_a_failed_mandatory_requirement_is_named_not_buried(verified):
-    """§10: the UI states which mandatory requirement failed, prominently."""
-    if verified["mandatory_gate_passed"]:
-        return
-    assert verified["failed_mandatory"]
-    named = set(verified["failed_mandatory"])
-    for code in named:
-        row = next(r for r in verified["requirements"] if r["requirement_code"] == code)
-        assert row["status"] != ComplianceStatus.COMPLIANT
+def test_a_pending_review_item_does_not_read_as_a_failure(verified):
+    """A mandatory item awaiting the officer is unresolved, not failed.
+
+    Bidder A's only outstanding mandatory item is the prose specification, which
+    the system referred to a human by policy. Treating that identically to a
+    genuine NON_COMPLIANT would make §13's clean-bidder demo impossible and,
+    worse, would tell an officer a compliant bidder had failed.
+    """
+    assert verified["mandatory_failed"] == []
+    assert "REQ-010" in verified["pending_review"]
+    assert verified["mandatory_gate_passed"] is True
+    assert verified["qualifiable"] is False
+
+
+def test_accepting_the_pending_item_makes_the_bidder_qualifiable(client, verified, conn):
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o@example.gov.in', 'An Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    after = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "Duplex stainless steel with epoxy-phenolic lining is suitable for "
+            "chloride-bearing service. Confirmed against the tender clause.",
+        },
+    ).json()
+    assert after["pending_review"] == []
+    assert after["qualifiable"] is True
+
+
+def test_an_override_is_stored_beside_the_machine_verdict_not_instead_of_it(client, verified, conn):
+    """CLAUDE.md §5: both are stored, and both stay visible."""
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o2@example.gov.in', 'Another Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    after = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "Materials confirmed against clause 6.10.",
+        },
+    ).json()
+    row = next(r for r in after["requirements"] if r["requirement_code"] == "REQ-010")
+    assert row["status"] == ComplianceStatus.NEEDS_HUMAN_REVIEW  # machine, untouched
+    assert row["override_status"] == ComplianceStatus.COMPLIANT  # officer, alongside
+    assert row["effective_status"] == ComplianceStatus.COMPLIANT
+    assert row["reasoning"], "the machine's own reasoning must survive an override"
+
+
+def test_accepting_something_the_system_failed_is_refused_as_an_override(client, verified, conn):
+    """ "I looked and agreed" and "I disagree" are different acts (§5)."""
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o3@example.gov.in', 'Third Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    response = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-002",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "fine by me",
+        },
+    )
+    assert response.status_code == 422
+    assert "override" in response.json()["error"]["message"]
+
+
+def test_a_review_without_a_reason_is_refused(client, verified, conn):
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o4@example.gov.in', 'Fourth Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    response = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "   ",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_the_audit_trail_reports_chain_integrity(client, verified):
+    """§11: chain-integrity status is shown at the top of the trail."""
+    trail = client.get(f"/bids/{verified['bid_id']}/audit").json()
+    assert trail["integrity"]["intact"] is True
+    assert trail["integrity"]["total_events"] >= 1
+    assert len(trail["integrity"]["head_hash"]) == 64
 
 
 def test_a_consistent_bidder_raises_no_cross_document_findings(verified):

@@ -131,6 +131,14 @@ def test_the_default_provider_chain_is_offline():
     assert provider.model_id_for(LLMRole.EXTRACTION) == "stub-extraction-v1"
 
 
+def test_no_role_resolves_to_a_live_provider_during_tests():
+    """Guards the whole suite, including a developer whose .env points at Gemini."""
+    for role in (LLMRole.EXTRACTION, LLMRole.REASONING):
+        provider = get_provider(role)
+        assert provider.name == "stub", f"{role} resolved to {provider.name}"
+        assert provider.is_offline is True
+
+
 # ── Cache round-trip (CLAUDE.md §7.2) ────────────────────────────────────────
 def test_a_cache_hit_returns_the_same_types_as_a_live_call(tmp_path):
     """The bug this guards against appears only on the *second* call.

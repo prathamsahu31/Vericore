@@ -131,6 +131,12 @@ its pre-qualification section into a checklist: one line per condition, each
 with the threshold it sets, whether it is mandatory, how much weight it carries,
 and — importantly — **who it applies to**.
 
+Tenders arrive in more than one shape. A classical Request for Proposal states
+its criteria as a numbered table running over several pages. A GeM bid states
+them as structured form fields, often in Hindi and English side by side. The
+system recognises which it is looking at and reads it accordingly, producing the
+same checklist either way.
+
 That last column matters more than it looks. Real tenders say things like "sole
 bidder or prime bidder of the consortium" for turnover, but "sole bidder or any
 consortium member" for technical experience. Those are different rules. The
@@ -391,10 +397,24 @@ You can check the arithmetic by hand from the table on screen. That is the
 point: no model produces this number, and there is nothing inside it you cannot
 see.
 
-Separately from the score, there is a **mandatory gate**. If any condition the
-tender marked mandatory is unmet, the bidder cannot be qualified regardless of
-how high the score is — and the specific condition is named rather than buried
-behind a percentage.
+Separately from the score, there are **two lists of outstanding mandatory
+conditions**, and the difference between them matters:
+
+- **Failed** — the system looked at the evidence and the condition is not met.
+  A turnover shortfall, an expired certificate, a contradiction. Clearing one
+  of these means deliberately overriding the system's finding, and saying why.
+- **Awaiting you** — the system declined to conclude. A judgement call, a check
+  that could not be run, a document that was never submitted. Nobody has said
+  this bidder falls short; nobody has looked yet.
+
+They are kept apart because merging them would tell you a perfectly good bidder
+had failed. Bidder A meets every condition the system can decide mechanically,
+and the only thing outstanding is a materials specification that is a matter of
+engineering judgement. That is not a failure — it is a question for you, and
+once you answer it the bidder is qualifiable.
+
+Either way, the specific condition is named rather than buried behind a
+percentage.
 
 **The risk level** counts red flags instead: contradictions between documents,
 a company incorporated shortly before a large bid, a certificate that lapses
@@ -468,6 +488,19 @@ If you disagree with a verdict, you can override it. Your override does not
 erase what the system concluded. Both are stored, and both stay visible, so the
 record shows what the system found *and* what you decided *and* why. That is
 what makes the record useful if the decision is ever questioned.
+
+The system distinguishes two things you might be doing, because they are
+different acts and the record should say which:
+
+- **Accepting** — you have read the evidence on something the system left open,
+  and you are satisfied. Available only where the system declined to conclude.
+- **Overriding** — you are substituting your judgement for a finding the system
+  actually made. If you try to "accept" something the system found wanting, you
+  are told to record it as an override instead, so the trail says what really
+  happened.
+
+Both require a reason. The database itself refuses to store either without one
+— this is not a form validation you can work around.
 
 Everything you do is written to a permanent log. That log cannot be edited or
 deleted — not by the application, and not by someone with database access,

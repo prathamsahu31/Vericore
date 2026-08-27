@@ -23,7 +23,11 @@ class UnknownProviderError(ValueError):
 def _build_base(provider_name: str) -> Any:
     if provider_name == "stub":
         return StubProvider()
-    # 'gemini' and 'anthropic' land here as they are implemented (§7.2, §7.8).
+    if provider_name == "gemini":
+        from app.llm.providers.gemini import GeminiProvider
+
+        return GeminiProvider(api_key=get_settings().gemini_api_key or "")
+    # 'anthropic' lands here when it is implemented (§7.8).
     raise UnknownProviderError(
         f"LLM provider {provider_name!r} is configured but not implemented. "
         f"Implement it in app/llm/providers/ and add its rows to app/llm/config.py, "

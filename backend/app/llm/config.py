@@ -19,6 +19,21 @@ from app.llm.types import LLMRole
 MODEL_IDS: dict[tuple[str, LLMRole], str] = {
     ("stub", LLMRole.EXTRACTION): "stub-extraction-v1",
     ("stub", LLMRole.REASONING): "stub-reasoning-v1",
+    # Confirmed by *calling* each model on 27 Aug 2026, not by reading the
+    # list endpoint — which advertises models the key cannot actually use.
+    # gemini-2.5-flash and gemini-2.5-pro return 404 "no longer available to
+    # new users"; gemini-3.1-pro-preview and gemini-pro-latest return 429
+    # quota-exceeded on this free-tier key. The pro tier is therefore not
+    # reachable, and REASONING runs on a flash model. That is a real
+    # constraint on requirement-extraction quality, not a preference — see
+    # §7.3, which wants the strongest available model for this role.
+    # Both roles land on flash-lite, which is not what §7.3 wants for REASONING.
+    # gemini-3-flash-preview returns 503 "deadline expired" on a 90-page PDF and
+    # 503 "high demand" on extracted text, so it is not usable for tender
+    # parsing on this key. flash-lite answers the same document in ~25s.
+    # Revisit both rows if a key with pro-tier quota becomes available.
+    ("gemini", LLMRole.EXTRACTION): "gemini-3.1-flash-lite",
+    ("gemini", LLMRole.REASONING): "gemini-3.1-flash-lite",
 }
 
 

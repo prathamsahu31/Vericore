@@ -190,12 +190,7 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
     # Layers 8 — score and risk, computed independently of one another (§10).
     run.phase = "scoring"
     db.flush()
-    score = scoring.compute(
-        [
-            (r.code, r.name, r.mandatory, v.applicable, float(r.weight or 0), v.status)
-            for r, v in zip(requirements, verdicts, strict=True)
-        ]
-    )
+    score = rescore(db, bid)
     risk = assess(
         evidence=evidence,
         findings=findings,
@@ -216,13 +211,7 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
             )
         )
 
-    bid.compliance_score = score.value
-    bid.mandatory_gate_passed = score.mandatory_gate_passed
-    bid.score_breakdown = {
-        "requirements": score.breakdown,
-        "failed_mandatory": score.failed_mandatory,
-        "bid_due_date": due_date.isoformat(),
-    }
+    bid.score_breakdown = {**(bid.score_breakdown or {}), "bid_due_date": due_date.isoformat()}
     bid.risk_level = risk.level
 
     db.add(
@@ -238,7 +227,8 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
                 "requirements_evaluated": len(requirements),
                 "compliance_score": str(score.value),
                 "mandatory_gate_passed": score.mandatory_gate_passed,
-                "failed_mandatory": score.failed_mandatory,
+                "mandatory_failed": score.mandatory_failed,
+                "pending_review": score.pending_review,
                 "cross_document_findings": len(findings),
                 "risk_flags": [f.code for f in risk.flags],
             },
@@ -351,3 +341,57 @@ def _snapshot(evidence: BidEvidence, field_ids) -> dict:
             if f.id in field_ids:
                 out[f.field_name] = f.field_value
     return out
+
+
+def rescore(db: Session, bid: Bid) -> scoring.Score:
+    """Recompute the score and both gates from the stored verdicts.
+
+    Reads the *effective* status of each requirement — an officer's override
+    where one exists, the machine verdict otherwise — so accepting a pending
+    item moves the gate without erasing what the system originally found (§5).
+
+    Called at the end of a verification run and again after every review, so
+    the two can never drift apart.
+    """
+    results = {
+        r.requirement_id: r
+        for r in db.execute(
+            select(ComplianceResult).where(ComplianceResult.bid_id == bid.id)
+        ).scalars()
+    }
+    requirements = list(
+        db.execute(
+            select(Requirement)
+            .where(Requirement.tender_id == bid.tender_id)
+            .order_by(Requirement.display_order)
+        ).scalars()
+    )
+
+    rows = []
+    for requirement in requirements:
+        result = results.get(requirement.id)
+        if result is None:
+            continue
+        rows.append(
+            (
+                requirement.code,
+                requirement.name,
+                requirement.mandatory,
+                result.applicable,
+                float(requirement.weight or 0),
+                scoring.effective_status(result.status, result.override_status),
+            )
+        )
+
+    score = scoring.compute(rows)
+    bid.compliance_score = score.value
+    bid.mandatory_gate_passed = score.mandatory_gate_passed
+    bid.score_breakdown = {
+        **(bid.score_breakdown or {}),
+        "requirements": score.breakdown,
+        "mandatory_failed": score.mandatory_failed,
+        "pending_review": score.pending_review,
+        "qualifiable": score.qualifiable,
+    }
+    db.flush()
+    return score

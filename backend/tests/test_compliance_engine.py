@@ -11,6 +11,8 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from app.db.enums import ComplianceStatus, LocatorStatus, RiskLevel, Severity
 from app.db.models import DocumentSegment, ExtractedField, Requirement
 from app.llm.providers.stub import StubProvider
@@ -420,7 +422,65 @@ def test_a_failed_mandatory_requirement_fails_the_gate_and_is_named():
     ]
     score = scoring.compute(rows)
     assert not score.mandatory_gate_passed
-    assert score.failed_mandatory == ["REQ-001"]
+    assert score.mandatory_failed == ["REQ-001"]
+    assert not score.qualifiable
+
+
+def test_a_pending_mandatory_item_is_not_a_failure():
+    """The split that makes a clean-bidder demo possible.
+
+    NEEDS_HUMAN_REVIEW on a mandatory requirement means nobody has looked yet.
+    Reporting that identically to a genuine NON_COMPLIANT tells an officer a
+    compliant bidder failed.
+    """
+    rows = [("REQ-001", "a", True, True, 10.0, ComplianceStatus.NEEDS_HUMAN_REVIEW)]
+    score = scoring.compute(rows)
+    assert score.mandatory_failed == []
+    assert score.pending_review == ["REQ-001"]
+    assert score.mandatory_gate_passed  # nothing has *failed*
+    assert not score.qualifiable  # but it is not ready to qualify either
+
+
+def test_missing_mandatory_evidence_is_pending_not_failed():
+    """§2 rule 5: absent documentation routes to clarification, not rejection."""
+    rows = [("REQ-001", "a", True, True, 10.0, ComplianceStatus.MISSING_EVIDENCE)]
+    score = scoring.compute(rows)
+    assert score.mandatory_failed == []
+    assert score.pending_review == ["REQ-001"]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [ComplianceStatus.NON_COMPLIANT, ComplianceStatus.EXPIRED, ComplianceStatus.INCONSISTENT],
+)
+def test_evidence_found_and_wanting_is_a_hard_failure(status):
+    rows = [("REQ-001", "a", True, True, 10.0, status)]
+    assert scoring.compute(rows).mandatory_failed == ["REQ-001"]
+
+
+def test_an_officer_override_is_what_the_gate_counts():
+    """The machine verdict is kept; the override is what the gate reads (§5)."""
+    from app.modules.compliance_engine.scoring import effective_status
+
+    assert effective_status(ComplianceStatus.NEEDS_HUMAN_REVIEW, None) is (
+        ComplianceStatus.NEEDS_HUMAN_REVIEW
+    )
+    assert (
+        effective_status(ComplianceStatus.NEEDS_HUMAN_REVIEW, ComplianceStatus.COMPLIANT)
+        is ComplianceStatus.COMPLIANT
+    )
+
+    rows = [
+        (
+            "REQ-001",
+            "a",
+            True,
+            True,
+            10.0,
+            effective_status(ComplianceStatus.NEEDS_HUMAN_REVIEW, ComplianceStatus.COMPLIANT),
+        )
+    ]
+    assert scoring.compute(rows).qualifiable
 
 
 def test_an_unweighted_mandatory_failure_still_moves_the_score():
