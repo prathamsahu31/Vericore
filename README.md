@@ -56,6 +56,29 @@ reasoning calls to Anthropic without touching any other code.
 
 Never commit `.env`.
 
+## Verifying the schema
+
+The first migration creates all sixteen tables and installs the append-only,
+hash-chained audit log. Two ways to check it:
+
+```bash
+cd backend
+
+# 1. Render the DDL without a database — useful for review, needs nothing running
+alembic upgrade head --sql
+
+# 2. Apply it and prove the guarantees hold, against a real Postgres
+docker compose up -d          # from the repository root
+alembic upgrade head
+pytest tests/test_schema_integrity.py -v
+```
+
+The tests assert that the database *refuses* things it must refuse: updating or
+deleting an audit event, storing an adapter result without its `live`/`simulated`
+label, storing an extracted field without page coordinates, or recording a
+decision without a justification. They skip with an explanatory message if no
+database is reachable, rather than passing vacuously.
+
 ## Documentation
 
 | File | What it covers |

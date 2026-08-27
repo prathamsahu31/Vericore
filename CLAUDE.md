@@ -101,18 +101,21 @@ Every requirement starts at `MISSING_EVIDENCE`. A human override does **not** re
 
 ## 6. Data model
 
-Tables (Postgres, snake_case, `id` as UUID primary keys):
+Seventeen tables (Postgres, snake_case, `id` as UUID primary keys):
 
-`users` · `tenders` · `requirements` · `bidders` · `bids` · `bid_members` · `documents` · `document_segments` · `extracted_fields` · `evidence` · `compliance_results` · `cross_document_findings` · `risk_flags` · `verification_runs` · `audit_events` · `reports`
+`users` · `tenders` · `requirements` · `bidders` · `bids` · `bid_members` · `documents` · `document_segments` · `extracted_fields` · `evidence` · `compliance_results` · `cross_document_findings` · `risk_flags` · `verification_runs` · `portal_checks` · `audit_events` · `reports`
 
 Rules:
 
 - `documents` stores `sha256` on upload. That hash is the immutable reference used in every downstream citation.
-- `extracted_fields` stores `page` and bounding box `(x0, y0, x1, y1)`. **Mandatory.** Without coordinates the evidence drill-down is impossible, and the drill-down is the product.
+- `extracted_fields` stores `page` and bounding box `(x0, y0, x1, y1)`. **Mandatory.** Without coordinates the evidence drill-down is impossible, and the drill-down is the product. The LLM never supplies coordinates; it supplies a verbatim source span, and a deterministic locator finds that span in the page's own text layer and takes the box from there. `locator_status` records which rung of that ladder succeeded — see §24.
 - `audit_events` is append-only, hash-chained: each row stores `prev_hash` and `row_hash`. Add a trigger that raises on `UPDATE` and `DELETE`. Write this in the first migration, not later.
 - `bidders` is deduplicated across tenders by PAN, so history accumulates.
 - `document_segments` holds the logical documents found inside one uploaded file. A single-document upload produces exactly one segment spanning all pages. See §19.
 - `bid_members` links a bid to one or more bidders with a `role` of `sole`, `lead`, or `member`. A sole bid has exactly one row. See §20.
+- `verification_runs` and `portal_checks` are two tables, not one. `verification_runs` is the pipeline-progress row the frontend polls (§3): one per bid per run, carrying status, phase and counts. `portal_checks` is one row per adapter call, holding the `VerificationResult` of §8. `architecture.md` §7 names `PortalCheck` as an entity; this is that entity.
+- **`portal_checks.source` is `NOT NULL`.** Not a conditional CHECK — a plain not-null column, because §2 rule 2 says the field is never omitted and a column that is required on every row states that more plainly than a constraint predicated on a discriminator.
+- Every `NOT NULL` column carrying a Python-side default must also carry the equivalent `server_default`. A Python default is invisible to any `INSERT` that does not pass through the ORM, so without it a backfill, a `psql` session or a test fixture fails on a column the model claims has a default.
 - **Everything downstream cites `document_segment_id`, never `document_id`.** A page-3 citation must be unambiguous about which logical document that page belongs to.
 
 ---
@@ -658,3 +661,71 @@ These are robustness upgrades. **The core path ships first.** Do not let them de
 | Segmentation review UI | **Day 5** | Auto-segmentation runs without review; low-confidence segments go to `NEEDS_HUMAN_REVIEW` |
 
 If Day 4 arrives and the core demo isn't solid, cut segmentation and consortium logic without hesitation. A flawless sole-bidder demo beats a broken comprehensive one, and the schema being ready is itself a good answer to "how would you extend this?"
+
+---
+
+## 24. Evidence coordinates — how a box gets onto a page
+
+§6 makes `page` and `(x0, y0, x1, y1)` mandatory on every extracted field. But
+Gemini reading a PDF natively returns text, not geometry, and asking a model for
+pixel coordinates would be asking it to invent them. So coordinates are never
+taken from the model. They are recovered.
+
+### The rule
+
+**The model quotes; the locator finds.** Extraction returns a verbatim
+`source_span` alongside every value — §7.6 already requires this. A
+deterministic locator then finds that span in the page's own text layer and
+takes the box from there. Locating is a string search, not a judgement, so it
+belongs to the same category as every other check the LLM is forbidden from
+making (§7.5).
+
+The span is the anchor, not the value. A date normalised to `2024-03-31` may
+appear on the page as `31.03.2024`; the span is what was actually printed.
+
+### The ladder
+
+Page geometry comes from PyMuPDF `page.get_text("words")`, which yields
+`(x0, y0, x1, y1, word, block, line, word_no)` per word. Each rung is tried in
+order and the one that succeeds is recorded in `locator_status`:
+
+| Rung | How it matches | Box quality |
+|---|---|---|
+| `exact` | The span appears verbatim in the page's word stream | Exact |
+| `normalized` | Matches after collapsing whitespace, unifying Unicode dashes and quotes, case-folding | Exact |
+| `fuzzy` | Best `rapidfuzz` alignment over a sliding word window, above threshold; `locator_score` records it | Good |
+| `ocr` | Page has no text layer. Tesseract `image_to_data` supplies word boxes, then the rungs above are retried against those | Good |
+| `page_fallback` | Nothing matched. The box becomes the full page the model cited | **Page, not highlight** |
+| `segment_fallback` | The model cited no usable page either. The box becomes the segment's first page | **Page, not highlight** |
+
+`rapidfuzz` is already in the stack (§3); no new dependency.
+
+### Wrapped spans
+
+Matched words may run across lines, and the union of a two-line span covers
+unrelated text between them. Store the union in `x0..y1` — that is what the
+viewer scrolls to — and the per-line rectangles in `bbox_rects`, which is what
+it outlines.
+
+### The fallback is the important part
+
+**Never drop a field, never relax the NOT NULL.** A field the locator cannot
+place still stores, with the page rectangle. The constraint keeps its meaning:
+every citation opens somewhere the officer can read. `locator_status` is what
+tells the UI whether to draw a highlight or just open the page.
+
+**A field whose `locator_status` is `page_fallback` or `segment_fallback` may
+never produce an automatic `COMPLIANT`.** It routes to `NEEDS_HUMAN_REVIEW`
+with a link to the segment — which is exactly the rule §21 already states for a
+required field that could not be extracted. The fallback lands in an existing
+state rather than inventing one.
+
+### Open question for the user
+
+Using Tesseract for the `ocr` rung widens §3 slightly. That section admits
+Tesseract "only as the provider-layer fallback when the active provider can't
+take documents natively" — here it would run for coordinate recovery on a
+scanned page even though Gemini reads that page perfectly well itself. Same
+tool, different job. Confirm before building it; the alternative is that every
+field on a scanned page is `page_fallback`, which is honest but makes the
+evidence ledger much less useful on exactly the documents §16 says to include.
