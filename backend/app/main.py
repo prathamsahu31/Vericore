@@ -39,8 +39,12 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     from app.api.bids import router as bids_router
+    from app.api.tenders import router as tenders_router
+    from app.api.verification import router as verification_router
 
+    app.include_router(tenders_router)
     app.include_router(bids_router)
+    app.include_router(verification_router)
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:

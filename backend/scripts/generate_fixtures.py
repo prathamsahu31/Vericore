@@ -211,13 +211,151 @@ def work_order(c: Company, out: Path) -> Path:
     return out
 
 
+def ca_turnover_certificate(c: Company, out: Path) -> Path:
+    """Average of the three years is 105.33 Cr against a 100 Cr threshold —
+    a pass, but not a trivial one."""
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Statement of Turnover", 14, "hebo"),
+            (150, 92, "Certified by Chartered Accountant", 11, "helv"),
+            (60, 150, f"Name of Entity : {c.legal_name}", 11, "helv"),
+            (60, 176, f"Permanent Account Number : {c.pan}", 11, "cour"),
+            (60, 214, "Audited turnover for the preceding three financial years:", 11, "helv"),
+            (60, 242, "FY 2023-24 : Rs. 1,18,00,00,000", 11, "helv"),
+            (60, 266, "FY 2022-23 : Rs. 1,02,00,00,000", 11, "helv"),
+            (60, 290, "FY 2021-22 : Rs. 96,00,00,000", 11, "helv"),
+            (60, 330, "Membership No. : 214872", 10, "helv"),
+            (60, 350, "UDIN : 24214872BKFAAB1234", 10, "cour"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def iso_certificate(c: Company, out: Path) -> Path:
+    """Valid until three days after the bid due date — Bidder A's subtle
+    near-miss from CLAUDE.md §16. It passes, and the margin is reported."""
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "ISO 9001:2015 Certificate", 14, "hebo"),
+            (150, 92, "Quality Management System", 11, "helv"),
+            (60, 150, "Certificate Number : IN-QMS-2023-88141", 11, "cour"),
+            (60, 176, f"Name of Organisation : {c.legal_name}", 11, "helv"),
+            (60, 200, "Standard : ISO 9001:2015", 11, "helv"),
+            (60, 224, "Scope : Fabrication and installation of piping systems", 11, "helv"),
+            (60, 248, "Date of Issue : 19/09/2023", 11, "helv"),
+            (60, 272, "Valid Until : 18/09/2026", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def oem_authorisation(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Manufacturer's Authorisation Letter", 13, "hebo"),
+            (60, 130, "Issued By OEM : Hindustan Alloy Systems Limited", 11, "helv"),
+            (60, 156, f"Authorised Party : {c.legal_name}", 11, "helv"),
+            (60, 180, "Product Scope : Corrosion resistant alloy piping and fittings", 11, "helv"),
+            (60, 204, "Valid Until : 31/12/2026", 11, "helv"),
+            (60, 240, "We confirm the above party is authorised to supply and service", 10, "helv"),
+            (60, 258, "our products for the tendered requirement.", 10, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def technical_datasheet(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Technical Datasheet", 14, "hebo"),
+            (60, 130, f"Bidder : {c.legal_name}", 11, "helv"),
+            (60, 156, "Model : HAS-CRP-520", 11, "cour"),
+            (60, 180, "Rated Throughput : 520 TPD", 11, "helv"),
+            (60, 204, "Design Pressure : 16 bar", 11, "helv"),
+            (60, 240, "Material of Construction : Duplex stainless steel UNS S31803", 11, "helv"),
+            (60, 258, "with epoxy-phenolic internal lining, selected for sustained", 11, "helv"),
+            (60, 276, "service in chloride-bearing and high-humidity atmospheres.", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def declaration_non_blacklisting(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (140, 70, "Declaration of Non-Blacklisting", 13, "hebo"),
+            (60, 140, f"Name of Bidder : {c.legal_name}", 11, "helv"),
+            (60, 166, f"Permanent Account Number : {c.pan}", 11, "cour"),
+            (60, 204, "We hereby declare that the bidder is not blacklisted, debarred", 10, "helv"),
+            (60, 222, "or suspended by any Government department, public sector", 10, "helv"),
+            (60, 240, "undertaking or statutory authority as on the date of this bid.", 10, "helv"),
+            (60, 280, "Declaration Signed : Yes", 11, "helv"),
+            (60, 304, "Date of Declaration : 20/08/2026", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def emd_instrument(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Bank Guarantee - Earnest Money Deposit", 12, "hebo"),
+            (60, 140, f"Applicant : {c.legal_name}", 11, "helv"),
+            (60, 166, "Instrument Type : Bank Guarantee", 11, "helv"),
+            (60, 190, "EMD Amount : Rs. 5,00,000", 11, "helv"),
+            (60, 214, "Beneficiary : Chennai Petroleum Corporation Limited", 11, "helv"),
+            (60, 238, "Valid Until : 15/12/2026", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
 BUILDERS = {
     "gst_certificate": gst_certificate,
     "pan_card": pan_card,
     "udyam_certificate": udyam_certificate,
     "incorporation_certificate": incorporation_certificate,
     "work_order": work_order,
+    "ca_turnover_certificate": ca_turnover_certificate,
+    "iso_certificate": iso_certificate,
+    "oem_authorisation": oem_authorisation,
+    "technical_datasheet": technical_datasheet,
+    "declaration_non_blacklisting": declaration_non_blacklisting,
+    "emd_instrument": emd_instrument,
 }
+
+# Deliberately absent from Bidder A's bundle, so MISSING_EVIDENCE is a state the
+# demo actually exercises: local_content_certificate (§6.13, not mandatory).
 
 
 def generate(company: Company) -> list[Path]:

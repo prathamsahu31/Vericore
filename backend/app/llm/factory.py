@@ -39,9 +39,17 @@ def get_provider(role: LLMRole) -> Any:
     """
     settings = get_settings()
     name = settings.provider_for_role(str(role))
-    chain = RateLimitedProvider(
-        _build_base(name),
-        requests_per_minute=settings.llm_max_requests_per_minute,
-        max_retries=settings.llm_max_retries,
+    base = _build_base(name)
+
+    # An offline provider has no published cap to stay under, so wrapping it in
+    # a token bucket buys nothing and costs six seconds a call in the test suite.
+    chain = (
+        base
+        if base.is_offline
+        else RateLimitedProvider(
+            base,
+            requests_per_minute=settings.llm_max_requests_per_minute,
+            max_retries=settings.llm_max_retries,
+        )
     )
     return CachedProvider(chain, cache_dir=settings.llm_cache_dir)

@@ -39,6 +39,42 @@ DOCUMENT_SCHEMAS: dict[str, dict[str, str]] = {
         "completion_date": "Date of completion",
         "work_description": "Description of the work performed",
     },
+    "ca_turnover_certificate": {
+        "legal_name": "Name of the entity the certificate is issued to",
+        "pan": "PAN shown on the certificate",
+        "turnover_fy1": "Turnover for the most recent financial year",
+        "turnover_fy2": "Turnover for the second financial year",
+        "turnover_fy3": "Turnover for the third financial year",
+    },
+    "iso_certificate": {
+        "legal_name": "Name of the certified organisation",
+        "certificate_number": "Certificate number",
+        "standard": "The standard certified against",
+        "valid_until": "Expiry date of the certificate",
+    },
+    "oem_authorisation": {
+        "oem_name": "Name of the original equipment manufacturer",
+        "legal_name": "Name of the authorised party",
+        "product_scope": "Products the authorisation covers",
+        "valid_until": "Expiry date of the authorisation",
+    },
+    "technical_datasheet": {
+        "model": "Model designation of the offered equipment",
+        "rated_throughput_tpd": "Rated throughput in tonnes per day",
+        "material_of_construction": "Materials of construction",
+    },
+    "declaration_non_blacklisting": {
+        "legal_name": "Name of the declaring bidder",
+        "pan": "PAN shown on the declaration",
+        "declaration_signed": "Whether the declaration is signed",
+        "declaration_date": "Date of the declaration",
+    },
+    "emd_instrument": {
+        "legal_name": "Name of the applicant",
+        "instrument_type": "Kind of instrument furnished",
+        "emd_amount": "Amount of the earnest money deposit",
+        "valid_until": "Validity of the instrument",
+    },
     "financial_statement": {
         "legal_name": "Name of the entity the statement belongs to",
         "turnover_fy1": "Turnover for the most recent financial year shown",

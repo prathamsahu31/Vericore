@@ -1,0 +1,7 @@
+{
+  "_comment": "Represents what a real CVC / GeM debarment feed would populate. An identifier absent from this table returns not_found, which is the clean case.",
+  "AABCZ9999Z": {
+    "status": "found",
+    "data": {"debarred_by": "Example PSU", "reason": "Non-performance", "until": "2027-03-31"}
+  }
+}

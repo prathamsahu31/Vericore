@@ -720,15 +720,21 @@ with a link to the segment — which is exactly the rule §21 already states for
 required field that could not be extracted. The fallback lands in an existing
 state rather than inventing one.
 
-### Open question for the user
+### Decided: no OCR rung
 
-Using Tesseract for the `ocr` rung widens §3 slightly. That section admits
-Tesseract "only as the provider-layer fallback when the active provider can't
-take documents natively" — here it would run for coordinate recovery on a
-scanned page even though Gemini reads that page perfectly well itself. Same
-tool, different job. Confirm before building it; the alternative is that every
-field on a scanned page is `page_fallback`, which is honest but makes the
-evidence ledger much less useful on exactly the documents §16 says to include.
+**The `ocr` rung is not built.** Decision taken 27 August 2026: the demo runs on
+clean typed PDFs only, and a scanned page yields `page_fallback` for every field
+on it — the right page opens, without a highlight.
+
+The reasoning is the same one §26 of `blueprint.md` gives for not betting a live
+demo on OCR. Adding Tesseract here would also have widened §3, which admits it
+"only as the provider-layer fallback when the active provider can't take
+documents natively"; coordinate recovery on a page the model reads perfectly
+well is a different job for the same tool.
+
+Stated as a limit in `docs/how-it-works.md`, not left implicit. If §16's
+re-scanned certificates are wanted in the demo, this is the rung to build, and
+the ladder already has a slot for it.
 
 
 

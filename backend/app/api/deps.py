@@ -15,3 +15,13 @@ def extraction_provider() -> Any:
     without touching the factory's cache.
     """
     return get_provider(LLMRole.EXTRACTION)
+
+
+def reasoning_provider() -> Any:
+    """The provider bound to the REASONING role.
+
+    Independent of the extraction provider by design: the recommended final-demo
+    setup keeps high-volume extraction on a free tier and points reasoning at a
+    stronger model (CLAUDE.md §7.8).
+    """
+    return get_provider(LLMRole.REASONING)

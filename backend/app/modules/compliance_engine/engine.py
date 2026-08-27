@@ -1,0 +1,444 @@
+"""Layers 4 and 7: match evidence to requirements, and assign a state.
+
+The division of labour here is the product's credibility argument. Every
+numeric, date and identifier comparison is delegated to ``rules`` — pure
+functions with no model in them. The LLM is consulted only where a requirement
+is inherently prose (CLAUDE.md §7.4), and even then its answer is routed to
+``NEEDS_HUMAN_REVIEW`` rather than being taken as a verdict.
+
+No path in this module qualifies or disqualifies a bidder. It assigns one of
+the nine states of §5 and explains why.
+"""
+
+from __future__ import annotations
+
+import logging
+import uuid
+from dataclasses import dataclass, field
+from datetime import date
+
+from app.db.enums import ComplianceStatus, LocatorStatus
+from app.db.models import Requirement
+from app.modules.compliance_engine import rules
+from app.modules.compliance_engine.evidence_index import (
+    BidEvidence,
+    RoutingResult,
+    humanise_doc_type,
+    parse_date,
+    route,
+    with_article,
+)
+from app.modules.verification_adapter.adapter import VerificationResult, get_adapter
+
+log = logging.getLogger(__name__)
+
+# Fields whose absence means the requirement cannot be judged mechanically.
+TURNOVER_FIELDS = ("turnover_fy1", "turnover_fy2", "turnover_fy3")
+
+
+@dataclass
+class Verdict:
+    """One requirement × bid outcome, with everything needed to defend it."""
+
+    requirement_id: uuid.UUID
+    status: ComplianceStatus
+    reasoning: str
+    applicable: bool = True
+    confidence: float | None = None
+    verification_method: str | None = None
+    segment_ids: list[uuid.UUID] = field(default_factory=list)
+    field_ids: list[uuid.UUID] = field(default_factory=list)
+    outcomes: list[rules.RuleOutcome] = field(default_factory=list)
+    external: VerificationResult | None = None
+    satisfied_by_member_id: uuid.UUID | None = None
+
+
+def _cite(verdict: Verdict, evidence: BidEvidence, *fields) -> None:
+    """Attach the fields a verdict rests on.
+
+    CLAUDE.md §2 rule 1: a verdict without evidence references is a bug.
+    """
+    for f in fields:
+        if f is None:
+            continue
+        verdict.field_ids.append(f.id)
+        if f.document_segment_id not in verdict.segment_ids:
+            verdict.segment_ids.append(f.document_segment_id)
+
+
+def _unlocated(*fields) -> bool:
+    """Whether any cited field's box is a page rather than a highlight.
+
+    §24: such a field may never produce an automatic COMPLIANT.
+    """
+    return any(
+        f is not None
+        and f.locator_status in (LocatorStatus.PAGE_FALLBACK, LocatorStatus.SEGMENT_FALLBACK)
+        for f in fields
+    )
+
+
+def evaluate(
+    requirement: Requirement,
+    evidence: BidEvidence,
+    bid_due_date: date,
+    provider,
+    lead_member_id: uuid.UUID | None = None,
+) -> Verdict:
+    """Assign one of the nine states to one requirement."""
+    verdict = Verdict(
+        requirement_id=requirement.id,
+        status=ComplianceStatus.MISSING_EVIDENCE,
+        reasoning="",
+        satisfied_by_member_id=lead_member_id,
+    )
+
+    routing = route(requirement, evidence)
+    if not routing.has_evidence:
+        return _missing(verdict, routing)
+
+    verdict.segment_ids = [s.id for s in routing.segments]
+    condition = requirement.condition or {}
+    operator = condition.get("operator")
+    target = condition.get("field")
+
+    if operator == "min_years_before_due_date":
+        return _age(verdict, requirement, evidence, bid_due_date, condition)
+    if target == "average_annual_turnover":
+        return _turnover(verdict, requirement, evidence, condition)
+    if target == "order_value":
+        return _experience(verdict, requirement, evidence, bid_due_date, condition)
+    if operator == "not_expired_at_due_date":
+        return _validity(verdict, requirement, evidence, bid_due_date, routing)
+    if operator in (">=", ">", "<=", "<", "==") and target:
+        return _numeric(verdict, requirement, evidence, condition)
+
+    return _presence(verdict, requirement, evidence, routing, provider)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Individual evaluations
+# ─────────────────────────────────────────────────────────────────────────────
+def _missing(verdict: Verdict, routing: RoutingResult) -> Verdict:
+    """Missing evidence is not failure (CLAUDE.md §2 rule 5)."""
+    names = ", ".join(humanise_doc_type(t) for t in routing.missing_document_types)
+    verdict.status = ComplianceStatus.MISSING_EVIDENCE
+    verdict.reasoning = (
+        f"No {names} was submitted. This routes to the clarification workflow; "
+        f"real procurement solicits a shortfall document rather than rejecting outright."
+        if names
+        else "No document of an accepted type was submitted for this requirement."
+    )
+    verdict.verification_method = "routing"
+    return verdict
+
+
+def _age(verdict, requirement, evidence, bid_due_date, condition) -> Verdict:
+    incorporated = evidence.first("incorporation_date", requirement.accepts_document_types)
+    if incorporated is None:
+        return _needs_review(
+            verdict,
+            "An incorporation certificate was submitted but no date of incorporation "
+            "could be read from it. Please read the date from the document.",
+        )
+    outcome = rules.check_minimum_age(
+        parse_date(incorporated.field_value), bid_due_date, int(condition["threshold"])
+    )
+    _cite(verdict, evidence, incorporated)
+    verdict.outcomes = [outcome]
+    verdict.verification_method = "deterministic_date"
+    verdict.status = _pass_or_fail(outcome, incorporated)
+    verdict.reasoning = outcome.detail
+    verdict.confidence = incorporated.confidence
+    return verdict
+
+
+def _turnover(verdict, requirement, evidence, condition) -> Verdict:
+    """Averaged then compared, both in Python. The LLM does no arithmetic (§7.5)."""
+    cited = [evidence.first(name, requirement.accepts_document_types) for name in TURNOVER_FIELDS]
+    values = [rules.parse_amount(f.field_value) if f else None for f in cited]
+    required_years = condition.get("period_years")
+
+    average = rules.average_turnover(values, required_years=required_years)
+    _cite(verdict, evidence, *cited)
+    verdict.verification_method = "deterministic_calculation"
+
+    if not average.passed:
+        return _needs_review(verdict, average.detail, outcomes=[average])
+
+    mean = rules.Decimal(average.working["mean"])
+    threshold = rules.compare_threshold(
+        mean, condition["operator"], condition["threshold"], condition.get("unit", "")
+    )
+    verdict.outcomes = [average, threshold]
+    verdict.reasoning = f"{average.detail} {threshold.detail}"
+    verdict.confidence = min((f.confidence for f in cited if f), default=None)
+    verdict.status = (
+        ComplianceStatus.COMPLIANT if threshold.passed else ComplianceStatus.NON_COMPLIANT
+    )
+    if threshold.passed and _unlocated(*cited):
+        return _needs_review(
+            verdict,
+            verdict.reasoning + " Source values could not be "
+            "pinpointed on the page; please confirm them.",
+            verdict.outcomes,
+        )
+    return verdict
+
+
+def _experience(verdict, requirement, evidence, bid_due_date, condition) -> Verdict:
+    """Value and recency, per work order. Both deterministic."""
+    accepted = requirement.accepts_document_types
+    orders = evidence.find("order_value", accepted)
+    if not orders:
+        return _needs_review(
+            verdict,
+            "A work order was submitted but no order value could be read from it.",
+        )
+
+    qualifying: list[tuple] = []
+    outcomes: list[rules.RuleOutcome] = []
+    for order in orders:
+        segment = evidence.segment_of(order)
+        completed = evidence.field(segment, "completion_date") if segment else None
+        value_check = rules.compare_threshold(
+            rules.parse_amount(order.field_value),
+            condition["operator"],
+            condition["threshold"],
+            condition.get("unit", ""),
+        )
+        date_check = rules.check_within_period(
+            parse_date(completed.field_value) if completed else None,
+            bid_due_date,
+            int(condition.get("within_years", 7)),
+        )
+        outcomes += [value_check, date_check]
+        if value_check.passed and date_check.passed:
+            qualifying.append((order, completed))
+
+    verdict.outcomes = outcomes
+    verdict.verification_method = "deterministic_calculation"
+    minimum = int(condition.get("min_count", 1))
+
+    if len(qualifying) >= minimum:
+        for order, completed in qualifying:
+            _cite(verdict, evidence, order, completed)
+        verdict.status = ComplianceStatus.COMPLIANT
+        verdict.reasoning = (
+            f"{len(qualifying)} qualifying work order(s) found; the tender requires "
+            f"{minimum}. " + qualifying[0][0].field_value + " — " + outcomes[0].detail
+        )
+        verdict.confidence = qualifying[0][0].confidence
+        return verdict
+
+    for order in orders:
+        _cite(verdict, evidence, order)
+    verdict.status = ComplianceStatus.NON_COMPLIANT
+    verdict.reasoning = (
+        f"{len(qualifying)} of the {len(orders)} submitted work order(s) meet both the "
+        f"value and the recency condition; the tender requires {minimum}. "
+        + " ".join(o.detail for o in outcomes[:2])
+    )
+    return verdict
+
+
+def _validity(verdict, requirement, evidence, bid_due_date, routing) -> Verdict:
+    """Every certificate in scope, checked against the bid due date."""
+    checked: list[tuple] = []
+    for segment in routing.segments:
+        valid_until = evidence.field(segment, "valid_until")
+        if valid_until is None:
+            continue
+        checked.append(
+            (
+                segment,
+                valid_until,
+                rules.check_not_expired(parse_date(valid_until.field_value), bid_due_date),
+            )
+        )
+
+    if not checked:
+        return _needs_review(
+            verdict,
+            "No validity date could be read from the documents in scope for this "
+            "requirement. Please check the certificates by eye.",
+        )
+
+    verdict.outcomes = [o for _, _, o in checked]
+    verdict.verification_method = "deterministic_date"
+    expired = [(s, f, o) for s, f, o in checked if not o.passed]
+
+    for _, valid_until, _ in checked:
+        _cite(verdict, evidence, valid_until)
+
+    if expired:
+        verdict.status = ComplianceStatus.EXPIRED
+        verdict.reasoning = "; ".join(
+            f"{humanise_doc_type(s.doc_type)}: {o.detail}" for s, _, o in expired
+        )
+        return verdict
+
+    soonest = min(checked, key=lambda c: c[2].working["days_remaining_at_due_date"])
+    verdict.status = ComplianceStatus.COMPLIANT
+    verdict.reasoning = (
+        f"All {len(checked)} certificate(s) in scope are valid at the bid due date. "
+        f"Earliest expiry: {humanise_doc_type(soonest[0].doc_type)} — {soonest[2].detail}"
+    )
+    verdict.confidence = min(f.confidence for _, f, _ in checked)
+    return verdict
+
+
+def _numeric(verdict, requirement, evidence, condition) -> Verdict:
+    """A plain threshold on a single extracted number."""
+    target = condition["field"]
+    found = evidence.first(target, requirement.accepts_document_types)
+    if found is None:
+        return _needs_review(
+            verdict,
+            f"A document of an accepted type was submitted, but '{target.replace('_', ' ')}' "
+            f"could not be read from it. Please read the value from the document.",
+        )
+    outcome = rules.compare_threshold(
+        rules.parse_amount(found.field_value),
+        condition["operator"],
+        condition["threshold"],
+        condition.get("unit", ""),
+    )
+    _cite(verdict, evidence, found)
+    verdict.outcomes = [outcome]
+    verdict.verification_method = "deterministic_calculation"
+    verdict.status = _pass_or_fail(outcome, found)
+    verdict.reasoning = outcome.detail
+    verdict.confidence = found.confidence
+    return verdict
+
+
+def _presence(verdict, requirement, evidence, routing, provider) -> Verdict:
+    """No machine-checkable condition: the document exists, but does it satisfy?
+
+    A requirement whose wording is inherently prose is the only place §7.4 lets
+    a model form an opinion — and even then the answer is advisory, so the
+    verdict is NEEDS_HUMAN_REVIEW rather than the model's own word.
+    """
+    segment = routing.segments[0]
+    present = evidence.fields(segment)
+    for f in present[:4]:
+        _cite(verdict, evidence, f)
+
+    if not present:
+        return _needs_review(
+            verdict,
+            f"{with_article(humanise_doc_type(segment.doc_type)).capitalize()} was submitted "
+            f"but nothing could be read from it. Please review the document.",
+        )
+
+    is_prose = requirement.category == "technical"
+    if is_prose:
+        # Quote the descriptive field, not whichever happened to be extracted
+        # first. A prose specification is answered by the longest prose value —
+        # a model number tells the officer nothing about materials.
+        quoted = max(present, key=lambda f: len(f.field_value or ""))
+        verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
+        verdict.verification_method = "semantic_judgement"
+        verdict.reasoning = (
+            f"This requirement is worded as a judgement rather than a measurement, so it "
+            f"is referred to you by policy. The {humanise_doc_type(segment.doc_type)} states "
+            f"under '{quoted.field_name.replace('_', ' ')}': "
+            f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
+        )
+        verdict.confidence = quoted.confidence
+        _cite(verdict, evidence, quoted)
+        return verdict
+
+    verdict.status = ComplianceStatus.COMPLIANT
+    verdict.verification_method = "document_presence"
+    verdict.reasoning = (
+        f"{with_article(humanise_doc_type(segment.doc_type)).capitalize()} was submitted and "
+        f"{len(present)} field(s) were read from it."
+    )
+    verdict.confidence = min(f.confidence for f in present)
+    if _unlocated(*present[:4]):
+        return _needs_review(
+            verdict,
+            verdict.reasoning + " The values could not be pinpointed on the page, "
+            "so please confirm them against the document.",
+        )
+    return verdict
+
+
+def _pass_or_fail(outcome: rules.RuleOutcome, *cited) -> ComplianceStatus:
+    if not outcome.passed:
+        return ComplianceStatus.NON_COMPLIANT
+    if _unlocated(*cited):
+        return ComplianceStatus.NEEDS_HUMAN_REVIEW
+    return ComplianceStatus.COMPLIANT
+
+
+def _needs_review(verdict: Verdict, reason: str, outcomes=None) -> Verdict:
+    """§21: an accepted document exists but a required field could not be read."""
+    verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
+    verdict.reasoning = reason
+    if outcomes:
+        verdict.outcomes = outcomes
+    verdict.verification_method = verdict.verification_method or "routing"
+    return verdict
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# External verification (layer 6)
+# ─────────────────────────────────────────────────────────────────────────────
+def run_external_check(
+    requirement: Requirement, evidence: BidEvidence, bidder
+) -> VerificationResult | None:
+    """Look the bidder up on the portal this requirement names, if any."""
+    portal = requirement.external_check
+    if not portal:
+        return None
+
+    identifier = {
+        "gstn": bidder.gstin,
+        "pan": bidder.pan,
+        "udyam": (evidence.first("udyam_urn") or _Empty()).field_value,
+        "mca21": (evidence.first("cin") or _Empty()).field_value,
+        "blacklist": bidder.pan,
+    }.get(portal)
+
+    if not identifier:
+        return None
+    return get_adapter(portal).verify(str(identifier), {})
+
+
+class _Empty:
+    field_value = None
+
+
+def apply_external(verdict: Verdict, result: VerificationResult | None) -> Verdict:
+    """Fold a portal answer into the verdict.
+
+    ``unavailable`` becomes UNVERIFIED, never NON_COMPLIANT: a portal being down
+    must never cost a bidder their tender (CLAUDE.md §8).
+    """
+    if result is None:
+        return verdict
+    verdict.external = result
+
+    if result.status == "unavailable":
+        verdict.status = ComplianceStatus.UNVERIFIED
+        verdict.reasoning += (
+            f" The {result.portal_id} check could not be run, so no claim is made about it."
+        )
+        return verdict
+
+    if result.status == "found" and verdict.status is ComplianceStatus.COMPLIANT:
+        verdict.reasoning += (
+            f" The {result.portal_id} adapter returned a matching record "
+            f"(source: {result.source})."
+        )
+    elif result.status == "not_found":
+        if verdict.requirement_id and verdict.status is ComplianceStatus.COMPLIANT:
+            # For a debarment register, absence is the good outcome.
+            verdict.reasoning += (
+                f" The {result.portal_id} adapter returned no record for this identifier "
+                f"(source: {result.source})."
+            )
+    return verdict

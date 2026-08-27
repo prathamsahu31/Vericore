@@ -13,15 +13,18 @@ designed. Only part of it is built.
 
 | Built and working | Specified, not yet built |
 |---|---|
-| The database that stores tenders, bidders, documents, evidence and verdicts | Reading a tender document |
-| The tamper-evident record of every action taken — including that editing or deleting an entry is refused | Matching evidence to requirements |
-| Adding bidders and uploading their documents | Cross-checking documents against each other |
-| Working out what kind of document each file is | Scoring and risk flags |
-| Reading facts out of a document and recording exactly where on the page each one came from | Reports |
+| Reading a tender into a checklist, and the confirmation step | The screens — everything below is currently reachable only through the software's interface for other programs |
+| Adding bidders and uploading their documents | Recording your decision, and your reasons for it |
+| Working out what kind of document each file is | Overriding a verdict |
+| Reading facts out of a document, and recording exactly where on the page each came from | The printable report |
+| Every check listed below | A second and third demo bidder |
+| The score, the risk level, and the reasons behind both | |
+| The tamper-evident record — including that editing or deleting an entry is refused | |
 
 The language model is currently a stand-in that reads documents with fixed
 rules rather than a real model. Everything around it — storage, page reading,
-locating values on the page, and the database — is real.
+locating values, all the arithmetic and date comparisons, the checks, the score,
+the risk flags and the database — is real.
 
 Every section below that describes a check ends with a **Status** line saying
 whether it runs today. Nothing here is claimed to work before it does. This
@@ -121,6 +124,29 @@ reached, and every decision you made, with your reason, in order, permanently.
 
 ---
 
+## Reading the tender
+
+Before any bidder can be assessed, the system reads the tender itself and turns
+its pre-qualification section into a checklist: one line per condition, each
+with the threshold it sets, whether it is mandatory, how much weight it carries,
+and — importantly — **who it applies to**.
+
+That last column matters more than it looks. Real tenders say things like "sole
+bidder or prime bidder of the consortium" for turnover, but "sole bidder or any
+consortium member" for technical experience. Those are different rules. The
+system reads that column rather than assuming, and where it can't tell, it
+takes the stricter reading and leaves you to widen it.
+
+Then it stops and waits for you. See "Who decides" below — this is the more
+important of the two places it does.
+
+**What it can't tell you:** whether a condition means what it appears to mean.
+Tender prose is often ambiguous, and the system's reading of an ambiguous clause
+is a suggestion, not an interpretation. That is exactly why you confirm the
+checklist before anything is evaluated against it.
+
+**Status:** built and working.
+
 ## The checks it performs
 
 Each check below says what it establishes, and — in the same breath — what it
@@ -178,10 +204,18 @@ In both cases the value is still recorded and still shown to you — but it is
 never allowed to produce an automatic "compliant". It goes to you to read.
 
 **What it can't tell you:** it cannot place a value on a page that has no
-readable text at all, such as a photograph of a document. Those open at the
-page, and are marked for you to read.
+readable text at all.
 
-**Status:** built and working.
+That is worth stating plainly, because it is a deliberate limit rather than an
+oversight. **This version reads typed PDFs only.** If a document is a scan or a
+photograph of a certificate, there is no text layer for the system to search,
+so every value read from it opens at the page with no outline, and none of them
+can produce an automatic "compliant" — they all come to you. Software that
+reads text off page images exists and would slot into the same step, but it
+brings its own errors, and a wrong value read confidently off a bad scan is
+worse for you than an honest "please read this one yourself".
+
+**Status:** built and working, for typed PDFs.
 
 ### Is this a real PAN, and does it belong to this kind of company?
 
@@ -195,8 +229,7 @@ something that doesn't fit their own claim, and the system says so.
 belongs to the person presenting it. It only confirms the number is
 well-formed and consistent with the company type claimed.
 
-**Status:** the PAN is read off the document and located on the page. The
-consistency checks themselves are not yet built.
+**Status:** built and working.
 
 ### Does the GST number match the PAN?
 
@@ -214,8 +247,8 @@ errors.
 or whether returns have been filed. That requires the government's own system,
 and in this version that lookup is simulated — see the last section.
 
-**Status:** the GSTIN and the PAN are both read off their documents. The
-comparison between them is not yet built.
+**Status:** built and working — the comparison runs on every bid, and a
+mismatch is raised as a finding on the submission as a whole.
 
 ### Does the company's name match across its own documents?
 
@@ -237,7 +270,7 @@ names is normal, not a red flag.
 **What it can't tell you:** whether two similarly-named companies are actually
 related. That is a judgement, and it is left to you.
 
-**Status:** not yet built.
+**Status:** built and working.
 
 ### Does the bidder meet the turnover requirement?
 
@@ -257,9 +290,12 @@ numbers, show you whose they are, and mark it as needing your judgement. It
 will not decide.
 
 **What it can't tell you:** whether the financial statements are truthful. It
-compares the figures presented against the threshold required.
+compares the figures presented against the threshold required. It also refuses
+to average an incomplete series — if the tender asks for three years and only
+two can be read, you are told that, rather than shown a two-year average
+labelled as three.
 
-**Status:** not yet built.
+**Status:** built and working.
 
 ### Has anything expired?
 
@@ -272,7 +308,10 @@ period, not treated as a failure.
 **What it can't tell you:** whether a certificate was renewed after it was
 submitted. It sees what was in the bundle.
 
-**Status:** not yet built.
+**Status:** built and working. On the demo bidder it correctly reports that the
+ISO certificate is valid on the bid due date with three days to spare — and
+separately raises, as a risk rather than a failure, that it lapses before the
+contract is due to start.
 
 ### Is the document trying to give the system instructions?
 
@@ -303,7 +342,7 @@ failure would skip a step the rules actually give you.
 **What it can't tell you:** whether the document exists and simply wasn't
 uploaded. It reports what it did and didn't receive.
 
-**Status:** not yet built.
+**Status:** built and working.
 
 ### Do the bidder's documents agree with each other?
 
@@ -316,7 +355,7 @@ whole submission rather than about one line of it.
 **What it can't tell you:** which of two contradicting documents is the correct
 one. It shows you both, and where each came from.
 
-**Status:** not yet built.
+**Status:** built and working.
 
 ### Government database checks
 
@@ -328,9 +367,45 @@ the bidder appears on any debarment list.
 is labelled as simulated everywhere it appears, including in anything you print
 or export.
 
-**Status:** not yet built.
+If one of these checks cannot be run at all, the requirement is marked
+"unverified" — never "not compliant". A register being unavailable is not
+evidence against a bidder.
+
+**Status:** built and working, against simulated data throughout.
 
 ---
+
+### The score, and separately the risk level
+
+Once every condition has a verdict, two numbers are produced. They answer
+different questions and are computed independently, so a bidder can score well
+and still be flagged as risky.
+
+**The score** is a weighted average, and nothing more. Each condition carries
+the weight the tender gave it; a met condition counts fully, one that needs your
+judgement or that could not be verified counts half, and one that is unmet or
+unevidenced counts nothing. Conditions that don't apply to a bidder are left out
+of the calculation entirely rather than counted against them.
+
+You can check the arithmetic by hand from the table on screen. That is the
+point: no model produces this number, and there is nothing inside it you cannot
+see.
+
+Separately from the score, there is a **mandatory gate**. If any condition the
+tender marked mandatory is unmet, the bidder cannot be qualified regardless of
+how high the score is — and the specific condition is named rather than buried
+behind a percentage.
+
+**The risk level** counts red flags instead: contradictions between documents,
+a company incorporated shortly before a large bid, a certificate that lapses
+before the contract starts, a debarment record. Any critical flag makes the
+whole assessment critical. Every flag that fired is listed with its reason.
+
+**What they can't tell you:** neither number is a recommendation. A high score
+is not an instruction to qualify, and a high risk level is not an instruction to
+reject — both are summaries of findings you can open and read.
+
+**Status:** built and working.
 
 ## What it cannot do
 
@@ -352,9 +427,10 @@ not identify the lowest bidder.
 that qualifies or disqualifies a bidder. That is enforced by a test, not by
 good intentions.
 
-**It cannot read what isn't there.** If a scan is illegible, the system says it
-couldn't read it and asks you to look. It does not guess a value and present
-the guess as a finding.
+**It cannot read scans or photographs.** This version reads typed PDFs only. A
+scanned or photographed document is stored and shown to you, and anything read
+from it is marked as needing your eye rather than pinpointed on the page. It
+does not guess a value and present the guess as a finding.
 
 **It cannot tell you what a condition means.** If the tender's wording is
 ambiguous, the system will extract it, show you the original sentence, and let
@@ -399,8 +475,10 @@ because the database itself refuses the operation. Each entry is sealed against
 the one before it, so removing or altering any past entry breaks the seal on
 every entry that follows and becomes visible immediately.
 
-**Status:** the permanent log and its tamper-evidence are built and working
-today. The screens described above are not yet built.
+**Status:** the checklist confirmation gate is built and enforced — verification
+refuses to run against an unconfirmed checklist, and says so. The permanent log
+and its tamper-evidence are built. The screens, the decision itself, and the
+override are not yet built.
 
 ---
 

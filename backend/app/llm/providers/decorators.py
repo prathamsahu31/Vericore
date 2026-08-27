@@ -29,7 +29,7 @@ from app.llm.types import (
 
 log = logging.getLogger(__name__)
 
-_PASSTHROUGH = {"name", "supports_native_documents", "model_id_for"}
+_PASSTHROUGH = {"name", "supports_native_documents", "is_offline", "model_id_for"}
 
 
 def _fingerprint(provider_name: str, method: str, args: tuple, kwargs: dict) -> str:
@@ -66,6 +66,10 @@ class CachedProvider:
     @property
     def supports_native_documents(self) -> bool:
         return self._inner.supports_native_documents
+
+    @property
+    def is_offline(self) -> bool:
+        return self._inner.is_offline
 
     def model_id_for(self, role: LLMRole) -> str:
         return self._inner.model_id_for(role)
@@ -151,6 +155,10 @@ class RateLimitedProvider:
     @property
     def supports_native_documents(self) -> bool:
         return self._inner.supports_native_documents
+
+    @property
+    def is_offline(self) -> bool:
+        return self._inner.is_offline
 
     def model_id_for(self, role: LLMRole) -> str:
         return self._inner.model_id_for(role)

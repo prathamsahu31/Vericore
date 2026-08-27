@@ -22,6 +22,15 @@ class LLMProvider(Protocol):
     name: str
 
     @property
+    def is_offline(self) -> bool:
+        """Whether this provider makes no network call at all.
+
+        Rate limiting exists to stay under a published API cap. A provider with
+        no API has no cap, and throttling it only makes the test suite slow.
+        """
+        ...
+
+    @property
     def supports_native_documents(self) -> bool:
         """Whether this provider accepts PDFs and images without a separate OCR step.
 
