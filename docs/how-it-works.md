@@ -13,12 +13,14 @@ designed. Only part of it is built.
 
 | Built and working | Specified, not yet built |
 |---|---|
-| Reading a tender into a checklist, and the confirmation step | The screens — everything below is currently reachable only through the software's interface for other programs |
-| Adding bidders and uploading their documents | Recording your decision, and your reasons for it |
-| Working out what kind of document each file is | Overriding a verdict |
-| Reading facts out of a document, and recording exactly where on the page each came from | The printable report |
-| Every check listed below | A second and third demo bidder |
+| Reading a tender into a checklist, and the confirmation step | The tender setup and bidder upload screens |
+| Adding bidders and uploading their documents | The printable report |
+| Working out what kind of document each file is | Signing in — there is no login yet |
+| Reading facts out of a document, and recording where on the page each came from | A second and third demo bidder |
+| Every check listed below | Reading scanned or photographed documents |
 | The score, the risk level, and the reasons behind both | |
+| The screen showing the checklist, the evidence, and the record | |
+| Accepting or overriding a verdict, with your reason | |
 | The tamper-evident record — including that editing or deleting an entry is refused | |
 
 The language model is currently a stand-in that reads documents with fixed
@@ -514,6 +516,44 @@ and its tamper-evidence are built. The screens, the decision itself, and the
 override are not yet built.
 
 ---
+
+## The screen
+
+One screen carries the work, laid out the way the job is done rather than the
+way the data is stored.
+
+**Three readings across the top.** The score, the risk level, and what is still
+outstanding — the last split into *conditions not met* and *conditions waiting
+on you*, because those are different situations and merging them would tell you
+a good bidder had failed.
+
+**Contradictions interrupt.** If the bidder's own documents disagree with each
+other, that appears as a band across the page above the checklist rather than as
+one row inside it. A contradiction is a concern about the whole submission.
+
+**The checklist.** Every condition the tender sets, grouped the way the tender
+groups them, with the verdict, who the condition applies to, and what decided
+it. Click any row.
+
+**The ledger.** Clicking a condition opens a two-column view: what the bidder
+submitted on the left, what the register returned on the right, a rule down the
+middle, and a mark in the gutter saying whether they agree. Where you have
+overridden a verdict, the system's original finding stays in the left column and
+yours sits beside it. The record shows both, always.
+
+**The bar at the bottom.** Accept or override, each opening a box for your
+reason that cannot be left blank. Beside them sits the system's read of the
+situation, set in quotation marks and labelled advisory, because it describes
+what was found rather than recommending what to do.
+
+Identifiers — GSTINs, PANs, Udyam numbers, CINs — are set in a monospaced face
+throughout. Officers read these character by character to spot mismatches, and a
+monospaced face keeps 0 apart from O and 1 apart from I, and lines the
+characters up when you are comparing two of them.
+
+Nothing on the screen tells you what to decide.
+
+**Status:** built and working.
 
 ## What is real and what is simulated in this version
 
