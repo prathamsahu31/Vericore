@@ -18,6 +18,18 @@ export function getAudit(bidId: string) {
   return get<AuditTrail>(`/bids/${bidId}/audit`);
 }
 
+export interface DocumentSummary {
+  id: string;
+  original_filename: string;
+  sha256: string;
+  page_count: number | null;
+  uploaded_at: string;
+}
+
+export function getDocuments(bidId: string) {
+  return get<DocumentSummary[]>(`/bids/${bidId}/documents`);
+}
+
 export function getDocumentFields(documentId: string) {
   return get<ExtractedField[]>(`/documents/${documentId}/fields`);
 }
