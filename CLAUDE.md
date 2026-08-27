@@ -729,3 +729,8 @@ scanned page even though Gemini reads that page perfectly well itself. Same
 tool, different job. Confirm before building it; the alternative is that every
 field on a scanned page is `page_fallback`, which is honest but makes the
 evidence ledger much less useful on exactly the documents §16 says to include.
+
+
+
+
+- Do not add `Co-Authored-By` trailers or any attribution to commit messages.
