@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: vericore-db
+    environment:
+      POSTGRES_USER: vericore
+      POSTGRES_PASSWORD: vericore
+      POSTGRES_DB: vericore
+    ports:
+      - "5432:5432"
+    volumes:
+      - vericore_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vericore -d vericore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  vericore_pgdata:
