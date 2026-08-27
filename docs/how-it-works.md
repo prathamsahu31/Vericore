@@ -519,30 +519,36 @@ override are not yet built.
 
 ## The screen
 
-One screen carries the work, laid out the way the job is done rather than the
-way the data is stored.
+One screen carries the work, and it answers three questions in order.
 
-**Three readings across the top.** The score, the risk level, and what is still
-outstanding — the last split into *conditions not met* and *conditions waiting
-on you*, because those are different situations and merging them would tell you
-a good bidder had failed.
+**Where does this bid stand?** A sentence at the top, not a dashboard of
+numbers to interpret: *"Nothing has failed — 1 item needs your decision"*, or
+*"Cannot be qualified as things stand"*, or *"Ready to qualify"*. The score, the
+risk level and the count of conditions met sit underneath as supporting detail.
 
-**Contradictions interrupt.** If the bidder's own documents disagree with each
-other, that appears as a band across the page above the checklist rather than as
-one row inside it. A contradiction is a concern about the whole submission.
+**What needs me?** An explicit list of only the unresolved conditions, each
+saying in plain words what is outstanding and what would clear it — *"The system
+would not decide this one. It is a matter of judgement rather than something
+that can be measured"*, followed by *"read the evidence and accept it, or
+override with your own verdict"*. A button on each takes you straight to it. If
+nothing is outstanding, the list is not shown at all.
 
-**The checklist.** Every condition the tender sets, grouped the way the tender
-groups them, with the verdict, who the condition applies to, and what decided
-it. Click any row.
+**What does the whole checklist say?** Every condition the tender sets, grouped
+the way the tender groups them, filterable to just the outstanding or just the
+mandatory ones.
 
-**The ledger.** Clicking a condition opens a two-column view: what the bidder
-submitted on the left, what the register returned on the right, a rule down the
-middle, and a mark in the gutter saying whether they agree. Where you have
-overridden a verdict, the system's original finding stays in the left column and
-yours sits beside it. The record shows both, always.
+Contradictions between the bidder's own documents appear as a band across the
+page rather than as a row in the table, because a contradiction is a concern
+about the whole submission.
 
-**The bar at the bottom.** Accept or override, each opening a box for your
-reason that cannot be left blank. Beside them sits the system's read of the
+**The evidence opens over the top, on request.** Clicking a condition slides in
+a panel: what the bidder submitted on the left, what the register returned on
+the right, a rule down the middle, and a mark in the gutter saying whether they
+agree. Where you have overridden a verdict, the system's original finding stays
+in the left column and yours sits beside it — the record shows both, always.
+
+**The bar along the bottom** offers Accept and Override, each opening a box for
+your reason that cannot be left blank. Beside them sits the system's read of the
 situation, set in quotation marks and labelled advisory, because it describes
 what was found rather than recommending what to do.
 

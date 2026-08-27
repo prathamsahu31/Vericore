@@ -30,12 +30,22 @@ class Settings(BaseSettings):
 
     # ── LLM ──────────────────────────────────────────────────────────────
     # Default 'stub' so a fresh clone runs keyless and offline (CLAUDE.md §14).
-    llm_provider: Literal["stub", "gemini", "anthropic"] = "stub"
-    llm_provider_extraction: Literal["stub", "gemini", "anthropic"] | None = None
-    llm_provider_reasoning: Literal["stub", "gemini", "anthropic"] | None = None
+    llm_provider: Literal["stub", "openai", "gemini", "anthropic"] = "stub"
+    llm_provider_extraction: Literal["stub", "openai", "gemini", "anthropic"] | None = None
+    llm_provider_reasoning: Literal["stub", "openai", "gemini", "anthropic"] | None = None
 
+    # Read from .env, which is the single place a key is configured.
+    openai_api_key: str | None = None
     gemini_api_key: str | None = None
     anthropic_api_key: str | None = None
+
+    def api_key_for(self, provider: str) -> str | None:
+        """The key for a provider. One lookup, so keys are never read elsewhere."""
+        return {
+            "openai": self.openai_api_key,
+            "gemini": self.gemini_api_key,
+            "anthropic": self.anthropic_api_key,
+        }.get(provider)
 
     llm_cache_dir: Path = Path(".llm_cache")
     llm_max_requests_per_minute: int = 10

@@ -19,6 +19,12 @@ from app.llm.types import LLMRole
 MODEL_IDS: dict[tuple[str, LLMRole], str] = {
     ("stub", LLMRole.EXTRACTION): "stub-extraction-v1",
     ("stub", LLMRole.REASONING): "stub-reasoning-v1",
+    # Confirmed by calling each model on 27 Aug 2026. gpt-4.1 carries a 1M
+    # context, so a 90-page tender goes in whole rather than chunked — which
+    # matters, because a pre-qualification table split across a chunk boundary
+    # loses rows silently.
+    ("openai", LLMRole.EXTRACTION): "gpt-4.1-mini",
+    ("openai", LLMRole.REASONING): "gpt-4.1",
     # Confirmed by *calling* each model on 27 Aug 2026, not by reading the
     # list endpoint — which advertises models the key cannot actually use.
     # gemini-2.5-flash and gemini-2.5-pro return 404 "no longer available to

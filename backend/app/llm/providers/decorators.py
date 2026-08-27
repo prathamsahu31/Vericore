@@ -195,9 +195,13 @@ class RateLimitedProvider:
                         backoff,
                     )
                     time.sleep(backoff)
+            # Carry the provider's own message forward. Without it the caller
+            # sees "failed after 3 attempts" and has to read a traceback to
+            # learn whether the key is wrong, the model is retired, or the
+            # account is simply out of credit.
             raise LLMError(
                 f"{item} failed after {self._max_retries} attempts; "
-                f"caller must route to NEEDS_HUMAN_REVIEW"
+                f"caller must route to NEEDS_HUMAN_REVIEW. Last error: {last}"
             ) from last
 
         return wrapper

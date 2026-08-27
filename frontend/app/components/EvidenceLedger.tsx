@@ -12,30 +12,44 @@ import { Identifier, SourceChip, StatusChip } from "./status";
  * on the same row, and a match marker in the gutter. Nothing on this screen is
  * asserted without saying where it came from.
  */
-export function EvidenceLedger({ row }: { row: ComplianceRow | null }) {
-  if (!row) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-[6px] border border-dashed border-rule p-10 text-center">
-        <p className="max-w-[36ch] text-[14px] text-ink-muted">
-          Select a condition to see the evidence behind its verdict, and where on
-          the page each value was read from.
-        </p>
-      </div>
-    );
-  }
+export function EvidenceLedger({
+  row,
+  onClose,
+}: {
+  row: ComplianceRow | null;
+  onClose: () => void;
+}) {
+  if (!row) return null;
 
   const effective = row.effective_status ?? row.status;
   const overridden = row.override_status !== null;
 
   return (
-    <div className="rounded-[6px] border border-rule bg-surface">
-      <div className="border-b border-rule px-5 py-4">
+    <div className="fixed inset-0 z-20 flex justify-end" role="dialog" aria-modal="true">
+      <button
+        aria-label="Close evidence"
+        onClick={onClose}
+        className="flex-1 bg-ink/20"
+      />
+      <div className="flex w-full max-w-[720px] flex-col overflow-y-auto border-l border-rule bg-surface">
+      <div className="sticky top-0 border-b border-rule bg-surface px-7 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <Identifier value={row.requirement_code} className="text-[12px] text-ink-faint" />
+            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+              Evidence behind this verdict
+            </p>
+            <Identifier value={row.requirement_code} className="mt-2 text-[12px] text-ink-faint" />
             <h2 className="mt-1 text-[20px] leading-snug">{row.requirement_name}</h2>
           </div>
-          <StatusChip status={effective} overridden={overridden} />
+          <div className="flex shrink-0 flex-col items-end gap-3">
+            <button
+              onClick={onClose}
+              className="rounded-[4px] border border-rule px-3 py-1.5 text-[13px] text-ink-muted"
+            >
+              Close
+            </button>
+            <StatusChip status={effective} overridden={overridden} />
+          </div>
         </div>
       </div>
 
@@ -128,6 +142,7 @@ export function EvidenceLedger({ row }: { row: ComplianceRow | null }) {
           />
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -144,7 +159,7 @@ function ColumnHeader({
   chip?: React.ReactNode;
 }) {
   return (
-    <div className={`border-b border-rule bg-paper px-5 py-2.5 ${right ? "" : "border-r"}`}>
+    <div className={`border-b border-rule bg-paper px-6 py-3 ${right ? "" : "border-r"}`}>
       <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
         {label}
         {chip}
@@ -174,14 +189,14 @@ function LedgerRow({
   const edge = last ? "" : "border-b border-rule";
   return (
     <>
-      <div className={`border-r border-rule px-5 py-4 ${edge}`}>{left}</div>
+      <div className={`border-r border-rule px-6 py-5 ${edge}`}>{left}</div>
       <div
         className={`flex items-center justify-center bg-paper text-[15px] text-ink-faint ${edge}`}
         aria-hidden
       >
         {marker}
       </div>
-      <div className={`px-5 py-4 ${edge}`}>{right}</div>
+      <div className={`px-6 py-5 ${edge}`}>{right}</div>
     </>
   );
 }

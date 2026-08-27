@@ -72,10 +72,10 @@ export function ComplianceMatrix({
 
   return (
     <section className="overflow-hidden rounded-[6px] border border-rule bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule px-7 py-4">
         <div>
-          <h2 className="text-[20px]">Requirement checklist</h2>
-          <p className="mt-0.5 text-[13px] text-ink-muted">
+          <h2 className="text-[20px]">The full checklist</h2>
+          <p className="mt-1 text-[13px] text-ink-muted">
             {summary.requirements.length} conditions from the tender ·{" "}
             {outstanding === 0 ? "all met" : `${outstanding} outstanding`}
           </p>
@@ -110,12 +110,10 @@ export function ComplianceMatrix({
         </caption>
         <thead>
           <tr className="border-b border-rule text-[11px] uppercase tracking-[0.1em] text-ink-faint">
-            <th scope="col" className="w-[86px] px-5 py-2 font-medium">Ref</th>
-            <th scope="col" className="px-3 py-2 font-medium">Condition</th>
-            <th scope="col" className="w-[112px] px-3 py-2 font-medium">Applies to</th>
-            <th scope="col" className="w-[64px] px-3 py-2 text-right font-medium">Weight</th>
-            <th scope="col" className="w-[172px] px-3 py-2 font-medium">Verdict</th>
-            <th scope="col" className="w-[132px] px-5 py-2 font-medium">Checked by</th>
+            <th scope="col" className="w-[96px] px-7 py-3 font-medium">Ref</th>
+            <th scope="col" className="px-4 py-3 font-medium">Condition</th>
+            <th scope="col" className="w-[124px] px-4 py-3 font-medium">Applies to</th>
+            <th scope="col" className="w-[176px] px-7 py-3 font-medium">Verdict</th>
           </tr>
         </thead>
         {grouped.map(([category, rows]) => (
@@ -123,8 +121,8 @@ export function ComplianceMatrix({
             <tr>
               <th
                 scope="colgroup"
-                colSpan={6}
-                className="bg-paper px-5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted"
+                colSpan={4}
+                className="bg-paper px-7 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted"
               >
                 {categoryLabel(category)}
               </th>
@@ -149,51 +147,31 @@ export function ComplianceMatrix({
                     selected ? "bg-seal-tint" : "hover:bg-paper"
                   }`}
                 >
-                  <td className="px-5 py-3">
+                  <td className="px-7 py-4">
                     <Identifier value={row.requirement_code} className="text-[13px] text-ink-muted" />
                   </td>
-                  <td className="px-3 py-3">
-                    <p className="text-[14px] leading-snug">
-                      {row.requirement_name}
-                      {row.mandatory && (
-                        <span
-                          className="ml-1.5 text-[11px] text-ink-faint"
-                          title="Mandatory condition"
-                        >
-                          (mandatory)
+                  <td className="px-4 py-4">
+                    <p className="text-[15px] leading-snug">{row.requirement_name}</p>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-faint">
+                      {row.mandatory && <span>Mandatory</span>}
+                      {Number(row.weight) > 0 && <span>Weight {Number(row.weight)}</span>}
+                      {row.external_check_portal && (
+                        <span className="flex items-center gap-1.5">
+                          <span className="identifier">{row.external_check_portal}</span>
+                          <SourceChip source={row.external_check_source} />
                         </span>
                       )}
                     </p>
-                    {row.reasoning && (
-                      <p className="mt-1 line-clamp-2 max-w-[62ch] text-[13px] text-ink-muted">
-                        {row.reasoning}
-                      </p>
-                    )}
                   </td>
-                  <td className="px-3 py-3 text-[13px] text-ink-muted">
+                  <td className="px-4 py-4 text-[13px] text-ink-muted">
                     {SCOPE_LABEL[row.applicability_scope] ?? row.applicability_scope}
                   </td>
-                  <td className="identifier px-3 py-3 text-right text-[13px] text-ink-muted">
-                    {Number(row.weight) || "—"}
-                  </td>
-                  <td className="px-3 py-3">
+                  <td className="px-7 py-4">
                     <StatusChip status={effective} overridden={overridden} />
                     {overridden && (
-                      <p className="mt-1 text-[11px] text-ink-faint">
-                        System said {row.status.replace(/_/g, " ").toLowerCase()}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <p className="text-[12px] text-ink-muted">
-                      {(row.verification_method ?? "—").replace(/_/g, " ")}
-                    </p>
-                    {row.external_check_portal && (
-                      <p className="mt-1 flex items-center gap-1.5">
-                        <span className="identifier text-[11px] text-ink-faint">
-                          {row.external_check_portal}
-                        </span>
-                        <SourceChip source={row.external_check_source} />
+                      <p className="mt-1.5 text-[11px] text-ink-faint">
+                        Recorded by you. System said{" "}
+                        {row.status.replace(/_/g, " ").toLowerCase()}.
                       </p>
                     )}
                   </td>

@@ -23,10 +23,14 @@ class UnknownProviderError(ValueError):
 def _build_base(provider_name: str) -> Any:
     if provider_name == "stub":
         return StubProvider()
+    if provider_name == "openai":
+        from app.llm.providers.openai_provider import OpenAIProvider
+
+        return OpenAIProvider(api_key=get_settings().api_key_for("openai") or "")
     if provider_name == "gemini":
         from app.llm.providers.gemini import GeminiProvider
 
-        return GeminiProvider(api_key=get_settings().gemini_api_key or "")
+        return GeminiProvider(api_key=get_settings().api_key_for("gemini") or "")
     # 'anthropic' lands here when it is implemented (§7.8).
     raise UnknownProviderError(
         f"LLM provider {provider_name!r} is configured but not implemented. "
