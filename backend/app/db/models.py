@@ -46,6 +46,16 @@ from app.db import enums
 from app.db.base import Base, created_at_col, uuid_pk
 
 
+def _jsonb() -> JSONB:
+    """JSONB where a Python ``None`` becomes SQL NULL, not the JSON value ``null``.
+
+    SQLAlchemy's default is the opposite, which is a quiet trap: a column set to
+    ``None`` then fails ``IS NULL``, and ``jsonb_array_length`` raises on it
+    rather than returning nothing. Absent should mean absent.
+    """
+    return JSONB(none_as_null=True)
+
+
 def _enum(py_enum: type, name: str) -> SAEnum:
     """Postgres native ENUM storing member *values*, not member names."""
     return SAEnum(
@@ -152,7 +162,7 @@ class Requirement(Base):
 
     raw_clause: Mapped[str | None] = mapped_column(Text)
     normalized_clause: Mapped[str | None] = mapped_column(Text)
-    condition: Mapped[dict | None] = mapped_column(JSONB)
+    condition: Mapped[dict | None] = mapped_column(_jsonb())
 
     mandatory: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
@@ -249,7 +259,7 @@ class Bid(Base):
     # ── Assessment (CLAUDE.md §10) — arithmetic, not a model output ──────
     compliance_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     mandatory_gate_passed: Mapped[bool | None] = mapped_column(Boolean)
-    score_breakdown: Mapped[dict | None] = mapped_column(JSONB)
+    score_breakdown: Mapped[dict | None] = mapped_column(_jsonb())
     risk_level: Mapped[enums.RiskLevel | None] = mapped_column(_enum(enums.RiskLevel, "risk_level"))
 
     # ── Recommendation — advisory, never a control (CLAUDE.md §11) ───────
@@ -481,7 +491,7 @@ class ExtractedField(Base):
     # Per-line rectangles when the matched span wraps across lines. The columns
     # above hold their union, which is what the viewer scrolls to; these are
     # what it outlines, so a two-line span does not highlight the text between.
-    bbox_rects: Mapped[list | None] = mapped_column(JSONB)
+    bbox_rects: Mapped[list | None] = mapped_column(_jsonb())
 
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     extraction_method: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -543,7 +553,7 @@ class Evidence(Base):
     )
     # Value snapshot at the time the verdict was formed, so a later re-extraction
     # cannot silently rewrite what an officer saw.
-    field_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    field_snapshot: Mapped[dict | None] = mapped_column(_jsonb())
     confidence: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = created_at_col()
 
@@ -674,7 +684,7 @@ class CrossDocumentFinding(Base):
 
     # Shown in the UI so a variance is never a bare boolean (CLAUDE.md §9).
     similarity_score: Mapped[float | None] = mapped_column(Float)
-    normalization_steps: Mapped[dict | None] = mapped_column(JSONB)
+    normalization_steps: Mapped[dict | None] = mapped_column(_jsonb())
 
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT")
@@ -711,7 +721,7 @@ class RiskFlag(Base):
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     # What made it fire, so the flag is traceable rather than asserted.
-    evidence_refs: Mapped[dict | None] = mapped_column(JSONB)
+    evidence_refs: Mapped[dict | None] = mapped_column(_jsonb())
     created_at: Mapped[datetime] = created_at_col()
 
     __table_args__ = (
@@ -814,7 +824,7 @@ class PortalCheck(Base):
         _enum(enums.VerificationSource, "verification_source"), nullable=False
     )
 
-    data: Mapped[dict | None] = mapped_column(JSONB)
+    data: Mapped[dict | None] = mapped_column(_jsonb())
     raw_response_hash: Mapped[str | None] = mapped_column(String(64))
     retrieved_at: Mapped[datetime] = created_at_col()
 
@@ -870,7 +880,7 @@ class AuditEvent(Base):
     previous_state: Mapped[str | None] = mapped_column(String(40))
     new_state: Mapped[str | None] = mapped_column(String(40))
     reason: Mapped[str | None] = mapped_column(Text)
-    payload: Mapped[dict | None] = mapped_column(JSONB)
+    payload: Mapped[dict | None] = mapped_column(_jsonb())
     input_hash: Mapped[str | None] = mapped_column(String(64))
 
     # Model attributability, CLAUDE.md §7.6 and §17.

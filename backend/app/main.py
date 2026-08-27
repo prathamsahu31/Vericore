@@ -38,6 +38,10 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
+    from app.api.bids import router as bids_router
+
+    app.include_router(bids_router)
+
     @app.get("/health", tags=["meta"])
     def health() -> dict:
         """Liveness only. Does not touch the database."""

@@ -12,6 +12,10 @@ dependencies = [
     "alembic>=1.14",
     "psycopg[binary]>=3.2",
     "python-multipart>=0.0.17",
+    # Native-text PDF extraction with coordinates (CLAUDE.md §3).
+    "pymupdf>=1.24",
+    # Fuzzy matching for the evidence locator and name comparison (§3, §9).
+    "rapidfuzz>=3.9",
 ]
 
 [project.optional-dependencies]
