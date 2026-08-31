@@ -14,6 +14,10 @@ from app.api.schemas import (
     AuditEventOut,
     AuditTrailOut,
     ChainIntegrityOut,
+    ComparisonBidder,
+    ComparisonCell,
+    ComparisonOut,
+    ComparisonRow,
     ComplianceRowOut,
     FindingOut,
     ReviewRequest,
@@ -199,4 +203,98 @@ def get_audit_trail(bid_id: uuid.UUID, db: DbSession) -> AuditTrailOut:
     return AuditTrailOut(
         integrity=ChainIntegrityOut(**integrity.__dict__),
         events=[AuditEventOut.model_validate(e) for e in events],
+    )
+
+
+@router.get("/tenders/{tender_id}/comparison", response_model=ComparisonOut)
+def compare(tender_id: uuid.UUID, db: DbSession) -> ComparisonOut:
+    """Every bidder on one tender, side by side, conditions as rows.
+
+    The shortlisting view (architecture.md §9.4). It reports where the bidders
+    differ and does not rank them: ordering bidders by score would be the system
+    expressing a preference, and it has none.
+    """
+    tender = db.get(Tender, tender_id)
+    if tender is None:
+        raise NotFoundError(f"Tender {tender_id} not found")
+
+    bids = list(
+        db.execute(select(Bid).where(Bid.tender_id == tender_id).order_by(Bid.created_at)).scalars()
+    )
+    requirements = list(
+        db.execute(
+            select(Requirement)
+            .where(Requirement.tender_id == tender_id)
+            .order_by(Requirement.display_order)
+        ).scalars()
+    )
+
+    columns: list[ComparisonBidder] = []
+    results: dict[uuid.UUID, dict[uuid.UUID, ComplianceResult]] = {}
+
+    for bid in bids:
+        member = (
+            db.execute(
+                select(BidMember).where(BidMember.bid_id == bid.id).order_by(BidMember.member_order)
+            )
+            .scalars()
+            .first()
+        )
+        bidder = db.get(Bidder, member.bidder_id) if member else None
+        breakdown = bid.score_breakdown or {}
+        rows = {
+            r.requirement_id: r
+            for r in db.execute(
+                select(ComplianceResult).where(ComplianceResult.bid_id == bid.id)
+            ).scalars()
+        }
+        results[bid.id] = rows
+        columns.append(
+            ComparisonBidder(
+                bid_id=bid.id,
+                bidder_name=bidder.legal_name if bidder else "(unknown)",
+                compliance_score=bid.compliance_score,
+                risk_level=bid.risk_level,
+                mandatory_failed=breakdown.get("mandatory_failed", []),
+                pending_review=breakdown.get("pending_review", []),
+                qualifiable=bool(breakdown.get("qualifiable", False)),
+                verified=bool(rows),
+            )
+        )
+
+    comparison_rows: list[ComparisonRow] = []
+    for requirement in requirements:
+        cells: list[ComparisonCell] = []
+        for bid in bids:
+            result = results[bid.id].get(requirement.id)
+            cells.append(
+                ComparisonCell(
+                    bid_id=bid.id,
+                    status=result.status if result else None,
+                    effective_status=(
+                        effective_status(result.status, result.override_status) if result else None
+                    ),
+                    overridden=bool(result and result.override_status),
+                )
+            )
+        distinct = {c.effective_status for c in cells if c.effective_status is not None}
+        comparison_rows.append(
+            ComparisonRow(
+                requirement_code=requirement.code,
+                requirement_name=requirement.name,
+                category=requirement.category,
+                mandatory=requirement.mandatory,
+                weight=requirement.weight,
+                applicability_scope=requirement.applicability_scope,
+                cells=cells,
+                differentiating=len(distinct) > 1,
+            )
+        )
+
+    return ComparisonOut(
+        tender_id=tender.id,
+        tender_title=tender.title,
+        bid_due_date=tender.bid_due_date,
+        bidders=columns,
+        requirements=comparison_rows,
     )

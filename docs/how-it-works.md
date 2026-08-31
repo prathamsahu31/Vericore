@@ -470,6 +470,26 @@ reject — both are summaries of findings you can open and read.
 
 **Status:** built and working.
 
+## Comparing bidders
+
+When more than one bidder has been assessed, a second screen puts them side by
+side: the tender's conditions down the left, one column per bidder, and each
+bidder's standing where they meet.
+
+The useful part is a filter that hides every condition on which the bidders all
+land in the same place. On the demo tender that leaves six rows out of fifteen —
+those six are what a shortlisting decision actually turns on, and the other nine
+are noise for that purpose.
+
+Bidders appear in the order they bid. The screen does not sort them by score,
+and there is no "best" column. Ordering bidders would be the system expressing a
+preference between them, and it does not have one.
+
+**What it can't tell you:** which bidder to choose. It shows you where they
+differ.
+
+**Status:** built and working.
+
 ## What it cannot do
 
 Stated plainly, because these limits are real and shouldn't be discovered

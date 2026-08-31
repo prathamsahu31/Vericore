@@ -313,3 +313,49 @@ class ChainIntegrityOut(BaseModel):
 class AuditTrailOut(BaseModel):
     integrity: ChainIntegrityOut
     events: list[AuditEventOut]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comparison across bidders (architecture.md §9.4)
+# ─────────────────────────────────────────────────────────────────────────────
+class ComparisonBidder(BaseModel):
+    """One column of the comparison table."""
+
+    bid_id: uuid.UUID
+    bidder_name: str
+    compliance_score: Decimal | None
+    risk_level: RiskLevel | None
+    mandatory_failed: list[str] = Field(default_factory=list)
+    pending_review: list[str] = Field(default_factory=list)
+    qualifiable: bool = False
+    verified: bool = False
+
+
+class ComparisonCell(BaseModel):
+    """One bidder's standing on one condition."""
+
+    bid_id: uuid.UUID
+    status: ComplianceStatus | None
+    effective_status: ComplianceStatus | None
+    overridden: bool = False
+
+
+class ComparisonRow(BaseModel):
+    requirement_code: str
+    requirement_name: str
+    category: str | None
+    mandatory: bool
+    weight: Decimal
+    applicability_scope: ApplicabilityScope
+    cells: list[ComparisonCell] = Field(default_factory=list)
+    #: True when the bidders do not all land in the same place. This is the
+    #: column worth reading first when shortlisting.
+    differentiating: bool = False
+
+
+class ComparisonOut(BaseModel):
+    tender_id: uuid.UUID
+    tender_title: str
+    bid_due_date: date | None
+    bidders: list[ComparisonBidder] = Field(default_factory=list)
+    requirements: list[ComparisonRow] = Field(default_factory=list)

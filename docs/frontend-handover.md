@@ -64,13 +64,14 @@ need judgement.
 | 3 | Compliance dashboard | `/bids/[bidId]` | Built |
 | 4 | Findings & evidence | `/bids/[bidId]/findings` | Built |
 | 5 | Audit trail | `/bids/[bidId]/audit` | Built |
+| 6 | Comparison across bidders | `/tenders/[tenderId]` | Built |
 | — | Landing | `/` | Placeholder only |
 
 **Screens 1 and 2 are the work in front of you.** Every endpoint they need
 already exists and is tested; only the interface is missing. Until they are
 built, tenders and bids are created through the API.
 
-There is no bidder-comparison screen and no report export yet.
+There is no report export yet.
 
 ---
 
@@ -119,6 +120,7 @@ POST   /bids/{id}/verify                         -> VerificationSummary
 GET    /bids/{id}/compliance                     -> VerificationSummary
 POST   /bids/{id}/review                         -> VerificationSummary
 GET    /bids/{id}/audit                          -> AuditTrailOut
+GET    /tenders/{id}/comparison                  -> ComparisonOut
 ```
 
 `POST /review` returns the **whole updated summary**, so re-render from its

@@ -120,3 +120,43 @@ export interface AuditTrail {
   };
   events: AuditEvent[];
 }
+
+
+// ── Comparison across bidders (architecture.md §9.4) ────────────────────────
+export interface ComparisonBidder {
+  bid_id: string;
+  bidder_name: string;
+  compliance_score: string | null;
+  risk_level: RiskLevel | null;
+  mandatory_failed: string[];
+  pending_review: string[];
+  qualifiable: boolean;
+  verified: boolean;
+}
+
+export interface ComparisonCell {
+  bid_id: string;
+  status: ComplianceStatus | null;
+  effective_status: ComplianceStatus | null;
+  overridden: boolean;
+}
+
+export interface ComparisonRow {
+  requirement_code: string;
+  requirement_name: string;
+  category: string | null;
+  mandatory: boolean;
+  weight: string;
+  applicability_scope: string;
+  cells: ComparisonCell[];
+  /** The bidders do not all land in the same place on this condition. */
+  differentiating: boolean;
+}
+
+export interface Comparison {
+  tender_id: string;
+  tender_title: string;
+  bid_due_date: string | null;
+  bidders: ComparisonBidder[];
+  requirements: ComparisonRow[];
+}

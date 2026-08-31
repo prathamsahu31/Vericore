@@ -1,4 +1,9 @@
-import type { AuditTrail, ExtractedField, VerificationSummary } from "./types";
+import type {
+  AuditTrail,
+  Comparison,
+  ExtractedField,
+  VerificationSummary,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -12,6 +17,10 @@ async function get<T>(path: string): Promise<T> {
 
 export function getCompliance(bidId: string) {
   return get<VerificationSummary>(`/bids/${bidId}/compliance`);
+}
+
+export function getComparison(tenderId: string) {
+  return get<Comparison>(`/tenders/${tenderId}/comparison`);
 }
 
 export function getAudit(bidId: string) {

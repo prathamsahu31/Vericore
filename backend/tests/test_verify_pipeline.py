@@ -367,3 +367,82 @@ def test_re_running_replaces_verdicts_without_duplicating_them(client, verified)
     again = client.post(f"/bids/{verified['bid_id']}/verify").json()
     assert len(again["requirements"]) == len(verified["requirements"])
     assert again["compliance_score"] == verified["compliance_score"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comparison across bidders (architecture.md §9.4)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_comparison_lists_every_bidder_and_every_condition(client, tender, verified):
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    assert len(comparison["bidders"]) >= 1
+    assert len(comparison["requirements"]) == 15
+    for row in comparison["requirements"]:
+        assert len(row["cells"]) == len(comparison["bidders"])
+
+
+def test_comparison_marks_the_conditions_where_bidders_differ(client, tender, verified):
+    """The column worth reading first when shortlisting."""
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    # With one bidder nothing can differ; the flag must still be present and false.
+    assert all("differentiating" in row for row in comparison["requirements"])
+    if len(comparison["bidders"]) == 1:
+        assert not any(row["differentiating"] for row in comparison["requirements"])
+
+
+def test_comparison_does_not_rank_bidders(client, tender, verified):
+    """Ordering by score would be the system expressing a preference.
+
+    CLAUDE.md §2: the officer decides. Presenting bidders best-first is a
+    recommendation dressed as a layout.
+    """
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    payload = client.get(f"/tenders/{tender['id']}/comparison").text
+    assert "rank" not in payload.lower()
+    # Bid order, not score order.
+    assert [b["bid_id"] for b in comparison["bidders"]] == sorted(
+        [b["bid_id"] for b in comparison["bidders"]],
+        key=lambda x: [b["bid_id"] for b in comparison["bidders"]].index(x),
+    )
+
+
+def test_comparison_reports_both_gates_per_bidder(client, tender, verified):
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    bidder = comparison["bidders"][0]
+    assert "mandatory_failed" in bidder
+    assert "pending_review" in bidder
+    assert "qualifiable" in bidder
+
+
+def test_comparison_shows_the_officers_verdict_where_one_exists(client, tender, verified, conn):
+    """The effective status is what the cell shows; the override is marked."""
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('cmp@example.gov.in', 'Comparison Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "Materials confirmed against the tender clause.",
+        },
+    )
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    row = next(r for r in comparison["requirements"] if r["requirement_code"] == "REQ-010")
+    cell = next(c for c in row["cells"] if c["bid_id"] == verified["bid_id"])
+    assert cell["status"] == ComplianceStatus.NEEDS_HUMAN_REVIEW  # machine, kept
+    assert cell["effective_status"] == ComplianceStatus.COMPLIANT  # officer, counted
+    assert cell["overridden"] is True
+
+
+def test_comparison_of_an_unknown_tender_is_a_clean_404(client):
+    import uuid as _uuid
+
+    response = client.get(f"/tenders/{_uuid.uuid4()}/comparison")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"
