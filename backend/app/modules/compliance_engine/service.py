@@ -140,7 +140,12 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
         db.flush()
 
         verdict = engine.evaluate(
-            requirement, evidence, due_date, provider, lead_member_id=lead_member_id
+            requirement,
+            evidence,
+            due_date,
+            provider,
+            lead_member_id=lead_member_id,
+            bidder_name=bidder.legal_name,
         )
         external = engine.run_external_check(requirement, evidence, bidder)
         verdict = engine.apply_external(verdict, external)

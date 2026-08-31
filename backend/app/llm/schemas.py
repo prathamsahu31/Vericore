@@ -75,6 +75,12 @@ DOCUMENT_SCHEMAS: dict[str, dict[str, str]] = {
         "emd_amount": "Amount of the earnest money deposit",
         "valid_until": "Validity of the instrument",
     },
+    "holding_company_undertaking": {
+        "legal_name": "Name of the bidding entity",
+        "holding_company_name": "Name of the holding company whose resources are relied on",
+        "shareholding_percent": "Holding company's shareholding in the bidder",
+        "board_resolution_ref": "Board resolution reference",
+    },
     "financial_statement": {
         "legal_name": "Name of the entity the statement belongs to",
         "turnover_fy1": "Turnover for the most recent financial year shown",

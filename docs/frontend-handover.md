@@ -323,23 +323,18 @@ been run against real documents; see §13.
 
 ## 12. Demo data
 
-One tender and **one bidder** exist:
+One tender and **three bidders**, each built to exercise different states so you
+have real data for every case the dashboard has to render.
 
-- **Bidder A — ABC Infrastructure Private Limited**, 11 documents, deliberately
-  clean. Score 83.61, risk LOW, one outstanding item (`REQ-010`, a materials
-  specification referred to the officer). Accepting it takes the bid to 91.80
-  and `qualifiable: true`.
+| | Bidder | What it shows |
+|---|---|---|
+| **A** | ABC Infrastructure Private Limited | Clean. One `NEEDS_HUMAN_REVIEW` on a materials specification. Accepting it makes the bid `qualifiable`. |
+| **B** | ABC Engineers Private Limited | Clearly problematic. Turnover shortfall (`NON_COMPLIANT`), lapsed ISO certificate (`EXPIRED`), no OEM letter (`MISSING_EVIDENCE`), a name that differs between the PAN card and the GST certificate, and a GSTIN embedding a different PAN than the card shows — a critical contradiction. Expect the red band and a high risk level. |
+| **C** | Coastal Marine Works Private Limited | Genuinely ambiguous. Every document is in order; the turnover certificate belongs to its holding company. The figure passes, the entity does not, so it routes to the officer naming the other company. |
 
-**Bidders B and C do not exist yet.** Until they do you will not see a
-`NON_COMPLIANT` row, an `EXPIRED` row, or the red contradiction band on the
-dashboard — Bidder A is consistent by construction. Build those states from the
-type definitions rather than waiting for data; B is the clearly-problematic
-bidder and C the genuinely ambiguous one.
-
-Regenerate fixtures with `python scripts/generate_fixtures.py` and
-`scripts/generate_tender.py` from `backend/`.
-
----
+Regenerate with `python scripts/generate_fixtures.py` and
+`scripts/generate_tender.py` from `backend/`. Run all three end to end with
+`python scripts/run_demo.py`.
 
 ## 13. Known gaps
 
@@ -353,7 +348,6 @@ Honest list, so nothing is discovered late.
   gate in screen 1 is supposed to show each requirement beside the source text
   it came from; the backend does not supply the page yet. Design the screen for
   it, and expect it to arrive.
-- **Bidders B and C missing.**
 - **Scanned documents are not read.** Typed PDFs only, by decision. A scan
   yields `page_fallback` for every value on it.
 - **Merged-PDF splitting is not implemented**, and neither is the segmentation

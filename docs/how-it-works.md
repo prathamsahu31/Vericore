@@ -280,6 +280,28 @@ related. That is a judgement, and it is left to you.
 
 **Status:** built and working.
 
+### Does the evidence actually belong to this bidder?
+
+A turnover certificate that clears the threshold four times over is worth
+nothing if it was issued to a different company.
+
+This is Bidder C's situation, and it is deliberately not a trick. Coastal
+Marine Works is a real bidder with real documents; its turnover certificate
+belongs to its parent, Coastal Holdings, and the bundle includes a signed
+undertaking and a board resolution in which the parent accepts liability. Oil
+sector tenders do permit this. Whether *this* tender permits it is a policy
+question.
+
+So the system does not pass it and does not fail it. It says: this rests on a
+certificate issued to Coastal Holdings Limited, which is not the bidding entity,
+and that is a decision for you. The arithmetic is shown, the other company is
+named, and the undertaking is there to read.
+
+**What it can't tell you:** whether the parent's backing is acceptable under the
+tender's terms. That is a reading of the tender, not of the documents.
+
+**Status:** built and working.
+
 ### Does the bidder meet the turnover requirement?
 
 The system reads the yearly turnover figures out of the audited accounts or the

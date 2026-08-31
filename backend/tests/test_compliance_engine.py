@@ -556,3 +556,122 @@ def test_every_assessment_states_which_flags_fired():
     s = seg("incorporation_certificate")
     ev = index((s, [fld(s, "incorporation_date", "01/03/2026")]))
     assert "signal(s) fired" in _assess(evidence=ev).rationale
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Evidence attribution — Bidder C's holding-company case (CLAUDE.md §16)
+# ─────────────────────────────────────────────────────────────────────────────
+def _turnover_requirement():
+    return req(
+        accepts_document_types=["ca_turnover_certificate"],
+        condition={
+            "field": "average_annual_turnover",
+            "operator": ">=",
+            "threshold": 1000000000,
+            "period_years": 3,
+        },
+    )
+
+
+def _turnover_evidence(entity: str):
+    s = seg("ca_turnover_certificate")
+    return index(
+        (
+            s,
+            [
+                fld(s, "legal_name", entity),
+                fld(s, "turnover_fy1", "Rs. 3,60,00,00,000"),
+                fld(s, "turnover_fy2", "Rs. 3,40,00,00,000"),
+                fld(s, "turnover_fy3", "Rs. 3,20,00,00,000"),
+            ],
+        )
+    )
+
+
+def test_turnover_belonging_to_the_bidder_is_compliant():
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Marine Works Private Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.COMPLIANT
+
+
+def test_turnover_belonging_to_the_holding_company_goes_to_the_officer():
+    """The figure clears the threshold four times over — on someone else's money.
+
+    Nothing upstream objects: the arithmetic is right and the certificate is
+    genuine. A silent COMPLIANT here would answer a question the tender never
+    asked.
+    """
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Holdings Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.NEEDS_HUMAN_REVIEW
+    assert "Coastal Holdings Limited" in verdict.reasoning
+    assert "not the bidding entity" in verdict.reasoning
+
+
+def test_attribution_does_not_fail_the_requirement():
+    """It is a judgement call, not a shortfall. Real tenders permit this."""
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Holdings Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is not ComplianceStatus.NON_COMPLIANT
+
+
+def test_a_spelling_variant_of_the_bidders_own_name_still_passes():
+    """Normalisation runs first, so 'Pvt Ltd' against 'Private Limited' is fine."""
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Marine Works Pvt Ltd"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.COMPLIANT
+
+
+def test_attribution_never_upgrades_a_failing_verdict():
+    """It can only route a pass to review; it cannot rescue a shortfall."""
+    s = seg("ca_turnover_certificate")
+    ev = index(
+        (
+            s,
+            [
+                fld(s, "legal_name", "ABC Engineers Private Limited"),
+                fld(s, "turnover_fy1", "Rs. 65,00,00,000"),
+                fld(s, "turnover_fy2", "Rs. 62,00,00,000"),
+                fld(s, "turnover_fy3", "Rs. 59,00,00,000"),
+            ],
+        )
+    )
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        ev,
+        DUE,
+        PROVIDER,
+        bidder_name="ABC Engineers Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.NON_COMPLIANT
+
+
+def test_without_a_bidder_name_attribution_is_skipped_rather_than_guessed():
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Someone Else Entirely Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name=None,
+    )
+    assert verdict.status is ComplianceStatus.COMPLIANT

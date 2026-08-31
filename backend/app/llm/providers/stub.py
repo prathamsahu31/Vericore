@@ -151,6 +151,12 @@ PATTERNS: dict[str, FieldPatterns] = {
         ("emd_amount", _p(rf"(?P<span>EMD Amount\s*:\s*(?P<value>{_AMOUNT}))")),
         ("valid_until", _p(rf"(?P<span>Valid Until\s*:\s*(?P<value>{_DATE}))")),
     ],
+    "holding_company_undertaking": [
+        ("legal_name", _p(r"(?P<span>Bidding Entity\s*:\s*(?P<value>.+))")),
+        ("holding_company_name", _p(r"(?P<span>Holding Company\s*:\s*(?P<value>.+))")),
+        ("shareholding_percent", _p(r"(?P<span>Shareholding\s*:\s*(?P<value>\d+)\s*percent)")),
+        ("board_resolution_ref", _p(r"(?P<span>Board Resolution Reference\s*:\s*(?P<value>\S+))")),
+    ],
     "financial_statement": [
         ("legal_name", _p(r"(?P<span>Name of (?:Entity|Company)\s*:\s*(?P<value>.+))")),
         ("turnover_fy1", _p(rf"(?P<span>FY\s?20\d\d-\d\d\s*:\s*(?P<value>{_AMOUNT}))")),
@@ -160,6 +166,10 @@ PATTERNS: dict[str, FieldPatterns] = {
 
 # Keyword rules for page classification. First match wins, so order matters.
 CLASSIFY_RULES: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "holding_company_undertaking",
+        re.compile(r"letter of undertaking|holding company", re.I),
+    ),
     ("ca_turnover_certificate", re.compile(r"statement of turnover|chartered accountant", re.I)),
     ("iso_certificate", re.compile(r"iso 9001|quality management system", re.I)),
     ("oem_authorisation", re.compile(r"manufacturer's authorisation|authorised party", re.I)),

@@ -78,14 +78,72 @@ def _unlocated(*fields) -> bool:
     )
 
 
+# Fields that name the entity a document belongs to.
+ATTRIBUTION_FIELDS = ("legal_name", "enterprise_name")
+
+
 def evaluate(
     requirement: Requirement,
     evidence: BidEvidence,
     bid_due_date: date,
     provider,
     lead_member_id: uuid.UUID | None = None,
+    bidder_name: str | None = None,
 ) -> Verdict:
     """Assign one of the nine states to one requirement."""
+    verdict = _evaluate(requirement, evidence, bid_due_date, provider, lead_member_id)
+    return _check_attribution(verdict, evidence, bidder_name)
+
+
+def _check_attribution(verdict: Verdict, evidence: BidEvidence, bidder_name: str | None) -> Verdict:
+    """Evidence has to belong to the bidder.
+
+    A turnover certificate issued to the bidder's holding company clears the
+    threshold on someone else's money. The figure is real and the arithmetic is
+    right, so nothing upstream objects — and a silent COMPLIANT would be the
+    system answering a question the tender never asked.
+
+    Whether a parent's resources may be relied on is a policy judgement that
+    real tenders decide case by case, so this does not fail the requirement. It
+    routes to the officer, naming the other entity, which is the same treatment
+    §21 gives a required field that could not be read and §24 gives a value that
+    could not be placed on its page.
+    """
+    if verdict.status is not ComplianceStatus.COMPLIANT or not bidder_name:
+        return verdict
+
+    for segment_id in verdict.segment_ids:
+        segment = next((s for s in evidence.segments if s.id == segment_id), None)
+        if segment is None:
+            continue
+        for field_name in ATTRIBUTION_FIELDS:
+            named = evidence.field(segment, field_name)
+            if named is None or not named.field_value:
+                continue
+            outcome = rules.compare_legal_names(named.field_value, bidder_name)
+            if outcome.passed:
+                continue
+            verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
+            verdict.outcomes = [*verdict.outcomes, outcome]
+            verdict.reasoning = (
+                f"{verdict.reasoning} However, this rests on a "
+                f"{humanise_doc_type(segment.doc_type)} issued to "
+                f"'{named.field_value}', which is not the bidding entity "
+                f"('{bidder_name}'). Whether that entity's standing may be relied "
+                f"on is a decision for you, not for this system."
+            ).strip()
+            return verdict
+    return verdict
+
+
+def _evaluate(
+    requirement: Requirement,
+    evidence: BidEvidence,
+    bid_due_date: date,
+    provider,
+    lead_member_id: uuid.UUID | None = None,
+) -> Verdict:
+    """Dispatch to the check the requirement's condition calls for."""
     verdict = Verdict(
         requirement_id=requirement.id,
         status=ComplianceStatus.MISSING_EVIDENCE,
