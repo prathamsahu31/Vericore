@@ -112,10 +112,17 @@ def _check_attribution(verdict: Verdict, evidence: BidEvidence, bidder_name: str
     if verdict.status is not ComplianceStatus.COMPLIANT or not bidder_name:
         return verdict
 
-    for segment_id in verdict.segment_ids:
-        segment = next((s for s in evidence.segments if s.id == segment_id), None)
-        if segment is None:
-            continue
+    # Only segments that actually contributed a cited value. A wildcard
+    # requirement routes to every segment in the bundle, and one outside
+    # document among them should not colour a verdict that never read it.
+    cited = set(verdict.field_ids)
+    contributing = [
+        segment
+        for segment in evidence.segments
+        if any(f.id in cited for f in evidence.fields(segment))
+    ]
+
+    for segment in contributing:
         for field_name in ATTRIBUTION_FIELDS:
             named = evidence.field(segment, field_name)
             if named is None or not named.field_value:
@@ -125,13 +132,22 @@ def _check_attribution(verdict: Verdict, evidence: BidEvidence, bidder_name: str
                 continue
             verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
             verdict.outcomes = [*verdict.outcomes, outcome]
-            verdict.reasoning = (
-                f"{verdict.reasoning} However, this rests on a "
-                f"{humanise_doc_type(segment.doc_type)} issued to "
-                f"'{named.field_value}', which is not the bidding entity "
-                f"('{bidder_name}'). Whether that entity's standing may be relied "
-                f"on is a decision for you, not for this system."
-            ).strip()
+            if outcome.working.get("needs_human"):
+                # Close, but not the same. Possibly one company's inconsistent
+                # paperwork, possibly two companies — not for us to decide (§9).
+                note = (
+                    f"However, this rests on a {humanise_doc_type(segment.doc_type)} "
+                    f"naming '{named.field_value}', while the bidder is registered as "
+                    f"'{bidder_name}'. Please confirm they are the same company."
+                )
+            else:
+                note = (
+                    f"However, this rests on a {humanise_doc_type(segment.doc_type)} "
+                    f"issued to '{named.field_value}', which is not the bidding entity "
+                    f"('{bidder_name}'). Whether that entity's standing may be relied "
+                    f"on is a decision for you, not for this system."
+                )
+            verdict.reasoning = f"{verdict.reasoning} {note}".strip()
             return verdict
     return verdict
 

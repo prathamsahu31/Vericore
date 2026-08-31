@@ -56,7 +56,45 @@ def assess(
     flags += _expiring_certificates(evidence, bid_due_date, contract_start_date)
     flags += _unverifiable(verdicts)
 
+    flags = _one_per_code(flags)
     return RiskAssessment(level=_band(flags), flags=flags, rationale=_rationale(flags))
+
+
+def _one_per_code(flags: list[RiskFlag]) -> list[RiskFlag]:
+    """Collapse repeats of the same signal into a single flag.
+
+    A bidder whose PAN differs from the one embedded in their GSTIN produces
+    that finding once per document the PAN appears in — three times, for the
+    same underlying problem. ``risk_flags`` is unique on (bid_id, code)
+    precisely so the officer reads one line per *kind* of concern, and the
+    counted bands in §10 would otherwise treat one problem as several.
+
+    The surviving flag keeps the highest severity seen and lists every
+    description, so nothing is lost in the merge.
+    """
+    merged: dict[str, RiskFlag] = {}
+    order = [Severity.INFO, Severity.WARNING, Severity.HIGH, Severity.CRITICAL]
+
+    for flag in flags:
+        existing = merged.get(flag.code)
+        if existing is None:
+            merged[flag.code] = flag
+            continue
+        descriptions = existing.evidence_refs.get("occurrences", [existing.description])
+        if flag.description not in descriptions:
+            descriptions = [*descriptions, flag.description]
+        merged[flag.code] = RiskFlag(
+            code=flag.code,
+            category=existing.category,
+            severity=max(existing.severity, flag.severity, key=order.index),
+            description=(
+                descriptions[0]
+                if len(descriptions) == 1
+                else f"{len(descriptions)} occurrences. " + " ".join(descriptions)
+            ),
+            evidence_refs={**existing.evidence_refs, "occurrences": descriptions},
+        )
+    return list(merged.values())
 
 
 def _from_cross_document(findings: list) -> list[RiskFlag]:

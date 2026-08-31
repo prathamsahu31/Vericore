@@ -675,3 +675,90 @@ def test_without_a_bidder_name_attribution_is_skipped_rather_than_guessed():
         bidder_name=None,
     )
     assert verdict.status is ComplianceStatus.COMPLIANT
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cross-document comparison across entities (CLAUDE.md §9, §20)
+# ─────────────────────────────────────────────────────────────────────────────
+def _bidder(name: str):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(legal_name=name)
+
+
+def test_a_different_companys_document_is_not_a_contradiction():
+    """Bidder C: the holding company's certificate names the holding company.
+
+    §20 states this rule for consortium members — consistency is checked within
+    each member's own documents, because getting it backwards "would flag every
+    consortium as fraudulent". A parent company is the same situation.
+    """
+    own, holding = seg("pan_card"), seg("ca_turnover_certificate")
+    ev = index(
+        (
+            own,
+            [
+                fld(own, "pan", "AADCC3344M"),
+                fld(own, "legal_name", "Coastal Marine Works Private Limited"),
+            ],
+        ),
+        (
+            holding,
+            [
+                fld(holding, "pan", "AAACH7788P"),
+                fld(holding, "legal_name", "Coastal Holdings Limited"),
+            ],
+        ),
+    )
+    findings = cross_document.run(ev, _bidder("Coastal Marine Works Private Limited"))
+
+    assert not any(f.finding_type == "pan_mismatch" for f in findings)
+    notice = next(f for f in findings if f.finding_type == "evidence_from_another_entity")
+    assert "Coastal Holdings Limited" in notice.description
+    # A judgement for the officer, not an accusation.
+    assert notice.severity is Severity.HIGH
+
+
+def test_a_near_match_name_stays_the_bidders_own_document():
+    """Bidder B: 'ABC Engineering Pvt Ltd' on the card, 'ABC Engineers' registered.
+
+    Close but not identical is the middle case of §9 — the bidder's own
+    paperwork, inconsistently filled in. Its values must still be compared, or
+    the GSTIN/PAN check never runs on them.
+    """
+    card, gst = seg("pan_card"), seg("gst_certificate")
+    ev = index(
+        (
+            card,
+            [fld(card, "pan", "AABCE5678K"), fld(card, "legal_name", "ABC Engineering Pvt Ltd")],
+        ),
+        (
+            gst,
+            [
+                fld(gst, "gstin", "33AABCE9999K1ZX"),
+                fld(gst, "legal_name", "ABC Engineers Private Limited"),
+            ],
+        ),
+    )
+    findings = cross_document.run(ev, _bidder("ABC Engineers Private Limited"))
+
+    assert any(f.finding_type == "legal_name_variance" for f in findings)
+    assert not any(f.finding_type == "evidence_from_another_entity" for f in findings)
+    # The card was kept in scope, so the embedded-PAN check still fired.
+    assert any(f.finding_type == "gstin_pan_mismatch" for f in findings)
+
+
+def test_the_same_difference_is_reported_once():
+    """One name, appearing in five documents, is one problem — not five."""
+    segments = [seg("pan_card"), seg("gst_certificate"), seg("iso_certificate")]
+    pairs = [(s, [fld(s, "legal_name", "ABC Engineering Pvt Ltd")]) for s in segments]
+    findings = cross_document.run(index(*pairs), _bidder("ABC Engineers Private Limited"))
+    variances = [f for f in findings if f.finding_type == "legal_name_variance"]
+    assert len(variances) == 1
+
+
+def test_an_outside_entitys_document_does_not_fail_the_consistency_requirement():
+    """It routes to the officer. Turning a judgement call into a hard failure
+    would make Bidder C look fraudulent rather than ambiguous."""
+    assert "evidence_from_another_entity" not in cross_document.CONTRADICTION_TYPES
+    assert "gstin_pan_mismatch" in cross_document.CONTRADICTION_TYPES

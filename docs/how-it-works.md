@@ -275,6 +275,25 @@ For a consortium bid, this comparison happens *within* each member company's
 own documents. Two different companies in a consortium having two different
 names is normal, not a red flag.
 
+There are three possible readings, and the system keeps them apart rather than
+forcing a yes or no:
+
+- **The same name**, once spelling and legal suffixes are set aside. Nothing to
+  report.
+- **Close, but not the same** — "ABC Engineering Pvt Ltd" against "ABC Engineers
+  Private Limited". This is treated as the bidder's own document with
+  inconsistent paperwork. Its contents are still checked, and the difference is
+  put in front of you.
+- **Not the same company at all** — "Coastal Holdings Limited" against "Coastal
+  Marine Works Private Limited". That document's name and tax numbers are set
+  aside rather than compared, because a different company's details differing
+  is not a contradiction. You are told the document is in the bundle and whose
+  it is.
+
+That middle case is the one that matters. Treat it as the same company and a
+substituted identity slips through; treat it as different and every clerical
+variation reads as fraud.
+
 **What it can't tell you:** whether two similarly-named companies are actually
 related. That is a judgement, and it is left to you.
 

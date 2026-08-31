@@ -273,8 +273,19 @@ def _clear_previous(db: Session, bid_id: uuid.UUID) -> None:
 
 
 def _apply_findings(verdicts, requirements, findings):
-    """A contradiction makes the consistency requirement INCONSISTENT."""
-    blocking = [f for f in findings if f.severity.value in ("critical", "high")]
+    """A contradiction makes the consistency requirement INCONSISTENT.
+
+    Only a contradiction *within the bidder's own documents* counts. A bundle
+    containing a parent company's certificate is not a submission that
+    disagrees with itself, and marking it INCONSISTENT would turn a judgement
+    call into a hard failure.
+    """
+    blocking = [
+        f
+        for f in findings
+        if f.severity.value in ("critical", "high")
+        and f.finding_type in cross_document.CONTRADICTION_TYPES
+    ]
     if not blocking:
         return verdicts
 
