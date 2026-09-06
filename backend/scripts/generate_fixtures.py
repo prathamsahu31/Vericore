@@ -122,6 +122,9 @@ BIDDER_A = Company(
     cin_industry="45200",
     cin_ownership="PTC",
     cin_serial="101234",
+    # The local-content certificate is deliberately absent so MISSING_EVIDENCE is
+    # exercised for REQ-013 (§6.13, not mandatory).
+    omit=("local_content_certificate",),
 )
 
 
@@ -155,7 +158,7 @@ BIDDER_B = Company(
     turnover=("Rs. 65,00,00,000", "Rs. 62,00,00,000", "Rs. 59,00,00,000"),
     # Lapsed well before the 15/09/2026 bid due date.
     iso_valid_until="30/06/2026",
-    omit=("oem_authorisation",),
+    omit=("oem_authorisation", "local_content_certificate"),
 )
 
 
@@ -477,6 +480,66 @@ def emd_instrument(c: Company, out: Path) -> Path:
     return out
 
 
+def epfo_certificate(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Employees' Provident Fund Organisation", 12, "hebo"),
+            (150, 92, "EPFO Registration Certificate", 12, "helv"),
+            (60, 150, f"EPFO Registration Number : TN/MAS/{c.udyam_serial[:6]}", 11, "cour"),
+            (60, 178, f"Name of Establishment : {c.legal_name}", 11, "helv"),
+            (60, 202, "Type of Establishment : Private Limited Company", 11, "helv"),
+            (60, 226, "Date of Registration : 15/06/2021", 11, "helv"),
+            (60, 250, "Valid Until : 31/12/2027", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def esic_certificate(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Employees' State Insurance Corporation", 12, "hebo"),
+            (150, 92, "ESIC Registration Certificate", 12, "helv"),
+            (60, 150, f"ESIC Registration Number : {c.state_code}{c.udyam_serial}", 11, "cour"),
+            (60, 178, f"Name of Employer : {c.legal_name}", 11, "helv"),
+            (60, 202, "Date of Registration : 18/08/2021", 11, "helv"),
+            (60, 226, "Valid Until : 31/12/2027", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def local_content_certificate(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Local Content Certificate", 14, "hebo"),
+            (150, 92, "Make in India - Local Supplier Declaration", 11, "helv"),
+            (60, 150, f"Name of Supplier : {c.legal_name}", 11, "helv"),
+            (60, 178, "Local Content Percentage : 62 percent", 11, "helv"),
+            (60, 214, "We declare that the goods offered for the tendered requirement", 10, "helv"),
+            (60, 232, "have been produced in India with local content not less", 10, "helv"),
+            (60, 250, "than the percentage declared above.", 10, "helv"),
+            (60, 290, "Date of Declaration : 20/08/2026", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
 BUILDERS = {
     "gst_certificate": gst_certificate,
     "pan_card": pan_card,
@@ -490,10 +553,15 @@ BUILDERS = {
     "declaration_non_blacklisting": declaration_non_blacklisting,
     "emd_instrument": emd_instrument,
     "holding_company_undertaking": holding_company_undertaking,
+    "epfo_certificate": epfo_certificate,
+    "esic_certificate": esic_certificate,
+    "local_content_certificate": local_content_certificate,
 }
 
-# Deliberately absent from Bidder A's bundle, so MISSING_EVIDENCE is a state the
-# demo actually exercises: local_content_certificate (§6.13, not mandatory).
+# The local-content certificate is deliberately absent from Bidder A's bundle,
+# so MISSING_EVIDENCE stays a state the demo exercises for §6.13 (not mandatory).
+# It stays absent too from Bidder B, who is already clearly non-compliant.
+LOCAL_CONTENT_OMITTED = ("local_content_certificate",)
 
 
 def generate(company: Company) -> list[Path]:

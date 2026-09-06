@@ -34,6 +34,7 @@ from app.llm.types import (
     Recommendation,
     RequirementDraft,
     RequirementSet,
+    recommendation_from_payload,
 )
 
 log = logging.getLogger(__name__)
@@ -93,6 +94,29 @@ REQUIREMENT_SCHEMA = {
         "additionalProperties": False,
         "properties": {"requirements": {"type": "array", "items": _REQUIREMENT_ITEM}},
         "required": ["requirements"],
+    },
+}
+
+RECOMMENDATION_SCHEMA = {
+    "name": "recommendation",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "summary": {"type": "string"},
+            "action": {
+                "type": "string",
+                "enum": [
+                    "RECOMMEND_QUALIFY",
+                    "SEEK_CLARIFICATION",
+                    "RECOMMEND_DISQUALIFY",
+                    "MANUAL_REVIEW_REQUIRED",
+                ],
+            },
+            "cited_requirement_codes": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["summary", "action", "cited_requirement_codes"],
     },
 }
 
@@ -282,9 +306,27 @@ class OpenAIProvider:
                 continue
         return out
 
+    # ── Officer-facing recommendation (layer 8) ───────────────────────────
+    def narrate(self, results: list[dict]) -> Recommendation:
+        """Turn structured compliance results into an advisory narrative.
+
+        ``results`` are exactly the stored per-requirement verdicts — never raw
+        documents. Anything the narrative claims must be traceable to a
+        requirement code in this input (§7.6).
+        """
+        prompt = _read_prompt("narrate.txt")
+        payload = self._call(
+            role=LLMRole.REASONING,
+            prompt=prompt,
+            content=json.dumps(results, indent=2, default=str),
+            schema=RECOMMENDATION_SCHEMA,
+        )
+        return recommendation_from_payload(
+            payload,
+            results=results,
+            provenance=self._provenance(LLMRole.REASONING),
+        )
+
     # ── Not yet used; present so the Protocol is satisfied ───────────────
     def judge(self, requirement: str, evidence: list[dict]) -> JudgmentResult:
         raise LLMError("OpenAIProvider.judge is not implemented yet.")
-
-    def narrate(self, results: list[dict]) -> Recommendation:
-        raise LLMError("OpenAIProvider.narrate is not implemented yet.")

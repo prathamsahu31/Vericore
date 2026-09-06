@@ -150,8 +150,13 @@ export function DecisionBar({
               Recommendation — advisory
             </p>
             <p className="mt-0.5 text-[13px] italic leading-relaxed text-ink-muted">
-              {advisory(summary, selected)}
+              {recommendation(summary, selected)}
             </p>
+            {summary.recommendation_text && (
+              <p className="mt-1 text-[11px] text-ink-faint">
+                Generated from the structured verdicts{summary.recommendation_action ? ` · ${summary.recommendation_action.replace(/_/g, " ").toLowerCase()}` : ""}
+              </p>
+            )}
             {!identified && (
               <p className="mt-1 text-[12px]" style={{ color: "var(--review)" }}>
                 No officer is signed in, so no decision can be recorded. Set
@@ -190,10 +195,17 @@ export function DecisionBar({
 }
 
 /**
- * Describes the state of play. It does not tell the officer what to do, and it
- * never names an outcome — the system has no view on whether to qualify.
+ * The narrative shown beside the decision bar. When the reasoning model has
+ * produced one it is shown verbatim (it is advisory, and already grounded in
+ * the structured verdicts); otherwise a deterministic description of the state
+ * of play fills in, so the bar never reads as empty. Neither ever tells the
+ * officer what to do and neither names the outcome — the system has no view on
+ * whether to qualify (§7.4, §11).
  */
-function advisory(summary: VerificationSummary, selected: ComplianceRow | null): string {
+function recommendation(summary: VerificationSummary, selected: ComplianceRow | null): string {
+  if (summary.recommendation_text) {
+    return summary.recommendation_text;
+  }
   if (selected) {
     const effective = selected.effective_status ?? selected.status;
     if (effective === "NEEDS_HUMAN_REVIEW") {

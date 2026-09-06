@@ -9,15 +9,15 @@ const STATUS: Record<
   ComplianceStatus,
   { label: string; mark: string; fg: string; bg: string; border: string }
 > = {
-  COMPLIANT:           { label: "Compliant",    mark: "✓", fg: "var(--verified)", bg: "#0F6E560F", border: "#0F6E5633" },
-  NON_COMPLIANT:       { label: "Not met",      mark: "✕", fg: "var(--failed)",   bg: "#9F12390F", border: "#9F123933" },
-  EXPIRED:             { label: "Expired",      mark: "✕", fg: "var(--failed)",   bg: "#9F12390F", border: "#9F123933" },
-  INCONSISTENT:        { label: "Inconsistent", mark: "≠", fg: "var(--failed)",   bg: "#9F12390F", border: "#9F123933" },
-  PARTIALLY_COMPLIANT: { label: "Partial",      mark: "◐", fg: "var(--review)",   bg: "#B453090F", border: "#B4530933" },
-  NEEDS_HUMAN_REVIEW:  { label: "Your review",  mark: "◆", fg: "var(--review)",   bg: "#B453090F", border: "#B4530933" },
-  UNVERIFIED:          { label: "Unverified",   mark: "?", fg: "var(--review)",   bg: "#B453090F", border: "#B4530933" },
-  MISSING_EVIDENCE:    { label: "No document",  mark: "○", fg: "var(--review)",   bg: "#B453090F", border: "#B4530933" },
-  NOT_APPLICABLE:      { label: "N/A",          mark: "–", fg: "var(--inactive)", bg: "#6B72800F", border: "#6B728033" },
+  COMPLIANT:           { label: "Compliant",    mark: "✓", fg: "var(--verified)", bg: "color-mix(in srgb, var(--verified) 9%, transparent)",       border: "color-mix(in srgb, var(--verified) 26%, transparent)" },
+  NON_COMPLIANT:       { label: "Not met",      mark: "✕", fg: "var(--failed)",   bg: "color-mix(in srgb, var(--failed) 9%, transparent)",         border: "color-mix(in srgb, var(--failed) 26%, transparent)" },
+  EXPIRED:             { label: "Expired",      mark: "✕", fg: "var(--failed)",   bg: "color-mix(in srgb, var(--failed) 9%, transparent)",         border: "color-mix(in srgb, var(--failed) 26%, transparent)" },
+  INCONSISTENT:        { label: "Inconsistent", mark: "≠", fg: "var(--failed)",   bg: "color-mix(in srgb, var(--failed) 9%, transparent)",         border: "color-mix(in srgb, var(--failed) 26%, transparent)" },
+  PARTIALLY_COMPLIANT: { label: "Partial",      mark: "◐", fg: "var(--review)",   bg: "color-mix(in srgb, var(--review) 9%, transparent)",         border: "color-mix(in srgb, var(--review) 26%, transparent)" },
+  NEEDS_HUMAN_REVIEW:  { label: "Your review",  mark: "◆", fg: "var(--review)",   bg: "color-mix(in srgb, var(--review) 9%, transparent)",         border: "color-mix(in srgb, var(--review) 26%, transparent)" },
+  UNVERIFIED:          { label: "Unverified",   mark: "?", fg: "var(--review)",   bg: "color-mix(in srgb, var(--review) 9%, transparent)",         border: "color-mix(in srgb, var(--review) 26%, transparent)" },
+  MISSING_EVIDENCE:    { label: "No document",  mark: "○", fg: "var(--review)",   bg: "color-mix(in srgb, var(--review) 9%, transparent)",         border: "color-mix(in srgb, var(--review) 26%, transparent)" },
+  NOT_APPLICABLE:      { label: "N/A",          mark: "–", fg: "var(--inactive)", bg: "color-mix(in srgb, var(--inactive) 9%, transparent)",      border: "color-mix(in srgb, var(--inactive) 26%, transparent)" },
 };
 
 export function StatusChip({
@@ -101,8 +101,12 @@ export function SourceChip({ source }: { source: "live" | "simulated" | null }) 
       className="inline-flex items-center gap-1 rounded-[3px] border px-1.5 py-px text-[11px]"
       style={{
         color: simulated ? "var(--review)" : "var(--verified)",
-        borderColor: simulated ? "#B4530944" : "#0F6E5644",
-        background: simulated ? "#B453090A" : "#0F6E560A",
+        borderColor: simulated
+          ? "color-mix(in srgb, var(--review) 30%, transparent)"
+          : "color-mix(in srgb, var(--verified) 30%, transparent)",
+        background: simulated
+          ? "color-mix(in srgb, var(--review) 8%, transparent)"
+          : "color-mix(in srgb, var(--verified) 8%, transparent)",
       }}
       title={
         simulated

@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     llm_max_requests_per_minute: int = 10
     llm_max_retries: int = 3
 
+    # Token budgets for oversized-document handling. The tokens-per-minute cap
+    # on the REASONING model is both a rolling rate and a *per-request size*
+    # ceiling — a request refused as "Request too large ... on tokens per min"
+    # can never succeed whole, so requirement extraction is sent in page-aligned
+    # chunks. Keep the default below the account's published TPM cap.
+    #   llm_chunk_max_tokens:     estimated input tokens per chunk/request
+    #   llm_chunk_tokens_per_min: rolling-window budget across chunked calls
+    llm_chunk_max_tokens: int = 24000
+    llm_chunk_tokens_per_min: int = 28000
+
     # ── Database ─────────────────────────────────────────────────────────
     database_url: str = "postgresql://vericore:vericore@localhost:5432/vericore"
 

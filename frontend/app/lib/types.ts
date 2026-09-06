@@ -75,6 +75,10 @@ export interface VerificationSummary {
   requirements: ComplianceRow[];
   cross_document_findings: Finding[];
   risk_flags: RiskFlag[];
+  /** Advisory narrative (layer 8) — labelled as advice, never as a decision (§11). */
+  recommendation_text: string | null;
+  recommendation_action: string | null;
+  recommendation_cited_requirements: string[];
   external_checks_simulated: number;
   external_checks_live: number;
 }
@@ -159,4 +163,83 @@ export interface Comparison {
   bid_due_date: string | null;
   bidders: ComparisonBidder[];
   requirements: ComparisonRow[];
+}
+
+// ── Tender setup and bidder upload (CLAUDE.md §11 screens 1–2) ───────────────
+export type TenderStatus =
+  | "draft"
+  | "requirements_extracted"
+  | "requirements_confirmed"
+  | "closed";
+
+export interface Tender {
+  id: string;
+  title: string;
+  bid_number: string | null;
+  buyer_organisation: string | null;
+  bid_due_date: string | null;
+  estimated_value: string | null;
+  status: TenderStatus;
+  requirements_confirmed_at: string | null;
+}
+
+export interface Requirement {
+  id: string;
+  code: string;
+  name: string;
+  category: string | null;
+  raw_clause: string | null;
+  condition: Record<string, unknown> | null;
+  mandatory: boolean;
+  weight: string;
+  applicability_scope: string;
+  accepts_document_types: string[];
+  external_check: string | null;
+  source_page: number | null;
+  source_clause_ref: string | null;
+  confirmed: boolean;
+  edited_by_officer: boolean;
+  extraction_confidence: number | null;
+}
+
+export interface Bidder {
+  id: string;
+  legal_name: string;
+  pan: string | null;
+  gstin: string | null;
+  udyam_urn: string | null;
+  cin: string | null;
+}
+
+export type IngestionMode = "separate" | "auto_classify" | "merged";
+
+export interface DocumentSummary {
+  id: string;
+  bid_id: string | null;
+  original_filename: string;
+  sha256: string;
+  mime_type: string;
+  size_bytes: number;
+  page_count: number | null;
+  ingestion_mode: IngestionMode;
+  uploaded_at: string;
+}
+
+export interface UploadSegment {
+  id: string;
+  doc_type: string;
+  page_start: number;
+  page_end: number;
+  needs_review: boolean;
+}
+
+export interface UploadResult {
+  document: DocumentSummary;
+  segments: UploadSegment[];
+  extracted_fields: ExtractedField[];
+  fields_located: number;
+  fields_unlocated: number;
+  injection_suspected: boolean;
+  duplicate_of: string[];
+  extraction_error: string | null;
 }

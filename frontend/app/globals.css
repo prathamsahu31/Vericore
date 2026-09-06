@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: toggled on <html> by ThemeToggle, so `dark:` works. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─────────────────────────────────────────────────────────────────────────
    Design tokens — CLAUDE.md §11, verbatim.
 
@@ -16,6 +19,7 @@
   --surface: #ffffff;
   --rule: #e5e3de;
   --seal: #1e3a5f;       /* deep official navy */
+  --seal-strong: #152c44; /* pressed / hover shade of the seal */
   --seal-tint: #eef2f7;
   --verified: #0f6e56;
   --review: #b45309;
@@ -26,6 +30,27 @@
   --step: 8px;           /* everything sits on an 8px grid */
 }
 
+/* Dark theme. The paper stays a cool near-black rather than pure black, the
+   hairlines dim to slate, and the status colours lift so they stay readable
+   on dark surfaces. Kept to the same institutional restraint as the light
+   theme — no neon. */
+.dark {
+  color-scheme: dark;
+  --ink: #e6e8ec;
+  --ink-muted: #9aa3b2;
+  --ink-faint: #6b7686;
+  --paper: #0d131c;
+  --surface: #131c29;
+  --rule: #222c3a;
+  --seal: #4a7bb8;
+  --seal-strong: #5b8cc9;
+  --seal-tint: #1d2b40;
+  --verified: #3fbf97;
+  --review: #e0a458;
+  --failed: #e0687a;
+  --inactive: #7d8794;
+}
+
 @theme inline {
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
@@ -34,6 +59,7 @@
   --color-surface: var(--surface);
   --color-rule: var(--rule);
   --color-seal: var(--seal);
+  --color-seal-strong: var(--seal-strong);
   --color-seal-tint: var(--seal-tint);
   --color-verified: var(--verified);
   --color-review: var(--review);
@@ -64,6 +90,31 @@ html {
 
 body { background: var(--paper); }
 
+/* A very subtle ruled-paper texture on the page background, and a soft
+   seal-tinted bloom behind the mastheads. Reads official, not flat. */
+.page-backdrop {
+  background:
+    radial-gradient(1200px 420px at 20% -10%, rgb(30 58 95 / 0.10), transparent 60%),
+    radial-gradient(900px 360px at 90% -20%, rgb(15 110 86 / 0.08), transparent 60%),
+    var(--paper);
+}
+
+.dark .page-backdrop {
+  background:
+    radial-gradient(1200px 420px at 20% -10%, rgb(30 58 95 / 0.35), transparent 60%),
+    radial-gradient(900px 360px at 90% -20%, rgb(15 110 86 / 0.22), transparent 60%),
+    var(--paper);
+}
+
+/* Hairline rule cap used to finish off hero panels. */
+.rule-top-seal { border-top: 3px solid var(--seal); }
+
+/* Smooth theme transition only when the toggle flips it — prefers-reduced-motion
+   still disables this block via the rule below. */
+html.theme-transitioning, html.theme-transitioning * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
 h1, h2, h3 {
   font-family: var(--font-serif);
   font-weight: 600;
@@ -90,6 +141,7 @@ h1, h2, h3 {
 /* Shadow is used exactly once in the whole interface: to lift the decision bar
    off the page. Everything else is a 1px hairline. */
 .decision-bar-shadow { box-shadow: 0 -1px 16px rgb(17 24 39 / 0.10); }
+.dark .decision-bar-shadow { box-shadow: 0 -1px 16px rgb(0 0 0 / 0.45); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

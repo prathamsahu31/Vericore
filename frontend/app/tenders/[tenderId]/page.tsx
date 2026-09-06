@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { SiteHeader } from "../../components/SiteHeader";
 import { Identifier, RiskChip, StatusChip } from "../../components/status";
-import { getComparison } from "../../lib/api";
+import { getComparison, tenderReportPageUrl } from "../../lib/api";
 import type { ComparisonBidder, ComparisonRow } from "../../lib/types";
 
 export const dynamic = "force-dynamic";
@@ -47,12 +48,13 @@ export default async function ComparisonPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-rule bg-surface">
-        <div className="mx-auto max-w-[1240px] px-6 py-6">
+      <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
+        <SiteHeader />
+        <div className="mx-auto max-w-[1240px] px-6 py-8">
           <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
             Comparing bidders
           </p>
-          <h1 className="mt-1 text-[24px] leading-tight">{data.tender_title}</h1>
+          <h1 className="mt-1 font-serif text-[26px] leading-tight">{data.tender_title}</h1>
           <p className="mt-2 text-[13px] text-ink-muted">
             {data.bidders.length} bidders · {data.requirements.length} conditions ·{" "}
             <strong className="font-medium text-ink">{differing}</strong> where they
@@ -63,6 +65,16 @@ export default async function ComparisonPage({
                 <span className="identifier">{data.bid_due_date}</span>
               </>
             )}
+          </p>
+          <p className="mt-4">
+            <a
+              href={tenderReportPageUrl(tenderId)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-[4px] border border-rule bg-surface px-4 py-2 text-[13px] font-medium text-seal transition-colors hover:border-seal hover:bg-seal-tint"
+            >
+              Export report
+            </a>
           </p>
         </div>
       </header>

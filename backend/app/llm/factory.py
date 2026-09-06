@@ -11,7 +11,11 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import get_settings
-from app.llm.providers.decorators import CachedProvider, RateLimitedProvider
+from app.llm.providers.decorators import (
+    CachedProvider,
+    ChunkingProvider,
+    RateLimitedProvider,
+)
 from app.llm.providers.stub import StubProvider
 from app.llm.types import LLMRole
 
@@ -41,9 +45,11 @@ def _build_base(provider_name: str) -> Any:
 
 @lru_cache(maxsize=4)
 def get_provider(role: LLMRole) -> Any:
-    """The provider for a role, wrapped in cache and rate limiter.
+    """The provider for a role, wrapped in cache, chunking and rate limiter.
 
-    Cache outermost, so a hit costs no quota (§7.2).
+    Cache outermost, so a hit costs no quota (§7.2). Chunking wraps the rate
+    limiter, so each chunk's call is separately throttled and retried — a 429
+    on one chunk must not take down the following ones.
     """
     settings = get_settings()
     name = settings.provider_for_role(str(role))
@@ -59,5 +65,10 @@ def get_provider(role: LLMRole) -> Any:
             requests_per_minute=settings.llm_max_requests_per_minute,
             max_retries=settings.llm_max_retries,
         )
+    )
+    chain = ChunkingProvider(
+        chain,
+        max_request_tokens=settings.llm_chunk_max_tokens,
+        tokens_per_minute=settings.llm_chunk_tokens_per_min,
     )
     return CachedProvider(chain, cache_dir=settings.llm_cache_dir)

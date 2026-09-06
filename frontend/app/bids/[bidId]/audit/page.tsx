@@ -27,8 +27,12 @@ export default async function AuditPage({
         <section
           className="rounded-[6px] border px-5 py-4"
           style={{
-            borderColor: ok ? "#0F6E5633" : "#9F123933",
-            background: ok ? "#0F6E560A" : "#9F12390A",
+            borderColor: ok
+              ? "color-mix(in srgb, var(--verified) 26%, transparent)"
+              : "color-mix(in srgb, var(--failed) 26%, transparent)",
+            background: ok
+              ? "color-mix(in srgb, var(--verified) 8%, transparent)"
+              : "color-mix(in srgb, var(--failed) 8%, transparent)",
           }}
         >
           <p

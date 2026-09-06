@@ -28,7 +28,11 @@ from app.modules.compliance_engine.evidence_index import (
     route,
     with_article,
 )
-from app.modules.verification_adapter.adapter import VerificationResult, get_adapter
+from app.modules.verification_adapter.adapter import (
+    VerificationResult,
+    get_adapter,
+    portal_for,
+)
 
 log = logging.getLogger(__name__)
 
@@ -465,7 +469,7 @@ def run_external_check(
     requirement: Requirement, evidence: BidEvidence, bidder
 ) -> VerificationResult | None:
     """Look the bidder up on the portal this requirement names, if any."""
-    portal = requirement.external_check
+    portal = portal_for(requirement)
     if not portal:
         return None
 
@@ -475,6 +479,12 @@ def run_external_check(
         "udyam": (evidence.first("udyam_urn") or _Empty()).field_value,
         "mca21": (evidence.first("cin") or _Empty()).field_value,
         "blacklist": bidder.pan,
+        # DigiLocker is keyed by the PAN the account is built around; DPIIT's
+        # Startup India recognition and NSIC registration sit alongside the
+        # same enterprise the Udyam certificate names.
+        "digilocker": bidder.pan,
+        "dpiit": (evidence.first("udyam_urn") or _Empty()).field_value,
+        "nsic": (evidence.first("udyam_urn") or _Empty()).field_value,
     }.get(portal)
 
     if not identifier:
@@ -508,6 +518,7 @@ def apply_external(verdict: Verdict, result: VerificationResult | None) -> Verdi
             f" The {result.portal_id} adapter returned a matching record "
             f"(source: {result.source})."
         )
+        verdict.reasoning += _external_facts(result)
     elif result.status == "not_found":
         if verdict.requirement_id and verdict.status is ComplianceStatus.COMPLIANT:
             # For a debarment register, absence is the good outcome.
@@ -516,3 +527,28 @@ def apply_external(verdict: Verdict, result: VerificationResult | None) -> Verdi
                 f"(source: {result.source})."
             )
     return verdict
+
+
+def _external_facts(result: VerificationResult) -> str:
+    """Extra statutorily-significant facts carried in the adapter's data.
+
+    GST registration on the register is one thing; whether returns were filed
+    is another, and the mock dataset answers both — so the reasoning says both,
+    each time attributed to its source. The same applies to the PAN's income
+    tax filing status.
+    """
+    if result.portal_id == "gstn":
+        through = (result.data or {}).get("returns_filed_through")
+        if through:
+            return (
+                f" The register reports returns filed through {through} "
+                f"(source: {result.source})."
+            )
+    if result.portal_id == "pan":
+        itr = (result.data or {}).get("itr_status")
+        if itr:
+            return (
+                f" The PAN check reports income-tax filing status: {itr} "
+                f"(source: {result.source})."
+            )
+    return ""

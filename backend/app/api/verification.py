@@ -168,6 +168,13 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
         requirements=rows,
         cross_document_findings=[FindingOut.model_validate(f) for f in findings],
         risk_flags=[RiskFlagOut.model_validate(f) for f in flags],
+        recommendation_text=bid.recommendation_text,
+        recommendation_action=(
+            str(bid.recommendation_action) if bid.recommendation_action else None
+        ),
+        recommendation_cited_requirements=[
+            str(c) for c in (bid.recommendation_cited_requirements or [])
+        ],
         external_checks_simulated=sum(
             1 for c in checks if c.source is VerificationSource.SIMULATED
         ),

@@ -262,6 +262,11 @@ class VerificationSummary(BaseModel):
     requirements: list[ComplianceRowOut] = Field(default_factory=list)
     cross_document_findings: list[FindingOut] = Field(default_factory=list)
     risk_flags: list[RiskFlagOut] = Field(default_factory=list)
+    # Advisory narrative (layer 8) — produced by the reasoning model from the
+    # structured verdicts above, labelled as advice and never a control (§11).
+    recommendation_text: str | None = None
+    recommendation_action: str | None = None
+    recommendation_cited_requirements: list[str] = Field(default_factory=list)
     # Every external check in this run was simulated unless stated otherwise.
     external_checks_simulated: int = 0
     external_checks_live: int = 0

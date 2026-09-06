@@ -69,7 +69,7 @@ def verified(client, tender):
 # ─────────────────────────────────────────────────────────────────────────────
 def test_the_pq_table_yields_one_requirement_per_clause(client, tender):
     rows = client.post(f"/tenders/{tender['id']}/extract-requirements").json()
-    assert len(rows) == 15
+    assert len(rows) == 17
     assert [r["code"] for r in rows][:3] == ["REQ-001", "REQ-002", "REQ-003"]
 
 
@@ -127,7 +127,7 @@ def test_an_officer_can_correct_a_requirement_before_confirming(client, tender):
 # The compliance picture
 # ─────────────────────────────────────────────────────────────────────────────
 def test_every_requirement_receives_a_verdict(verified):
-    assert len(verified["requirements"]) == 15
+    assert len(verified["requirements"]) == 17
     assert verified["run_status"] == "succeeded"
 
 
@@ -157,6 +157,16 @@ def test_the_absent_document_is_missing_evidence_and_is_named(verified):
     row = next(r for r in verified["requirements"] if r["requirement_code"] == "REQ-013")
     assert row["status"] == ComplianceStatus.MISSING_EVIDENCE
     assert "local content certificate" in row["reasoning"]
+
+
+def test_epfo_and_esic_registrations_are_verified_against_the_due_date(verified):
+    """Problem statement items 6 + Make in India: bidder A holds both, valid."""
+    for code, name in (("REQ-016", "epfo"), ("REQ-017", "esic")):
+        row = next(r for r in verified["requirements"] if r["requirement_code"] == code)
+        assert row["status"] == ComplianceStatus.COMPLIANT, row["reasoning"]
+        assert row["verification_method"] == "deterministic_date"
+        assert f"{name} certificate" in row["reasoning"]
+        assert row["evidence_field_ids"], f"{code} cites nothing"
 
 
 def test_the_prose_specification_is_referred_to_a_human(verified):
@@ -375,7 +385,7 @@ def test_re_running_replaces_verdicts_without_duplicating_them(client, verified)
 def test_comparison_lists_every_bidder_and_every_condition(client, tender, verified):
     comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
     assert len(comparison["bidders"]) >= 1
-    assert len(comparison["requirements"]) == 15
+    assert len(comparison["requirements"]) == 17
     for row in comparison["requirements"]:
         assert len(row["cells"]) == len(comparison["bidders"])
 

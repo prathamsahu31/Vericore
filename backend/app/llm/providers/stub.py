@@ -161,6 +161,33 @@ PATTERNS: dict[str, FieldPatterns] = {
         ("legal_name", _p(r"(?P<span>Name of (?:Entity|Company)\s*:\s*(?P<value>.+))")),
         ("turnover_fy1", _p(rf"(?P<span>FY\s?20\d\d-\d\d\s*:\s*(?P<value>{_AMOUNT}))")),
     ],
+    "epfo_certificate": [
+        (
+            "epfo_reg_number",
+            _p(r"(?P<span>EPFO Registration Number\s*:\s*(?P<value>[A-Z]{2}/[A-Z]{3}/\d{6}))"),
+        ),
+        ("legal_name", _p(r"(?P<span>Name of Establishment\s*:\s*(?P<value>.+))")),
+        ("establishment_type", _p(r"(?P<span>Type of Establishment\s*:\s*(?P<value>.+))")),
+        ("registration_date", _p(rf"(?P<span>Date of Registration\s*:\s*(?P<value>{_DATE}))")),
+        ("valid_until", _p(rf"(?P<span>Valid Until\s*:\s*(?P<value>{_DATE}))")),
+    ],
+    "esic_certificate": [
+        (
+            "esic_reg_number",
+            _p(r"(?P<span>ESIC Registration Number\s*:\s*(?P<value>\d{6,10}))"),
+        ),
+        ("legal_name", _p(r"(?P<span>Name of Employer\s*:\s*(?P<value>.+))")),
+        ("registration_date", _p(rf"(?P<span>Date of Registration\s*:\s*(?P<value>{_DATE}))")),
+        ("valid_until", _p(rf"(?P<span>Valid Until\s*:\s*(?P<value>{_DATE}))")),
+    ],
+    "local_content_certificate": [
+        ("legal_name", _p(r"(?P<span>Name of Supplier\s*:\s*(?P<value>.+))")),
+        (
+            "local_content_percent",
+            _p(r"(?P<span>Local Content Percentage\s*:\s*(?P<value>\d+)\s*percent)"),
+        ),
+        ("declaration_date", _p(rf"(?P<span>Date of Declaration\s*:\s*(?P<value>{_DATE}))")),
+    ],
 }
 
 
@@ -187,6 +214,18 @@ CLASSIFY_RULES: list[tuple[str, re.Pattern[str]]] = [
     (
         "financial_statement",
         re.compile(r"balance sheet|profit and loss|turnover|chartered accountant", re.I),
+    ),
+    (
+        "epfo_certificate",
+        re.compile(r"employees. provident fund|epfo|pf registration", re.I),
+    ),
+    (
+        "esic_certificate",
+        re.compile(r"employees. state insurance|esic", re.I),
+    ),
+    (
+        "local_content_certificate",
+        re.compile(r"local content", re.I),
     ),
 ]
 
@@ -215,6 +254,10 @@ _DOC_TYPE_WORDS: list[tuple[str, str]] = [
     ("exemption declaration", "emd_instrument"),
     ("non-blacklisting", "declaration_non_blacklisting"),
     ("local content", "local_content_certificate"),
+    ("provident fund", "epfo_certificate"),
+    ("epfo", "epfo_certificate"),
+    ("employees. state insurance", "esic_certificate"),
+    ("esic", "esic_certificate"),
 ]
 
 # Clauses that bind across the whole submission rather than to one document

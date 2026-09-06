@@ -38,7 +38,10 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
         {summary.cross_document_findings.length > 0 && (
           <section
             className="rounded-[6px] border px-7 py-5"
-            style={{ borderColor: "#9F123933", background: "#9F12390A" }}
+            style={{
+              borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
+              background: "color-mix(in srgb, var(--failed) 8%, transparent)",
+            }}
           >
             <h2 className="text-[18px]" style={{ color: "var(--failed)" }}>
               {summary.cross_document_findings.length} contradiction

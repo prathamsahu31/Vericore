@@ -29,56 +29,74 @@ export function Verdict({ summary }: { summary: VerificationSummary }) {
         ? `Every condition the system could decide by itself is satisfied. What is left needs a person.`
         : `Every mandatory condition is satisfied or has been accepted by you. The decision is yours to record.`;
 
+  const score = summary.compliance_score ?? "—";
+  const conditionsMet = summary.status_counts.COMPLIANT ?? 0;
+  const conditionsTotal = summary.requirements.length;
+  const riskLabel = summary.risk_level
+    ? summary.risk_level.charAt(0) + summary.risk_level.slice(1).toLowerCase()
+    : "—";
+
   return (
-    <section
-      className="rounded-[6px] border bg-surface"
-      style={{ borderColor: tone === "verified" ? "#0F6E5640" : colour + "40" }}
-    >
-      <div className="border-l-4 px-7 py-6" style={{ borderColor: colour }}>
+    <section className="rule-top-seal overflow-hidden rounded-[6px] border border-rule bg-surface">
+      <div className="border-b border-rule px-7 py-6">
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
           Where this bid stands
         </p>
-        <h2 className="mt-2 font-serif text-[24px] leading-snug" style={{ color: colour }}>
+        <h2 className="mt-2 font-serif text-[26px] leading-snug" style={{ color: colour }}>
           {headline}
         </h2>
         <p className="mt-2 max-w-[74ch] text-[15px] leading-relaxed text-ink-muted">{detail}</p>
-
-        <dl className="mt-6 flex flex-wrap gap-x-12 gap-y-4 border-t border-rule pt-5">
-          <Stat
-            label="Compliance score"
-            value={summary.compliance_score ?? "—"}
-            note="weighted average of the tender's own conditions"
-          />
-          <Stat
-            label="Risk level"
-            value={
-              summary.risk_level
-                ? summary.risk_level.charAt(0) + summary.risk_level.slice(1).toLowerCase()
-                : "—"
-            }
-            note={
-              summary.risk_flags.length === 0
-                ? "no signals fired"
-                : `${summary.risk_flags.length} signal${summary.risk_flags.length === 1 ? "" : "s"} fired`
-            }
-          />
-          <Stat
-            label="Conditions met"
-            value={`${summary.status_counts.COMPLIANT ?? 0} of ${summary.requirements.length}`}
-            note="across the whole checklist"
-          />
-        </dl>
       </div>
+
+      <dl className="grid gap-px sm:grid-cols-3">
+        <StatCard
+          label="Compliance score"
+          value={score}
+          note="weighted average of the tender's own conditions"
+          accent="seal"
+        />
+        <StatCard
+          label="Conditions met"
+          value={`${conditionsMet} of ${conditionsTotal}`}
+          note="across the whole checklist"
+          accent={conditionsMet === conditionsTotal ? "verified" : undefined}
+        />
+        <StatCard
+          label="Risk level"
+          value={riskLabel}
+          note={
+            summary.risk_flags.length === 0
+              ? "no signals fired"
+              : `${summary.risk_flags.length} signal${summary.risk_flags.length === 1 ? "" : "s"} fired`
+          }
+          accent={summary.risk_flags.length === 0 ? "verified" : "review"}
+        />
+      </dl>
     </section>
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+function StatCard({
+  label,
+  value,
+  note,
+  accent,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  accent?: "seal" | "verified" | "review";
+}) {
+  const bgMap = {
+    seal: "var(--seal-tint)",
+    verified: "color-mix(in srgb, var(--verified) 7%, transparent)",
+    review: "color-mix(in srgb, var(--review) 7%, transparent)",
+  };
   return (
-    <div>
+    <div className="bg-paper px-7 py-5" style={accent ? { background: bgMap[accent] } : undefined}>
       <dt className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">{label}</dt>
-      <dd className="mt-1 font-serif text-[24px] leading-none">{value}</dd>
-      <dd className="mt-1.5 text-[12px] text-ink-faint">{note}</dd>
+      <dd className="mt-1 font-serif text-[28px] leading-none tracking-tight">{value}</dd>
+      <dd className="mt-2 text-[12px] leading-relaxed text-ink-muted">{note}</dd>
     </div>
   );
 }

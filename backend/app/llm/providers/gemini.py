@@ -75,6 +75,24 @@ REQUIREMENT_SCHEMA: dict[str, Any] = {
     "required": ["requirements"],
 }
 
+RECOMMENDATION_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "summary": {"type": "STRING"},
+        "action": {
+            "type": "STRING",
+            "enum": [
+                "RECOMMEND_QUALIFY",
+                "SEEK_CLARIFICATION",
+                "RECOMMEND_DISQUALIFY",
+                "MANUAL_REVIEW_REQUIRED",
+            ],
+        },
+        "cited_requirement_codes": {"type": "ARRAY", "items": {"type": "STRING"}},
+    },
+    "required": ["summary", "action", "cited_requirement_codes"],
+}
+
 
 def _read_prompt(name: str) -> str:
     return (PROMPTS / name).read_text()
@@ -294,9 +312,27 @@ class GeminiProvider:
                 continue
         return out
 
+    # ── Officer-facing recommendation (layer 8) ────────────────────────────
+    def narrate(self, results: list[dict]) -> Recommendation:
+        """Advisory narrative from structured results only (§7.6)."""
+        from app.llm.types import recommendation_from_payload
+
+        doc = DocumentInput(
+            text=json.dumps(results, indent=2, default=str),
+            file_bytes=None,
+            mime_type=None,
+            page_range=None,
+        )
+        payload = self._call(
+            role=LLMRole.REASONING,
+            prompt=_read_prompt("narrate.txt"),
+            doc=doc,
+            response_schema=RECOMMENDATION_SCHEMA,
+        )
+        return recommendation_from_payload(
+            payload, results=results, provenance=self._provenance(LLMRole.REASONING)
+        )
+
     # ── Not yet used; present so the Protocol is satisfied ───────────────
     def judge(self, requirement: str, evidence: list[dict]) -> JudgmentResult:
         raise LLMError("GeminiProvider.judge is not implemented yet.")
-
-    def narrate(self, results: list[dict]) -> Recommendation:
-        raise LLMError("GeminiProvider.narrate is not implemented yet.")

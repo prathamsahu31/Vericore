@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteHeader } from "./SiteHeader";
 
 /**
  * Institutional rather than consumer: a ruled header, no logo lockup, the
@@ -24,14 +25,16 @@ export function Masthead({
   ] as const;
 
   return (
-    <header className="border-b border-rule bg-surface">
-      <div className="mx-auto max-w-[1240px] px-6 pt-6">
+    <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
+      <SiteHeader />
+
+      <div className="mx-auto max-w-[1240px] px-6 pt-6 pb-1">
         <div className="flex items-baseline justify-between gap-6">
           <div>
             <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
               Bid evaluation
             </p>
-            <h1 className="mt-1 text-[24px] leading-tight">{bidderName}</h1>
+            <h1 className="mt-1 font-serif text-[24px] leading-tight">{bidderName}</h1>
           </div>
           <dl className="flex shrink-0 gap-8 text-right">
             {bidNumber && (
@@ -49,16 +52,16 @@ export function Masthead({
           </dl>
         </div>
 
-        <nav className="mt-5 flex gap-1" aria-label="Sections">
+        <nav className="mt-4 flex gap-1 border-b border-rule" aria-label="Sections">
           {tabs.map((tab) => (
             <Link
               key={tab.key}
               href={tab.href}
               aria-current={active === tab.key ? "page" : undefined}
-              className={`-mb-px border-b-2 px-3 py-2 text-[14px] transition-colors ${
+              className={`-mb-px border-b-2 px-3 py-2.5 text-[14px] transition-colors ${
                 active === tab.key
-                  ? "border-seal font-medium text-seal"
-                  : "border-transparent text-ink-muted hover:text-ink"
+                  ? "border-seal bg-seal-tint/60 font-medium text-seal"
+                  : "border-transparent text-ink-muted hover:bg-paper hover:text-ink"
               }`}
             >
               {tab.label}

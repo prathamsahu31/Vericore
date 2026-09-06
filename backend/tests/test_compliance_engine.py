@@ -311,7 +311,9 @@ def test_an_unavailable_portal_is_unverified_never_non_compliant():
     verdict = engine.Verdict(
         requirement_id=uuid.uuid4(), status=ComplianceStatus.COMPLIANT, reasoning="ok"
     )
-    result = get_adapter("nsic").verify("ANYTHING", {})
+    # A portal with no simulated dataset at all — every seeded portal returns a
+    # real answer now, so the unavailable path is exercised against nothing.
+    result = get_adapter("example_portal").verify("ANYTHING", {})
     assert result.status == "unavailable"
     verdict = engine.apply_external(verdict, result)
     assert verdict.status is ComplianceStatus.UNVERIFIED
@@ -324,6 +326,58 @@ def test_every_external_result_is_labelled_simulated():
 
     for portal in ("gstn", "udyam", "pan", "mca21", "blacklist", "nsic"):
         assert get_adapter(portal).verify("X", {}).source == "simulated"
+
+
+def test_a_portal_with_a_seed_returns_answers_for_a_known_identifier():
+    """The previously-unseeded portals are live against their mock datasets."""
+    from app.modules.verification_adapter.adapter import get_adapter
+
+    assert get_adapter("digilocker").verify("AABCA1234C", {}).status == "found"
+    assert get_adapter("dpiit").verify("UDYAM-TN-33-0041827", {}).status == "found"
+    assert get_adapter("nsic").verify("UDYAM-TN-33-0041827", {}).status == "found"
+
+
+def test_a_portal_with_a_seed_still_says_not_found_for_an_unknown_identifier():
+    from app.modules.verification_adapter.adapter import get_adapter
+
+    assert get_adapter("nsic").verify("SOMETHING-ELSE", {}).status == "not_found"
+
+
+def test_portal_for_falls_back_deterministically_when_unset():
+    """A provider that omits external_check must not silence the portal layer."""
+    from app.modules.verification_adapter.adapter import portal_for
+
+    class Req:
+        external_check = None
+        accepts_document_types = ["gst_certificate"]
+        name = "GST registration"
+        normalized_clause = "valid registration"
+
+    assert portal_for(Req) == "gstn"
+
+
+def test_portal_for_prefers_the_stored_value_over_derivation():
+    from app.modules.verification_adapter.adapter import portal_for
+
+    class Req:
+        external_check = "mca21"
+        accepts_document_types = ["gst_certificate"]
+        name = "GST registration"
+        normalized_clause = ""
+
+    assert portal_for(Req) == "mca21"
+
+
+def test_portal_for_keeps_unrelated_requirements_off_the_portals():
+    from app.modules.verification_adapter.adapter import portal_for
+
+    class Req:
+        external_check = None
+        accepts_document_types = ["technical_datasheet"]
+        name = "Technical specification - capacity"
+        normalized_clause = "rated throughput"
+
+    assert portal_for(Req) is None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -522,7 +576,26 @@ def _assess(**kw):
 
 
 def test_a_clean_bidder_is_low_risk():
-    assert _assess().level is RiskLevel.LOW
+    s = seg("gst_certificate")
+    ev = index((s, [fld(s, "gstin", "33AABCA1234C1ZM")]))
+    assert _assess(evidence=ev).level is RiskLevel.LOW
+
+
+def test_a_submission_with_no_extracted_evidence_is_not_low_risk():
+    """Task 4: an empty bid is unassessable, not clean. HIGH → MEDIUM band."""
+    assessment = _assess()  # no segments, no fields
+    assert assessment.level is RiskLevel.MEDIUM
+    flag = next(f for f in assessment.flags if f.code == "no_evidence_submitted")
+    assert flag.severity is Severity.HIGH
+    assert "unassessable" in flag.description
+
+
+def test_a_submission_with_segments_but_no_fields_is_also_flagged():
+    """Documents were uploaded but nothing extractable came back."""
+    s = seg("unclassified")
+    ev = index((s, []))
+    assessment = _assess(evidence=ev)
+    assert any(f.code == "no_evidence_submitted" for f in assessment.flags)
 
 
 def test_any_critical_finding_makes_the_bidder_critical_risk():

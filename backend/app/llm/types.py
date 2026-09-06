@@ -153,3 +153,38 @@ class Recommendation(BaseModel):
     provenance: CallProvenance | None = None
 
     model_config = {"arbitrary_types_allowed": True}
+
+
+def recommendation_from_payload(
+    payload: dict,
+    *,
+    results: list[dict],
+    provenance: CallProvenance,
+) -> Recommendation:
+    """Build a validated Recommendation, never trusting the model.
+
+    The model chose ``action`` as free text; it is coerced to the fixed
+    vocabulary, with anything unknown sent to MANUAL_REVIEW_REQUIRED rather than
+    throwing — an unclassifiable narrative still reaches the officer. Cited
+    codes that do not exist in the input are dropped, because the rule that
+    every claim name a requirement is enforced here, after generation (§7.6).
+    """
+    valid_actions = {
+        "RECOMMEND_QUALIFY",
+        "SEEK_CLARIFICATION",
+        "RECOMMEND_DISQUALIFY",
+        "MANUAL_REVIEW_REQUIRED",
+    }
+    action = str(payload.get("action") or "").strip().upper()
+    if action not in valid_actions:
+        action = "MANUAL_REVIEW_REQUIRED"
+
+    known = {str(r.get("code")).strip().upper() for r in results if r.get("code")}
+    cited = [str(c) for c in (payload.get("cited_requirement_codes") or []) if str(c) in known]
+
+    return Recommendation(
+        summary=str(payload.get("summary") or "").strip(),
+        action=action,
+        cited_requirement_codes=cited,
+        provenance=provenance,
+    )

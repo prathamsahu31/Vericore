@@ -30,6 +30,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
+      <head>
+        {/* Apply the stored theme before first paint so there is no light flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("vericore-theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;if(d)document.documentElement.classList.add("dark");}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-paper text-ink antialiased">{children}</body>
     </html>
   );

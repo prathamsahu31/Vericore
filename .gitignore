@@ -29,6 +29,7 @@ frontend/CLAUDE.md
 .next/
 out/
 .turbo/
+*.tsbuildinfo
 
 # OS / editor
 .DS_Store

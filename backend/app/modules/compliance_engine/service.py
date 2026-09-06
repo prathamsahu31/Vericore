@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.db.enums import (
     ActorType,
     ComplianceStatus,
+    RecommendationAction,
     TenderStatus,
     VerificationRunStatus,
 )
@@ -219,6 +220,8 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
     bid.score_breakdown = {**(bid.score_breakdown or {}), "bid_due_date": due_date.isoformat()}
     bid.risk_level = risk.level
 
+    _write_recommendation(db, bid, requirements, verdicts, provider)
+
     db.add(
         AuditEvent(
             tender_id=tender.id,
@@ -236,6 +239,13 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
                 "pending_review": score.pending_review,
                 "cross_document_findings": len(findings),
                 "risk_flags": [f.code for f in risk.flags],
+                "recommendation_text": bid.recommendation_text,
+                "recommendation_action": (
+                    str(bid.recommendation_action) if bid.recommendation_action else None
+                ),
+                "recommendation_cited_requirements": [
+                    str(c) for c in (bid.recommendation_cited_requirements or [])
+                ],
             },
         )
     )
@@ -411,3 +421,64 @@ def rescore(db: Session, bid: Bid) -> scoring.Score:
     }
     db.flush()
     return score
+
+
+def _write_recommendation(db, bid, requirements, verdicts, provider) -> None:
+    """Layer 8 — the advisory narrative, stored beside the officer's decision.
+
+    ``narrate`` sees only structured verdicts — never raw documents — so it
+    cannot introduce facts (CLAUDE.md §7.6). The narrative is advisory and is
+    never a control: nothing downstream acts on it, and the officer's decision
+    bar is the only place an outcome is chosen (§11, §2).
+    """
+    from app.llm.types import Recommendation
+
+    code_to_id = {r.code: r.id for r in requirements}
+    results = [
+        {
+            "requirement_id": str(v.requirement_id),
+            "code": r.code,
+            "name": r.name,
+            "category": r.category,
+            "mandatory": r.mandatory,
+            "weight": float(r.weight or 0),
+            "status": str(v.status),
+            "verification_method": v.verification_method,
+            "reasoning": v.reasoning,
+            "external_check_portal": v.external.portal_id if v.external else None,
+            "external_check_status": v.external.status if v.external else None,
+            "external_check_source": v.external.source if v.external else None,
+        }
+        for r, v in zip(requirements, verdicts, strict=True)
+    ]
+
+    action: RecommendationAction | None = None
+    summary = ""
+    cited: list[uuid.UUID] = []
+
+    try:
+        rec: Recommendation = provider.narrate(results)
+        # The action arrives as a string; coerce it to the enum, and never let
+        # a stray value travel further than this function (§7.6).
+        action = (
+            RecommendationAction(a.value)
+            for a in RecommendationAction
+            if a.value == str(rec.action).upper()
+        )
+        action = next(action, None)
+        summary = rec.summary
+        # Only citations to requirements on this tender survive — a model that
+        # cites REQ-999 invented a reference, and it must not appear in the UI.
+        cited = [
+            code_to_id[code]
+            for code in rec.cited_requirement_codes
+            if code in code_to_id
+        ]
+    except Exception:  # noqa: BLE001 — recommendations are advisory; a failure
+        # must never fail the verification itself or hide the verdicts.
+        log.exception("narrate failed for bid=%s; suppressing recommendation", bid.id)
+
+    bid.recommendation_text = summary or None
+    bid.recommendation_action = action
+    bid.recommendation_cited_requirements = cited or None
+    db.flush()

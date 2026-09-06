@@ -71,7 +71,11 @@ need judgement.
 already exists and is tested; only the interface is missing. Until they are
 built, tenders and bids are created through the API.
 
-There is no report export yet.
+A printable report export exists: `GET /tenders/{tenderId}/report.html` (with a
+structured JSON twin at `GET /tenders/{tenderId}/report`). The comparison page
+links to it via the "Export report" button; it opens the report in a new tab
+for print or save. `tenderReportPageUrl(tenderId)` in `app/lib/api.ts` builds
+the URL.
 
 ---
 
@@ -354,7 +358,6 @@ Honest list, so nothing is discovered late.
   yields `page_fallback` for every value on it.
 - **Merged-PDF splitting is not implemented**, and neither is the segmentation
   review screen.
-- **No report export.**
 - **LLM provider unsettled.** The Gemini free key reaches only a weak model; the
   OpenAI key supplied has no credit. Run `python scripts/check_llm.py` from
   `backend/` to see the current state in one line. This affects tender parsing

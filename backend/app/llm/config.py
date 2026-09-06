@@ -19,10 +19,13 @@ from app.llm.types import LLMRole
 MODEL_IDS: dict[tuple[str, LLMRole], str] = {
     ("stub", LLMRole.EXTRACTION): "stub-extraction-v1",
     ("stub", LLMRole.REASONING): "stub-reasoning-v1",
-    # Confirmed by calling each model on 27 Aug 2026. gpt-4.1 carries a 1M
-    # context, so a 90-page tender goes in whole rather than chunked — which
-    # matters, because a pre-qualification table split across a chunk boundary
-    # loses rows silently.
+    # Confirmed by calling each model on 27 Aug 2026. gpt-4.1's context window
+    # is irrelevant here: the binding constraint is this account's tokens-per-
+    # minute (TPM) cap, which is also enforced as a per-request size ceiling —
+    # a ~90-page NIT (~60k tokens) is refused whole with "Request too large ...
+    # on tokens per min (TPM)". Oversized tenders are sent in page-aligned
+    # chunks by ChunkingProvider (app/llm/providers/decorators.py) so every
+    # PQ-table row stays whole in at least one chunk.
     ("openai", LLMRole.EXTRACTION): "gpt-4.1-mini",
     ("openai", LLMRole.REASONING): "gpt-4.1",
     # Confirmed by *calling* each model on 27 Aug 2026, not by reading the

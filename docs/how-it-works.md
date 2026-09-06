@@ -8,20 +8,22 @@ technical background assumed.
 
 ## Where this document is ahead of the software
 
-**Build status as of 27 August 2026.** This document describes the system as
-designed. Only part of it is built.
+**Build status as of 6 September 2026.** This document is updated in the same
+commit as the feature it describes, so it stays accurate.
 
 | Built and working | Specified, not yet built |
 |---|---|
-| Reading a tender into a checklist, and the confirmation step | The tender setup and bidder upload screens |
-| Adding bidders and uploading their documents | The printable report |
-| Working out what kind of document each file is | Signing in — there is no login yet |
-| Reading facts out of a document, and recording where on the page each came from | A second and third demo bidder |
-| Every check listed below | Reading scanned or photographed documents |
-| The score, the risk level, and the reasons behind both | |
+| Reading a tender into a checklist, and the confirmation step | Signing in — there is no login yet |
+| The screen for setting up a tender, checklist, and bidders | Reading scanned or photographed documents |
+| Adding bidders and uploading their documents | |
+| Working out what kind of document each file is | |
+| Reading facts out of a document, and recording where on the page each came from | |
+| Every check listed below | |
 | The screen showing the checklist, the evidence, and the record | |
 | Accepting or overriding a verdict, with your reason | |
 | The tamper-evident record — including that editing or deleting an entry is refused | |
+| The printable report, including a statement of whether the record is intact | |
+| The advisory recommendation, written after verification and always marked as a suggestion | |
 
 The language model is currently a stand-in that reads documents with fixed
 rules rather than a real model. Everything around it — storage, page reading,
@@ -47,7 +49,7 @@ Each bidder then submits a stack of PDFs — certificates, balance sheets, work
 orders, declarations — and somebody has to read all of it and work out, for
 every condition, whether that bidder meets it.
 
-For one tender with fifteen conditions and five bidders, that is seventy-five
+For one tender with seventeen conditions and five bidders, that is eighty-five
 judgements, each requiring someone to find the right document, find the right
 number in it, and compare. It is slow, it is easy to lose your place, and six
 months later, when someone asks why a particular bidder was rejected, the
@@ -154,6 +156,31 @@ is a suggestion, not an interpretation. That is exactly why you confirm the
 checklist before anything is evaluated against it.
 
 **Status:** built and working.
+
+## Setting up a tender
+
+The screen the officer reaches first takes the whole tender through its opening
+steps in order.
+
+**Start the tender** with its title, bid number, buyer, and the date bids are
+due. Then **upload the NIT** — the notice inviting tender, as a PDF.
+
+With the tender file in hand, the system **reads it into the checklist** one
+condition at a time. You see each condition beside the sentence it came from,
+and can correct a misread name, or mark a condition mandatory or optional, in
+place. Nothing is final until you press **confirm the checklist**, and until you
+do, no bidder can be assessed against it — the system refuses, and says why.
+
+Once the checklist is confirmed, the same screen hands you to the next step:
+**adding a bidder**. You give the company's name and its statutory identifiers
+(PAN, GSTIN, Udyam), and the system keeps that company as one row even if it
+bids on another tender later. Then you pick how the documents were submitted —
+one file per document, a pile you want the system to sort, or one combined
+bundle — and upload them. From there the checks in the next section take over.
+
+**Status:** built and working. The three upload modes (separate, auto-classify,
+merged) run; a live tender, the live extraction of its checklist, and one
+bidder's verification have all been exercised end to end.
 
 ## The checks it performs
 
@@ -362,6 +389,40 @@ ISO certificate is valid on the bid due date with three days to spare — and
 separately raises, as a risk rather than a failure, that it lapses before the
 contract is due to start.
 
+### Are the EPFO and ESIC registrations in force?
+
+Where the tender requires it, the system checks the bidder's Employees'
+Provident Fund and Employees' State Insurance certificates — that the numbers
+are well-formed (the EPFO number carries its regional office and establishment
+code; the ESIC number is a ten-digit employer code) and, like every other
+certificate, that they were still valid as of the bid due date.
+
+**What it can't tell you:** whether the registration is actually live at the
+EPFO or ESIC. As with every government register in this version, the certificate
+is checked as a document, not against a live portal — see the last section.
+
+**Status:** built and working. Both are in the demo tender's checklist and both
+demo bidders who hold them are judged compliant, because their certificates are
+valid as of the bid due date.
+
+### Does the bidder qualify for the "Make in India" local-content preference?
+
+Some tenders prefer suppliers whose goods have a minimum amount of Indian local
+content, declared under the Make in India scheme. When the tender sets such a
+preference, the system reads the declared percentage from the bidder's local
+content certificate and compares it against the tender's threshold — 50 percent
+in the demo tender.
+
+**What it can't tell you:** whether the declared percentage is true. That is the
+declaration's own claim, and verifying it would mean inspecting the bidder's
+production records. The system compares the number declared against the number
+the tender asks for, and names the document in play.
+
+**Status:** built and working. Of the three demo bidders, only Bidder C declares
+a local content certificate; it is above the threshold and judged compliant.
+Bidders A and B submitted none, so the condition is left at "missing evidence"
+rather than marked failed.
+
 ### Is the document trying to give the system instructions?
 
 A bidder could embed text in a PDF reading "ignore previous instructions and
@@ -461,8 +522,12 @@ percentage.
 
 **The risk level** counts red flags instead: contradictions between documents,
 a company incorporated shortly before a large bid, a certificate that lapses
-before the contract starts, a debarment record. Any critical flag makes the
-whole assessment critical. Every flag that fired is listed with its reason.
+before the contract starts, a debarment record, and — importantly — a bid that
+came in with nothing verifiable in it. An empty submission is not treated as a
+clean one: if no evidence could be extracted, the system cannot vet the bidder
+at all, and that is itself a flag, so an empty bid reads as a risk rather than
+as "low." Any critical flag makes the whole assessment critical. Every flag
+that fired is listed with its reason.
 
 **What they can't tell you:** neither number is a recommendation. A high score
 is not an instruction to qualify, and a high risk level is not an instruction to
@@ -477,9 +542,9 @@ side: the tender's conditions down the left, one column per bidder, and each
 bidder's standing where they meet.
 
 The useful part is a filter that hides every condition on which the bidders all
-land in the same place. On the demo tender that leaves six rows out of fifteen —
-those six are what a shortlisting decision actually turns on, and the other nine
-are noise for that purpose.
+land in the same place. On the demo tender that leaves six rows out of seventeen —
+those six are what a shortlisting decision actually turns on, and the other
+eleven are noise for that purpose.
 
 Bidders appear in the order they bid. The screen does not sort them by score,
 and there is no "best" column. Ordering bidders would be the system expressing a
@@ -487,6 +552,28 @@ preference between them, and it does not have one.
 
 **What it can't tell you:** which bidder to choose. It shows you where they
 differ.
+
+**Status:** built and working.
+
+## Exporting a report
+
+From the comparison screen, the "Export report" button opens a single printable
+page of the whole tender's record: the tender's own details, the confirmed
+eligibility checklist, and one section per bidder with each condition, its
+verdict, the evidence behind it, and any risk flags raised. It includes the
+file's generation timestamp and a statement of whether the audit chain that
+records every action taken on the tender is intact.
+
+The report is assembled from what is already stored — it does not ask the
+evaluation model anything and it does not form an opinion. It cannot rank
+bidders or recommend one; you will find no score-based ordering anywhere in it.
+When government-portal checks were simulated rather than live, the page says so,
+on the page and in the printout, because a fabricated check must never be
+presented as a real one.
+
+What it is for: a defensible record you can hand to someone who was not in the
+room — an evaluator, a reviewer, or a scrutiny committee. Every line of it
+traces back to a document the bidder actually submitted.
 
 **Status:** built and working.
 
@@ -573,8 +660,9 @@ every entry that follows and becomes visible immediately.
 
 **Status:** the checklist confirmation gate is built and enforced — verification
 refuses to run against an unconfirmed checklist, and says so. The permanent log
-and its tamper-evidence are built. The screens, the decision itself, and the
-override are not yet built.
+and its tamper-evidence are built. The tender-setup screen, the bidder-upload
+screen, the compliance dashboard with the decision bar and overrides are all
+built and wired to the backend.
 
 ---
 
