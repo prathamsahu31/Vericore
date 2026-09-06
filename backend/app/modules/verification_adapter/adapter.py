@@ -49,6 +49,56 @@ class VerificationAdapter(Protocol):
 # see docs/how-it-works.md for the reasoning, stated in the officer's language.
 PORTALS = ("gstn", "udyam", "pan", "mca21", "digilocker", "dpiit", "nsic", "blacklist")
 
+# Deterministic portal assignment, used when a model left ``external_check``
+# unset. The mapping runs on document types first (a GST certificate can only
+# ever mean the GSTN portal), then on the requirement's own wording — never on
+# the bidder's documents. Routing stays a lookup (§21), only the lookup's key
+# is made robust to a provider that omits the field.
+_PORTAL_BY_DOC_TYPE = {
+    "gst_certificate": "gstn",
+    "pan_card": "pan",
+    "udyam_certificate": "udyam",
+    "incorporation_certificate": "mca21",
+    "declaration_non_blacklisting": "blacklist",
+}
+
+_PORTAL_KEYWORDS: list[tuple[str, str]] = [
+    ("digilocker", "digilocker"),
+    ("startup india", "dpiit"),
+    ("dpiit", "dpiit"),
+    ("nsic", "nsic"),
+    ("gst", "gstn"),
+    ("udyam", "udyam"),
+    ("msme", "udyam"),
+    ("permanent account number", "pan"),
+    ("blacklist", "blacklist"),
+    ("debarred", "blacklist"),
+    ("companies act", "mca21"),
+]
+
+
+def portal_for(requirement) -> str | None:
+    """The portal a requirement should be checked against, if any.
+
+    Returns the stored ``external_check`` when set, and otherwise derives one
+    from what the requirement itself says. The derivation is deterministic and
+    stateless, so two providers — or no provider at all — cannot disagree about
+    which portal a requirement names.
+    """
+    stored = getattr(requirement, "external_check", None)
+    if stored:
+        return stored
+
+    for doc_type in requirement.accepts_document_types or []:
+        if doc_type in _PORTAL_BY_DOC_TYPE:
+            return _PORTAL_BY_DOC_TYPE[doc_type]
+
+    wording = f"{requirement.name or ''} {requirement.normalized_clause or ''}".lower()
+    for needle, portal in _PORTAL_KEYWORDS:
+        if needle in wording:
+            return portal
+    return None
+
 
 @dataclass
 class MockProvider:

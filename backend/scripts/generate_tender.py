@@ -173,6 +173,27 @@ ROWS: list[tuple[str, str, str, str, str, str, str]] = [
         "Yes",
         "0",
     ),
+    (
+        "6.16",
+        "EPFO registration",
+        "Where the Bidder has employees covered under the Employees' Provident Fund and "
+        "Miscellaneous Provisions Act, 1952, a valid EPFO registration shall be held, "
+        "valid as on the bid due date.",
+        "Sole Bidder or prime bidder of the Consortium",
+        "EPFO registration certificate",
+        "No",
+        "3",
+    ),
+    (
+        "6.17",
+        "ESIC registration",
+        "Where the Bidder has employees covered under the Employees' State Insurance "
+        "Act, 1948, a valid ESIC registration shall be held, valid as on the bid due date.",
+        "Sole Bidder or prime bidder of the Consortium",
+        "ESIC registration certificate",
+        "No",
+        "3",
+    ),
 ]
 
 

@@ -7,7 +7,9 @@
       "registration_status": "Active",
       "registration_date": "2017-07-01",
       "state_jurisdiction": "Tamil Nadu",
-      "constitution": "Private Limited Company"
+      "constitution": "Private Limited Company",
+      "returns_filed_through": "GSTR-3B for August 2026",
+      "returns_compliant": true
     }
   }
 }

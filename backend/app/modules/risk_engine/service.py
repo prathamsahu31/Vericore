@@ -49,6 +49,7 @@ def assess(
 ) -> RiskAssessment:
     flags: list[RiskFlag] = []
 
+    flags += _no_evidence(evidence)
     flags += _from_cross_document(findings)
     flags += _debarment(verdicts)
     flags += _young_company(evidence, bid_due_date)
@@ -56,7 +57,69 @@ def assess(
     flags += _expiring_certificates(evidence, bid_due_date, contract_start_date)
     flags += _unverifiable(verdicts)
 
+    flags = _one_per_code(flags)
     return RiskAssessment(level=_band(flags), flags=flags, rationale=_rationale(flags))
+
+
+def _no_evidence(evidence: BidEvidence) -> list[RiskFlag]:
+    """A submission that yielded nothing to look at is not low risk.
+
+    Risk measures misrepresentation likelihood; an empty submission cannot be
+    vetted at all, so it is itself the signal (CLAUDE.md §10, signal list).
+    """
+    submitted = sum(len(evidence.fields(segment)) for segment in evidence.segments)
+    if submitted:
+        return []
+    return [
+        RiskFlag(
+            code="no_evidence_submitted",
+            category="verification",
+            severity=Severity.HIGH,
+            description=(
+                "No verifiable evidence was extracted from this submission — "
+                "nothing submitted could be checked, so the bid is unassessable "
+                "rather than low risk."
+            ),
+            evidence_refs={"submitted_fields": 0},
+        )
+    ]
+
+
+def _one_per_code(flags: list[RiskFlag]) -> list[RiskFlag]:
+    """Collapse repeats of the same signal into a single flag.
+
+    A bidder whose PAN differs from the one embedded in their GSTIN produces
+    that finding once per document the PAN appears in — three times, for the
+    same underlying problem. ``risk_flags`` is unique on (bid_id, code)
+    precisely so the officer reads one line per *kind* of concern, and the
+    counted bands in §10 would otherwise treat one problem as several.
+
+    The surviving flag keeps the highest severity seen and lists every
+    description, so nothing is lost in the merge.
+    """
+    merged: dict[str, RiskFlag] = {}
+    order = [Severity.INFO, Severity.WARNING, Severity.HIGH, Severity.CRITICAL]
+
+    for flag in flags:
+        existing = merged.get(flag.code)
+        if existing is None:
+            merged[flag.code] = flag
+            continue
+        descriptions = existing.evidence_refs.get("occurrences", [existing.description])
+        if flag.description not in descriptions:
+            descriptions = [*descriptions, flag.description]
+        merged[flag.code] = RiskFlag(
+            code=flag.code,
+            category=existing.category,
+            severity=max(existing.severity, flag.severity, key=order.index),
+            description=(
+                descriptions[0]
+                if len(descriptions) == 1
+                else f"{len(descriptions)} occurrences. " + " ".join(descriptions)
+            ),
+            evidence_refs={**existing.evidence_refs, "occurrences": descriptions},
+        )
+    return list(merged.values())
 
 
 def _from_cross_document(findings: list) -> list[RiskFlag]:

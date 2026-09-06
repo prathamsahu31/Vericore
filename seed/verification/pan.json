@@ -1,6 +1,12 @@
 {
   "AABCA1234C": {
     "status": "found",
-    "data": {"legal_name": "ABC Infrastructure Private Limited", "holder_type": "company", "status": "Valid"}
+    "data": {
+      "legal_name": "ABC Infrastructure Private Limited",
+      "holder_type": "company",
+      "status": "Valid",
+      "itr_status": "returns filed for AY 2025-26",
+      "itr_filing_year": "2025-26"
+    }
   }
 }

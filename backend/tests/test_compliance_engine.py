@@ -11,6 +11,8 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from app.db.enums import ComplianceStatus, LocatorStatus, RiskLevel, Severity
 from app.db.models import DocumentSegment, ExtractedField, Requirement
 from app.llm.providers.stub import StubProvider
@@ -309,7 +311,9 @@ def test_an_unavailable_portal_is_unverified_never_non_compliant():
     verdict = engine.Verdict(
         requirement_id=uuid.uuid4(), status=ComplianceStatus.COMPLIANT, reasoning="ok"
     )
-    result = get_adapter("nsic").verify("ANYTHING", {})
+    # A portal with no simulated dataset at all — every seeded portal returns a
+    # real answer now, so the unavailable path is exercised against nothing.
+    result = get_adapter("example_portal").verify("ANYTHING", {})
     assert result.status == "unavailable"
     verdict = engine.apply_external(verdict, result)
     assert verdict.status is ComplianceStatus.UNVERIFIED
@@ -322,6 +326,58 @@ def test_every_external_result_is_labelled_simulated():
 
     for portal in ("gstn", "udyam", "pan", "mca21", "blacklist", "nsic"):
         assert get_adapter(portal).verify("X", {}).source == "simulated"
+
+
+def test_a_portal_with_a_seed_returns_answers_for_a_known_identifier():
+    """The previously-unseeded portals are live against their mock datasets."""
+    from app.modules.verification_adapter.adapter import get_adapter
+
+    assert get_adapter("digilocker").verify("AABCA1234C", {}).status == "found"
+    assert get_adapter("dpiit").verify("UDYAM-TN-33-0041827", {}).status == "found"
+    assert get_adapter("nsic").verify("UDYAM-TN-33-0041827", {}).status == "found"
+
+
+def test_a_portal_with_a_seed_still_says_not_found_for_an_unknown_identifier():
+    from app.modules.verification_adapter.adapter import get_adapter
+
+    assert get_adapter("nsic").verify("SOMETHING-ELSE", {}).status == "not_found"
+
+
+def test_portal_for_falls_back_deterministically_when_unset():
+    """A provider that omits external_check must not silence the portal layer."""
+    from app.modules.verification_adapter.adapter import portal_for
+
+    class Req:
+        external_check = None
+        accepts_document_types = ["gst_certificate"]
+        name = "GST registration"
+        normalized_clause = "valid registration"
+
+    assert portal_for(Req) == "gstn"
+
+
+def test_portal_for_prefers_the_stored_value_over_derivation():
+    from app.modules.verification_adapter.adapter import portal_for
+
+    class Req:
+        external_check = "mca21"
+        accepts_document_types = ["gst_certificate"]
+        name = "GST registration"
+        normalized_clause = ""
+
+    assert portal_for(Req) == "mca21"
+
+
+def test_portal_for_keeps_unrelated_requirements_off_the_portals():
+    from app.modules.verification_adapter.adapter import portal_for
+
+    class Req:
+        external_check = None
+        accepts_document_types = ["technical_datasheet"]
+        name = "Technical specification - capacity"
+        normalized_clause = "rated throughput"
+
+    assert portal_for(Req) is None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -420,7 +476,65 @@ def test_a_failed_mandatory_requirement_fails_the_gate_and_is_named():
     ]
     score = scoring.compute(rows)
     assert not score.mandatory_gate_passed
-    assert score.failed_mandatory == ["REQ-001"]
+    assert score.mandatory_failed == ["REQ-001"]
+    assert not score.qualifiable
+
+
+def test_a_pending_mandatory_item_is_not_a_failure():
+    """The split that makes a clean-bidder demo possible.
+
+    NEEDS_HUMAN_REVIEW on a mandatory requirement means nobody has looked yet.
+    Reporting that identically to a genuine NON_COMPLIANT tells an officer a
+    compliant bidder failed.
+    """
+    rows = [("REQ-001", "a", True, True, 10.0, ComplianceStatus.NEEDS_HUMAN_REVIEW)]
+    score = scoring.compute(rows)
+    assert score.mandatory_failed == []
+    assert score.pending_review == ["REQ-001"]
+    assert score.mandatory_gate_passed  # nothing has *failed*
+    assert not score.qualifiable  # but it is not ready to qualify either
+
+
+def test_missing_mandatory_evidence_is_pending_not_failed():
+    """§2 rule 5: absent documentation routes to clarification, not rejection."""
+    rows = [("REQ-001", "a", True, True, 10.0, ComplianceStatus.MISSING_EVIDENCE)]
+    score = scoring.compute(rows)
+    assert score.mandatory_failed == []
+    assert score.pending_review == ["REQ-001"]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [ComplianceStatus.NON_COMPLIANT, ComplianceStatus.EXPIRED, ComplianceStatus.INCONSISTENT],
+)
+def test_evidence_found_and_wanting_is_a_hard_failure(status):
+    rows = [("REQ-001", "a", True, True, 10.0, status)]
+    assert scoring.compute(rows).mandatory_failed == ["REQ-001"]
+
+
+def test_an_officer_override_is_what_the_gate_counts():
+    """The machine verdict is kept; the override is what the gate reads (§5)."""
+    from app.modules.compliance_engine.scoring import effective_status
+
+    assert effective_status(ComplianceStatus.NEEDS_HUMAN_REVIEW, None) is (
+        ComplianceStatus.NEEDS_HUMAN_REVIEW
+    )
+    assert (
+        effective_status(ComplianceStatus.NEEDS_HUMAN_REVIEW, ComplianceStatus.COMPLIANT)
+        is ComplianceStatus.COMPLIANT
+    )
+
+    rows = [
+        (
+            "REQ-001",
+            "a",
+            True,
+            True,
+            10.0,
+            effective_status(ComplianceStatus.NEEDS_HUMAN_REVIEW, ComplianceStatus.COMPLIANT),
+        )
+    ]
+    assert scoring.compute(rows).qualifiable
 
 
 def test_an_unweighted_mandatory_failure_still_moves_the_score():
@@ -462,7 +576,26 @@ def _assess(**kw):
 
 
 def test_a_clean_bidder_is_low_risk():
-    assert _assess().level is RiskLevel.LOW
+    s = seg("gst_certificate")
+    ev = index((s, [fld(s, "gstin", "33AABCA1234C1ZM")]))
+    assert _assess(evidence=ev).level is RiskLevel.LOW
+
+
+def test_a_submission_with_no_extracted_evidence_is_not_low_risk():
+    """Task 4: an empty bid is unassessable, not clean. HIGH → MEDIUM band."""
+    assessment = _assess()  # no segments, no fields
+    assert assessment.level is RiskLevel.MEDIUM
+    flag = next(f for f in assessment.flags if f.code == "no_evidence_submitted")
+    assert flag.severity is Severity.HIGH
+    assert "unassessable" in flag.description
+
+
+def test_a_submission_with_segments_but_no_fields_is_also_flagged():
+    """Documents were uploaded but nothing extractable came back."""
+    s = seg("unclassified")
+    ev = index((s, []))
+    assessment = _assess(evidence=ev)
+    assert any(f.code == "no_evidence_submitted" for f in assessment.flags)
 
 
 def test_any_critical_finding_makes_the_bidder_critical_risk():
@@ -496,3 +629,209 @@ def test_every_assessment_states_which_flags_fired():
     s = seg("incorporation_certificate")
     ev = index((s, [fld(s, "incorporation_date", "01/03/2026")]))
     assert "signal(s) fired" in _assess(evidence=ev).rationale
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Evidence attribution — Bidder C's holding-company case (CLAUDE.md §16)
+# ─────────────────────────────────────────────────────────────────────────────
+def _turnover_requirement():
+    return req(
+        accepts_document_types=["ca_turnover_certificate"],
+        condition={
+            "field": "average_annual_turnover",
+            "operator": ">=",
+            "threshold": 1000000000,
+            "period_years": 3,
+        },
+    )
+
+
+def _turnover_evidence(entity: str):
+    s = seg("ca_turnover_certificate")
+    return index(
+        (
+            s,
+            [
+                fld(s, "legal_name", entity),
+                fld(s, "turnover_fy1", "Rs. 3,60,00,00,000"),
+                fld(s, "turnover_fy2", "Rs. 3,40,00,00,000"),
+                fld(s, "turnover_fy3", "Rs. 3,20,00,00,000"),
+            ],
+        )
+    )
+
+
+def test_turnover_belonging_to_the_bidder_is_compliant():
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Marine Works Private Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.COMPLIANT
+
+
+def test_turnover_belonging_to_the_holding_company_goes_to_the_officer():
+    """The figure clears the threshold four times over — on someone else's money.
+
+    Nothing upstream objects: the arithmetic is right and the certificate is
+    genuine. A silent COMPLIANT here would answer a question the tender never
+    asked.
+    """
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Holdings Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.NEEDS_HUMAN_REVIEW
+    assert "Coastal Holdings Limited" in verdict.reasoning
+    assert "not the bidding entity" in verdict.reasoning
+
+
+def test_attribution_does_not_fail_the_requirement():
+    """It is a judgement call, not a shortfall. Real tenders permit this."""
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Holdings Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is not ComplianceStatus.NON_COMPLIANT
+
+
+def test_a_spelling_variant_of_the_bidders_own_name_still_passes():
+    """Normalisation runs first, so 'Pvt Ltd' against 'Private Limited' is fine."""
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Coastal Marine Works Pvt Ltd"),
+        DUE,
+        PROVIDER,
+        bidder_name="Coastal Marine Works Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.COMPLIANT
+
+
+def test_attribution_never_upgrades_a_failing_verdict():
+    """It can only route a pass to review; it cannot rescue a shortfall."""
+    s = seg("ca_turnover_certificate")
+    ev = index(
+        (
+            s,
+            [
+                fld(s, "legal_name", "ABC Engineers Private Limited"),
+                fld(s, "turnover_fy1", "Rs. 65,00,00,000"),
+                fld(s, "turnover_fy2", "Rs. 62,00,00,000"),
+                fld(s, "turnover_fy3", "Rs. 59,00,00,000"),
+            ],
+        )
+    )
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        ev,
+        DUE,
+        PROVIDER,
+        bidder_name="ABC Engineers Private Limited",
+    )
+    assert verdict.status is ComplianceStatus.NON_COMPLIANT
+
+
+def test_without_a_bidder_name_attribution_is_skipped_rather_than_guessed():
+    verdict = engine.evaluate(
+        _turnover_requirement(),
+        _turnover_evidence("Someone Else Entirely Limited"),
+        DUE,
+        PROVIDER,
+        bidder_name=None,
+    )
+    assert verdict.status is ComplianceStatus.COMPLIANT
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cross-document comparison across entities (CLAUDE.md §9, §20)
+# ─────────────────────────────────────────────────────────────────────────────
+def _bidder(name: str):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(legal_name=name)
+
+
+def test_a_different_companys_document_is_not_a_contradiction():
+    """Bidder C: the holding company's certificate names the holding company.
+
+    §20 states this rule for consortium members — consistency is checked within
+    each member's own documents, because getting it backwards "would flag every
+    consortium as fraudulent". A parent company is the same situation.
+    """
+    own, holding = seg("pan_card"), seg("ca_turnover_certificate")
+    ev = index(
+        (
+            own,
+            [
+                fld(own, "pan", "AADCC3344M"),
+                fld(own, "legal_name", "Coastal Marine Works Private Limited"),
+            ],
+        ),
+        (
+            holding,
+            [
+                fld(holding, "pan", "AAACH7788P"),
+                fld(holding, "legal_name", "Coastal Holdings Limited"),
+            ],
+        ),
+    )
+    findings = cross_document.run(ev, _bidder("Coastal Marine Works Private Limited"))
+
+    assert not any(f.finding_type == "pan_mismatch" for f in findings)
+    notice = next(f for f in findings if f.finding_type == "evidence_from_another_entity")
+    assert "Coastal Holdings Limited" in notice.description
+    # A judgement for the officer, not an accusation.
+    assert notice.severity is Severity.HIGH
+
+
+def test_a_near_match_name_stays_the_bidders_own_document():
+    """Bidder B: 'ABC Engineering Pvt Ltd' on the card, 'ABC Engineers' registered.
+
+    Close but not identical is the middle case of §9 — the bidder's own
+    paperwork, inconsistently filled in. Its values must still be compared, or
+    the GSTIN/PAN check never runs on them.
+    """
+    card, gst = seg("pan_card"), seg("gst_certificate")
+    ev = index(
+        (
+            card,
+            [fld(card, "pan", "AABCE5678K"), fld(card, "legal_name", "ABC Engineering Pvt Ltd")],
+        ),
+        (
+            gst,
+            [
+                fld(gst, "gstin", "33AABCE9999K1ZX"),
+                fld(gst, "legal_name", "ABC Engineers Private Limited"),
+            ],
+        ),
+    )
+    findings = cross_document.run(ev, _bidder("ABC Engineers Private Limited"))
+
+    assert any(f.finding_type == "legal_name_variance" for f in findings)
+    assert not any(f.finding_type == "evidence_from_another_entity" for f in findings)
+    # The card was kept in scope, so the embedded-PAN check still fired.
+    assert any(f.finding_type == "gstin_pan_mismatch" for f in findings)
+
+
+def test_the_same_difference_is_reported_once():
+    """One name, appearing in five documents, is one problem — not five."""
+    segments = [seg("pan_card"), seg("gst_certificate"), seg("iso_certificate")]
+    pairs = [(s, [fld(s, "legal_name", "ABC Engineering Pvt Ltd")]) for s in segments]
+    findings = cross_document.run(index(*pairs), _bidder("ABC Engineers Private Limited"))
+    variances = [f for f in findings if f.finding_type == "legal_name_variance"]
+    assert len(variances) == 1
+
+
+def test_an_outside_entitys_document_does_not_fail_the_consistency_requirement():
+    """It routes to the officer. Turning a judgement call into a hard failure
+    would make Bidder C look fraudulent rather than ambiguous."""
+    assert "evidence_from_another_entity" not in cross_document.CONTRADICTION_TYPES
+    assert "gstin_pan_mismatch" in cross_document.CONTRADICTION_TYPES

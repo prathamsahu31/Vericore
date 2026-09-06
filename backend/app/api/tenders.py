@@ -36,6 +36,11 @@ def get_tender(tender_id: uuid.UUID, db: DbSession) -> TenderOut:
     return TenderOut.model_validate(tenders.get_tender(db, tender_id))
 
 
+@router.get("/tenders", response_model=list[TenderOut])
+def list_tenders(db: DbSession) -> list[TenderOut]:
+    return [TenderOut.model_validate(t) for t in tenders.list_tenders(db)]
+
+
 @router.post("/tenders/{tender_id}/document", response_model=DocumentOut, status_code=201)
 def upload_nit(
     tender_id: uuid.UUID, db: DbSession, file: Annotated[UploadFile, File()]

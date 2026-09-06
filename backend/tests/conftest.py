@@ -23,6 +23,15 @@ from pathlib import Path
 _TMP = Path(tempfile.mkdtemp(prefix="vericore-tests-"))
 os.environ.setdefault("STORAGE_PATH", str(_TMP / "storage"))
 os.environ.setdefault("LLM_CACHE_DIR", str(_TMP / "llm_cache"))
+
+# Forced, not defaulted. CLAUDE.md §7.7: "Tests use StubProvider exclusively. A
+# test that makes a network call is a broken test." A developer with a real
+# provider configured in .env — which is the recommended setup for a live demo —
+# would otherwise have the whole suite calling out, slowly and non
+# deterministically, and burning free-tier quota.
+os.environ["LLM_PROVIDER"] = "stub"
+os.environ["LLM_PROVIDER_EXTRACTION"] = ""
+os.environ["LLM_PROVIDER_REASONING"] = ""
 if os.environ.get("TEST_DATABASE_URL"):
     os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 

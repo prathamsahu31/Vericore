@@ -69,7 +69,7 @@ def verified(client, tender):
 # ─────────────────────────────────────────────────────────────────────────────
 def test_the_pq_table_yields_one_requirement_per_clause(client, tender):
     rows = client.post(f"/tenders/{tender['id']}/extract-requirements").json()
-    assert len(rows) == 15
+    assert len(rows) == 17
     assert [r["code"] for r in rows][:3] == ["REQ-001", "REQ-002", "REQ-003"]
 
 
@@ -127,7 +127,7 @@ def test_an_officer_can_correct_a_requirement_before_confirming(client, tender):
 # The compliance picture
 # ─────────────────────────────────────────────────────────────────────────────
 def test_every_requirement_receives_a_verdict(verified):
-    assert len(verified["requirements"]) == 15
+    assert len(verified["requirements"]) == 17
     assert verified["run_status"] == "succeeded"
 
 
@@ -157,6 +157,16 @@ def test_the_absent_document_is_missing_evidence_and_is_named(verified):
     row = next(r for r in verified["requirements"] if r["requirement_code"] == "REQ-013")
     assert row["status"] == ComplianceStatus.MISSING_EVIDENCE
     assert "local content certificate" in row["reasoning"]
+
+
+def test_epfo_and_esic_registrations_are_verified_against_the_due_date(verified):
+    """Problem statement items 6 + Make in India: bidder A holds both, valid."""
+    for code, name in (("REQ-016", "epfo"), ("REQ-017", "esic")):
+        row = next(r for r in verified["requirements"] if r["requirement_code"] == code)
+        assert row["status"] == ComplianceStatus.COMPLIANT, row["reasoning"]
+        assert row["verification_method"] == "deterministic_date"
+        assert f"{name} certificate" in row["reasoning"]
+        assert row["evidence_field_ids"], f"{code} cites nothing"
 
 
 def test_the_prose_specification_is_referred_to_a_human(verified):
@@ -202,15 +212,119 @@ def test_the_score_is_recomputable_from_the_verdict_table(verified):
     assert compute(rows).value == Decimal(verified["compliance_score"])
 
 
-def test_a_failed_mandatory_requirement_is_named_not_buried(verified):
-    """§10: the UI states which mandatory requirement failed, prominently."""
-    if verified["mandatory_gate_passed"]:
-        return
-    assert verified["failed_mandatory"]
-    named = set(verified["failed_mandatory"])
-    for code in named:
-        row = next(r for r in verified["requirements"] if r["requirement_code"] == code)
-        assert row["status"] != ComplianceStatus.COMPLIANT
+def test_a_pending_review_item_does_not_read_as_a_failure(verified):
+    """A mandatory item awaiting the officer is unresolved, not failed.
+
+    Bidder A's only outstanding mandatory item is the prose specification, which
+    the system referred to a human by policy. Treating that identically to a
+    genuine NON_COMPLIANT would make §13's clean-bidder demo impossible and,
+    worse, would tell an officer a compliant bidder had failed.
+    """
+    assert verified["mandatory_failed"] == []
+    assert "REQ-010" in verified["pending_review"]
+    assert verified["mandatory_gate_passed"] is True
+    assert verified["qualifiable"] is False
+
+
+def test_accepting_the_pending_item_makes_the_bidder_qualifiable(client, verified, conn):
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o@example.gov.in', 'An Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    after = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "Duplex stainless steel with epoxy-phenolic lining is suitable for "
+            "chloride-bearing service. Confirmed against the tender clause.",
+        },
+    ).json()
+    assert after["pending_review"] == []
+    assert after["qualifiable"] is True
+
+
+def test_an_override_is_stored_beside_the_machine_verdict_not_instead_of_it(client, verified, conn):
+    """CLAUDE.md §5: both are stored, and both stay visible."""
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o2@example.gov.in', 'Another Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    after = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "Materials confirmed against clause 6.10.",
+        },
+    ).json()
+    row = next(r for r in after["requirements"] if r["requirement_code"] == "REQ-010")
+    assert row["status"] == ComplianceStatus.NEEDS_HUMAN_REVIEW  # machine, untouched
+    assert row["override_status"] == ComplianceStatus.COMPLIANT  # officer, alongside
+    assert row["effective_status"] == ComplianceStatus.COMPLIANT
+    assert row["reasoning"], "the machine's own reasoning must survive an override"
+
+
+def test_accepting_something_the_system_failed_is_refused_as_an_override(client, verified, conn):
+    """ "I looked and agreed" and "I disagree" are different acts (§5)."""
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o3@example.gov.in', 'Third Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    response = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-002",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "fine by me",
+        },
+    )
+    assert response.status_code == 422
+    assert "override" in response.json()["error"]["message"]
+
+
+def test_a_review_without_a_reason_is_refused(client, verified, conn):
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('o4@example.gov.in', 'Fourth Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    response = client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "   ",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_the_audit_trail_reports_chain_integrity(client, verified):
+    """§11: chain-integrity status is shown at the top of the trail."""
+    trail = client.get(f"/bids/{verified['bid_id']}/audit").json()
+    assert trail["integrity"]["intact"] is True
+    assert trail["integrity"]["total_events"] >= 1
+    assert len(trail["integrity"]["head_hash"]) == 64
 
 
 def test_a_consistent_bidder_raises_no_cross_document_findings(verified):
@@ -263,3 +377,82 @@ def test_re_running_replaces_verdicts_without_duplicating_them(client, verified)
     again = client.post(f"/bids/{verified['bid_id']}/verify").json()
     assert len(again["requirements"]) == len(verified["requirements"])
     assert again["compliance_score"] == verified["compliance_score"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comparison across bidders (architecture.md §9.4)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_comparison_lists_every_bidder_and_every_condition(client, tender, verified):
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    assert len(comparison["bidders"]) >= 1
+    assert len(comparison["requirements"]) == 17
+    for row in comparison["requirements"]:
+        assert len(row["cells"]) == len(comparison["bidders"])
+
+
+def test_comparison_marks_the_conditions_where_bidders_differ(client, tender, verified):
+    """The column worth reading first when shortlisting."""
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    # With one bidder nothing can differ; the flag must still be present and false.
+    assert all("differentiating" in row for row in comparison["requirements"])
+    if len(comparison["bidders"]) == 1:
+        assert not any(row["differentiating"] for row in comparison["requirements"])
+
+
+def test_comparison_does_not_rank_bidders(client, tender, verified):
+    """Ordering by score would be the system expressing a preference.
+
+    CLAUDE.md §2: the officer decides. Presenting bidders best-first is a
+    recommendation dressed as a layout.
+    """
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    payload = client.get(f"/tenders/{tender['id']}/comparison").text
+    assert "rank" not in payload.lower()
+    # Bid order, not score order.
+    assert [b["bid_id"] for b in comparison["bidders"]] == sorted(
+        [b["bid_id"] for b in comparison["bidders"]],
+        key=lambda x: [b["bid_id"] for b in comparison["bidders"]].index(x),
+    )
+
+
+def test_comparison_reports_both_gates_per_bidder(client, tender, verified):
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    bidder = comparison["bidders"][0]
+    assert "mandatory_failed" in bidder
+    assert "pending_review" in bidder
+    assert "qualifiable" in bidder
+
+
+def test_comparison_shows_the_officers_verdict_where_one_exists(client, tender, verified, conn):
+    """The effective status is what the cell shows; the override is marked."""
+    from sqlalchemy import text
+
+    officer = conn.execute(
+        text(
+            "INSERT INTO users (email, full_name, role) "
+            "VALUES ('cmp@example.gov.in', 'Comparison Officer', 'officer') RETURNING id"
+        )
+    ).scalar_one()
+    client.post(
+        f"/bids/{verified['bid_id']}/review",
+        json={
+            "requirement_code": "REQ-010",
+            "action": "accept",
+            "officer_id": str(officer),
+            "reason": "Materials confirmed against the tender clause.",
+        },
+    )
+    comparison = client.get(f"/tenders/{tender['id']}/comparison").json()
+    row = next(r for r in comparison["requirements"] if r["requirement_code"] == "REQ-010")
+    cell = next(c for c in row["cells"] if c["bid_id"] == verified["bid_id"])
+    assert cell["status"] == ComplianceStatus.NEEDS_HUMAN_REVIEW  # machine, kept
+    assert cell["effective_status"] == ComplianceStatus.COMPLIANT  # officer, counted
+    assert cell["overridden"] is True
+
+
+def test_comparison_of_an_unknown_tender_is_a_clean_404(client):
+    import uuid as _uuid
+
+    response = client.get(f"/tenders/{_uuid.uuid4()}/comparison")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"

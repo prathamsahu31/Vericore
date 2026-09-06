@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.db.enums import (
     ActorType,
     ComplianceStatus,
+    RecommendationAction,
     TenderStatus,
     VerificationRunStatus,
 )
@@ -140,7 +141,12 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
         db.flush()
 
         verdict = engine.evaluate(
-            requirement, evidence, due_date, provider, lead_member_id=lead_member_id
+            requirement,
+            evidence,
+            due_date,
+            provider,
+            lead_member_id=lead_member_id,
+            bidder_name=bidder.legal_name,
         )
         external = engine.run_external_check(requirement, evidence, bidder)
         verdict = engine.apply_external(verdict, external)
@@ -190,12 +196,7 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
     # Layers 8 — score and risk, computed independently of one another (§10).
     run.phase = "scoring"
     db.flush()
-    score = scoring.compute(
-        [
-            (r.code, r.name, r.mandatory, v.applicable, float(r.weight or 0), v.status)
-            for r, v in zip(requirements, verdicts, strict=True)
-        ]
-    )
+    score = rescore(db, bid)
     risk = assess(
         evidence=evidence,
         findings=findings,
@@ -216,14 +217,10 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
             )
         )
 
-    bid.compliance_score = score.value
-    bid.mandatory_gate_passed = score.mandatory_gate_passed
-    bid.score_breakdown = {
-        "requirements": score.breakdown,
-        "failed_mandatory": score.failed_mandatory,
-        "bid_due_date": due_date.isoformat(),
-    }
+    bid.score_breakdown = {**(bid.score_breakdown or {}), "bid_due_date": due_date.isoformat()}
     bid.risk_level = risk.level
+
+    _write_recommendation(db, bid, requirements, verdicts, provider)
 
     db.add(
         AuditEvent(
@@ -238,9 +235,17 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
                 "requirements_evaluated": len(requirements),
                 "compliance_score": str(score.value),
                 "mandatory_gate_passed": score.mandatory_gate_passed,
-                "failed_mandatory": score.failed_mandatory,
+                "mandatory_failed": score.mandatory_failed,
+                "pending_review": score.pending_review,
                 "cross_document_findings": len(findings),
                 "risk_flags": [f.code for f in risk.flags],
+                "recommendation_text": bid.recommendation_text,
+                "recommendation_action": (
+                    str(bid.recommendation_action) if bid.recommendation_action else None
+                ),
+                "recommendation_cited_requirements": [
+                    str(c) for c in (bid.recommendation_cited_requirements or [])
+                ],
             },
         )
     )
@@ -278,8 +283,19 @@ def _clear_previous(db: Session, bid_id: uuid.UUID) -> None:
 
 
 def _apply_findings(verdicts, requirements, findings):
-    """A contradiction makes the consistency requirement INCONSISTENT."""
-    blocking = [f for f in findings if f.severity.value in ("critical", "high")]
+    """A contradiction makes the consistency requirement INCONSISTENT.
+
+    Only a contradiction *within the bidder's own documents* counts. A bundle
+    containing a parent company's certificate is not a submission that
+    disagrees with itself, and marking it INCONSISTENT would turn a judgement
+    call into a hard failure.
+    """
+    blocking = [
+        f
+        for f in findings
+        if f.severity.value in ("critical", "high")
+        and f.finding_type in cross_document.CONTRADICTION_TYPES
+    ]
     if not blocking:
         return verdicts
 
@@ -351,3 +367,118 @@ def _snapshot(evidence: BidEvidence, field_ids) -> dict:
             if f.id in field_ids:
                 out[f.field_name] = f.field_value
     return out
+
+
+def rescore(db: Session, bid: Bid) -> scoring.Score:
+    """Recompute the score and both gates from the stored verdicts.
+
+    Reads the *effective* status of each requirement — an officer's override
+    where one exists, the machine verdict otherwise — so accepting a pending
+    item moves the gate without erasing what the system originally found (§5).
+
+    Called at the end of a verification run and again after every review, so
+    the two can never drift apart.
+    """
+    results = {
+        r.requirement_id: r
+        for r in db.execute(
+            select(ComplianceResult).where(ComplianceResult.bid_id == bid.id)
+        ).scalars()
+    }
+    requirements = list(
+        db.execute(
+            select(Requirement)
+            .where(Requirement.tender_id == bid.tender_id)
+            .order_by(Requirement.display_order)
+        ).scalars()
+    )
+
+    rows = []
+    for requirement in requirements:
+        result = results.get(requirement.id)
+        if result is None:
+            continue
+        rows.append(
+            (
+                requirement.code,
+                requirement.name,
+                requirement.mandatory,
+                result.applicable,
+                float(requirement.weight or 0),
+                scoring.effective_status(result.status, result.override_status),
+            )
+        )
+
+    score = scoring.compute(rows)
+    bid.compliance_score = score.value
+    bid.mandatory_gate_passed = score.mandatory_gate_passed
+    bid.score_breakdown = {
+        **(bid.score_breakdown or {}),
+        "requirements": score.breakdown,
+        "mandatory_failed": score.mandatory_failed,
+        "pending_review": score.pending_review,
+        "qualifiable": score.qualifiable,
+    }
+    db.flush()
+    return score
+
+
+def _write_recommendation(db, bid, requirements, verdicts, provider) -> None:
+    """Layer 8 — the advisory narrative, stored beside the officer's decision.
+
+    ``narrate`` sees only structured verdicts — never raw documents — so it
+    cannot introduce facts (CLAUDE.md §7.6). The narrative is advisory and is
+    never a control: nothing downstream acts on it, and the officer's decision
+    bar is the only place an outcome is chosen (§11, §2).
+    """
+    from app.llm.types import Recommendation
+
+    code_to_id = {r.code: r.id for r in requirements}
+    results = [
+        {
+            "requirement_id": str(v.requirement_id),
+            "code": r.code,
+            "name": r.name,
+            "category": r.category,
+            "mandatory": r.mandatory,
+            "weight": float(r.weight or 0),
+            "status": str(v.status),
+            "verification_method": v.verification_method,
+            "reasoning": v.reasoning,
+            "external_check_portal": v.external.portal_id if v.external else None,
+            "external_check_status": v.external.status if v.external else None,
+            "external_check_source": v.external.source if v.external else None,
+        }
+        for r, v in zip(requirements, verdicts, strict=True)
+    ]
+
+    action: RecommendationAction | None = None
+    summary = ""
+    cited: list[uuid.UUID] = []
+
+    try:
+        rec: Recommendation = provider.narrate(results)
+        # The action arrives as a string; coerce it to the enum, and never let
+        # a stray value travel further than this function (§7.6).
+        action = (
+            RecommendationAction(a.value)
+            for a in RecommendationAction
+            if a.value == str(rec.action).upper()
+        )
+        action = next(action, None)
+        summary = rec.summary
+        # Only citations to requirements on this tender survive — a model that
+        # cites REQ-999 invented a reference, and it must not appear in the UI.
+        cited = [
+            code_to_id[code]
+            for code in rec.cited_requirement_codes
+            if code in code_to_id
+        ]
+    except Exception:  # noqa: BLE001 — recommendations are advisory; a failure
+        # must never fail the verification itself or hide the verdicts.
+        log.exception("narrate failed for bid=%s; suppressing recommendation", bid.id)
+
+    bid.recommendation_text = summary or None
+    bid.recommendation_action = action
+    bid.recommendation_cited_requirements = cited or None
+    db.flush()

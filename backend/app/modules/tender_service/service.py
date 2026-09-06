@@ -20,6 +20,7 @@ from app.db.models import Document, DocumentSegment, Requirement, Tender
 from app.errors import ConflictError, NotFoundError
 from app.llm.types import DocumentInput
 from app.modules.document_intelligence.pdf_reader import build_provider_text, read_pdf
+from app.modules.verification_adapter.adapter import portal_for
 from app.storage import store
 
 
@@ -52,6 +53,15 @@ def get_tender(db: Session, tender_id: uuid.UUID) -> Tender:
     if tender is None:
         raise NotFoundError(f"Tender {tender_id} not found")
     return tender
+
+
+def list_tenders(db: Session) -> list[Tender]:
+    rows = (
+        db.execute(select(Tender).order_by(Tender.created_at.desc(), Tender.title.asc()))
+        .scalars()
+        .all()
+    )
+    return list(rows)
 
 
 def upload_nit(
@@ -107,7 +117,9 @@ def extract_requirements(db: Session, *, tender_id: uuid.UUID, provider) -> list
 
     document = (
         db.execute(
-            select(Document).where(Document.tender_id == tender.id).order_by(Document.uploaded_at)
+            select(Document)
+            .where(Document.tender_id == tender.id)
+            .order_by(Document.uploaded_at.desc())
         )
         .scalars()
         .first()
@@ -140,7 +152,7 @@ def extract_requirements(db: Session, *, tender_id: uuid.UUID, provider) -> list
             applicability_scope=draft.applicability_scope,
             accepts_document_types=draft.accepts_document_types,
             required_fields=draft.required_fields,
-            external_check=draft.external_check,
+            external_check=draft.external_check or portal_for(draft),
             source_page=draft.source_page,
             source_clause_ref=draft.source_clause_ref,
             display_order=index,

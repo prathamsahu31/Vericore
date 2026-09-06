@@ -28,7 +28,11 @@ from app.modules.compliance_engine.evidence_index import (
     route,
     with_article,
 )
-from app.modules.verification_adapter.adapter import VerificationResult, get_adapter
+from app.modules.verification_adapter.adapter import (
+    VerificationResult,
+    get_adapter,
+    portal_for,
+)
 
 log = logging.getLogger(__name__)
 
@@ -78,14 +82,88 @@ def _unlocated(*fields) -> bool:
     )
 
 
+# Fields that name the entity a document belongs to.
+ATTRIBUTION_FIELDS = ("legal_name", "enterprise_name")
+
+
 def evaluate(
     requirement: Requirement,
     evidence: BidEvidence,
     bid_due_date: date,
     provider,
     lead_member_id: uuid.UUID | None = None,
+    bidder_name: str | None = None,
 ) -> Verdict:
     """Assign one of the nine states to one requirement."""
+    verdict = _evaluate(requirement, evidence, bid_due_date, provider, lead_member_id)
+    return _check_attribution(verdict, evidence, bidder_name)
+
+
+def _check_attribution(verdict: Verdict, evidence: BidEvidence, bidder_name: str | None) -> Verdict:
+    """Evidence has to belong to the bidder.
+
+    A turnover certificate issued to the bidder's holding company clears the
+    threshold on someone else's money. The figure is real and the arithmetic is
+    right, so nothing upstream objects — and a silent COMPLIANT would be the
+    system answering a question the tender never asked.
+
+    Whether a parent's resources may be relied on is a policy judgement that
+    real tenders decide case by case, so this does not fail the requirement. It
+    routes to the officer, naming the other entity, which is the same treatment
+    §21 gives a required field that could not be read and §24 gives a value that
+    could not be placed on its page.
+    """
+    if verdict.status is not ComplianceStatus.COMPLIANT or not bidder_name:
+        return verdict
+
+    # Only segments that actually contributed a cited value. A wildcard
+    # requirement routes to every segment in the bundle, and one outside
+    # document among them should not colour a verdict that never read it.
+    cited = set(verdict.field_ids)
+    contributing = [
+        segment
+        for segment in evidence.segments
+        if any(f.id in cited for f in evidence.fields(segment))
+    ]
+
+    for segment in contributing:
+        for field_name in ATTRIBUTION_FIELDS:
+            named = evidence.field(segment, field_name)
+            if named is None or not named.field_value:
+                continue
+            outcome = rules.compare_legal_names(named.field_value, bidder_name)
+            if outcome.passed:
+                continue
+            verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
+            verdict.outcomes = [*verdict.outcomes, outcome]
+            if outcome.working.get("needs_human"):
+                # Close, but not the same. Possibly one company's inconsistent
+                # paperwork, possibly two companies — not for us to decide (§9).
+                note = (
+                    f"However, this rests on a {humanise_doc_type(segment.doc_type)} "
+                    f"naming '{named.field_value}', while the bidder is registered as "
+                    f"'{bidder_name}'. Please confirm they are the same company."
+                )
+            else:
+                note = (
+                    f"However, this rests on a {humanise_doc_type(segment.doc_type)} "
+                    f"issued to '{named.field_value}', which is not the bidding entity "
+                    f"('{bidder_name}'). Whether that entity's standing may be relied "
+                    f"on is a decision for you, not for this system."
+                )
+            verdict.reasoning = f"{verdict.reasoning} {note}".strip()
+            return verdict
+    return verdict
+
+
+def _evaluate(
+    requirement: Requirement,
+    evidence: BidEvidence,
+    bid_due_date: date,
+    provider,
+    lead_member_id: uuid.UUID | None = None,
+) -> Verdict:
+    """Dispatch to the check the requirement's condition calls for."""
     verdict = Verdict(
         requirement_id=requirement.id,
         status=ComplianceStatus.MISSING_EVIDENCE,
@@ -391,7 +469,7 @@ def run_external_check(
     requirement: Requirement, evidence: BidEvidence, bidder
 ) -> VerificationResult | None:
     """Look the bidder up on the portal this requirement names, if any."""
-    portal = requirement.external_check
+    portal = portal_for(requirement)
     if not portal:
         return None
 
@@ -401,6 +479,12 @@ def run_external_check(
         "udyam": (evidence.first("udyam_urn") or _Empty()).field_value,
         "mca21": (evidence.first("cin") or _Empty()).field_value,
         "blacklist": bidder.pan,
+        # DigiLocker is keyed by the PAN the account is built around; DPIIT's
+        # Startup India recognition and NSIC registration sit alongside the
+        # same enterprise the Udyam certificate names.
+        "digilocker": bidder.pan,
+        "dpiit": (evidence.first("udyam_urn") or _Empty()).field_value,
+        "nsic": (evidence.first("udyam_urn") or _Empty()).field_value,
     }.get(portal)
 
     if not identifier:
@@ -434,6 +518,7 @@ def apply_external(verdict: Verdict, result: VerificationResult | None) -> Verdi
             f" The {result.portal_id} adapter returned a matching record "
             f"(source: {result.source})."
         )
+        verdict.reasoning += _external_facts(result)
     elif result.status == "not_found":
         if verdict.requirement_id and verdict.status is ComplianceStatus.COMPLIANT:
             # For a debarment register, absence is the good outcome.
@@ -442,3 +527,28 @@ def apply_external(verdict: Verdict, result: VerificationResult | None) -> Verdi
                 f"(source: {result.source})."
             )
     return verdict
+
+
+def _external_facts(result: VerificationResult) -> str:
+    """Extra statutorily-significant facts carried in the adapter's data.
+
+    GST registration on the register is one thing; whether returns were filed
+    is another, and the mock dataset answers both — so the reasoning says both,
+    each time attributed to its source. The same applies to the PAN's income
+    tax filing status.
+    """
+    if result.portal_id == "gstn":
+        through = (result.data or {}).get("returns_filed_through")
+        if through:
+            return (
+                f" The register reports returns filed through {through} "
+                f"(source: {result.source})."
+            )
+    if result.portal_id == "pan":
+        itr = (result.data or {}).get("itr_status")
+        if itr:
+            return (
+                f" The PAN check reports income-tax filing status: {itr} "
+                f"(source: {result.source})."
+            )
+    return ""

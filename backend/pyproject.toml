@@ -49,6 +49,8 @@ select = ["E", "F", "I", "UP", "B"]
 # reflowing, and the local enum bindings read better upper-case.
 "alembic/versions/*.py" = ["E501", "N806"]
 "alembic/env.py" = ["F401"]
+# The report HTML template is one long literal; reflowing it would corrupt CSS.
+"app/modules/report_service/service.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

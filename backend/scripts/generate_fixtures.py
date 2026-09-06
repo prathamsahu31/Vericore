@@ -60,9 +60,36 @@ class Company:
     cin_ownership: str
     cin_serial: str
 
+    # Turnover for the three financial years the tender asks about, most recent
+    # first, as printed on the certificate.
+    turnover: tuple[str, str, str] = (
+        "Rs. 1,18,00,00,000",
+        "Rs. 1,02,00,00,000",
+        "Rs. 96,00,00,000",
+    )
+    work_order_value: str = "Rs. 47,50,00,000"
+    iso_valid_until: str = "18/09/2026"
+    oem_valid_until: str = "31/12/2026"
+
+    # ── Planted flaws (§16). Each is None for a clean bidder. ────────────
+    #: A different PAN embedded in the GSTIN than the one on the PAN card. The
+    #: single highest-value structural check in the system (§9), and the moment
+    #: architecture.md §13 builds the demo around.
+    gstin_embeds_pan: str | None = None
+    #: The name as printed on the PAN card, when it differs from the GST
+    #: certificate. A near-match that must be raised, never auto-resolved.
+    name_on_pan: str | None = None
+    #: Documents to leave out of the bundle entirely.
+    omit: tuple[str, ...] = ()
+    #: The entity the turnover certificate is issued to, when that is not the
+    #: bidder. This is the holding-company case: the figure clears the
+    #: threshold but belongs to someone else.
+    turnover_entity: str | None = None
+    turnover_entity_pan: str | None = None
+
     @property
     def gstin(self) -> str:
-        return build_gstin(self.state_code, self.pan)
+        return build_gstin(self.state_code, self.gstin_embeds_pan or self.pan)
 
     @property
     def cin(self) -> str:
@@ -74,6 +101,10 @@ class Company:
     @property
     def udyam_urn(self) -> str:
         return f"UDYAM-{self.state_abbr}-{self.state_code}-{self.udyam_serial}"
+
+    @property
+    def pan_name(self) -> str:
+        return self.name_on_pan or self.legal_name
 
 
 BIDDER_A = Company(
@@ -91,7 +122,81 @@ BIDDER_A = Company(
     cin_industry="45200",
     cin_ownership="PTC",
     cin_serial="101234",
+    # The local-content certificate is deliberately absent so MISSING_EVIDENCE is
+    # exercised for REQ-013 (§6.13, not mandatory).
+    omit=("local_content_certificate",),
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bidder B — clearly problematic (§16)
+#
+# Four planted flaws, each exercising a different part of the engine, plus the
+# GSTIN/PAN mismatch that architecture.md §13 builds the demo's key moment
+# around. The GSTIN's own checksum stays valid, so the structural check passes
+# and the PAN-embedding check is what catches it — otherwise the wrong finding
+# fires first and masks the interesting one.
+# ─────────────────────────────────────────────────────────────────────────────
+BIDDER_B = Company(
+    slug="bidder_b",
+    legal_name="ABC Engineers Private Limited",  # as printed on the GST certificate
+    name_on_pan="ABC Engineering Pvt Ltd",  # ... and differently on the PAN card
+    trade_name="ABC Engineers",
+    pan="AABCE5678K",
+    gstin_embeds_pan="AABCE9999K",  # not the PAN on the card
+    state_code="33",
+    state_abbr="TN",
+    address="7 Mount Poonamallee Road, Porur, Chennai",
+    pincode="600116",
+    incorporated="09/11/2017",
+    udyam_serial="0055913",
+    enterprise_type="Small",
+    cin_industry="45201",
+    cin_ownership="PTC",
+    cin_serial="118742",
+    # 62 Cr average against the 100 Cr the tender requires.
+    turnover=("Rs. 65,00,00,000", "Rs. 62,00,00,000", "Rs. 59,00,00,000"),
+    # Lapsed well before the 15/09/2026 bid due date.
+    iso_valid_until="30/06/2026",
+    omit=("oem_authorisation", "local_content_certificate"),
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bidder C — genuinely ambiguous (§16)
+#
+# Nothing here is wrong. The turnover certificate clears the threshold four
+# times over, and belongs to the bidder's holding company rather than to the
+# bidder. Real oil-sector tenders permit exactly this, subject to an
+# undertaking and a board resolution — both of which are in the bundle. Whether
+# it is permitted under *this* tender is a policy judgement, and this bidder
+# exists to prove the human-in-the-loop design is load-bearing rather than
+# decorative.
+# ─────────────────────────────────────────────────────────────────────────────
+BIDDER_C = Company(
+    slug="bidder_c",
+    legal_name="Coastal Marine Works Private Limited",
+    trade_name="Coastal Marine",
+    pan="AADCC3344M",
+    state_code="24",
+    state_abbr="GJ",
+    address="Plot 44, Dahej SEZ, Bharuch",
+    pincode="392130",
+    incorporated="22/07/2019",
+    udyam_serial="0093166",
+    enterprise_type="Small",
+    cin_industry="45203",
+    cin_ownership="PTC",
+    cin_serial="109455",
+    # The holding company's figures, on a certificate issued in its name.
+    turnover=("Rs. 3,60,00,00,000", "Rs. 3,40,00,00,000", "Rs. 3,20,00,00,000"),
+    turnover_entity="Coastal Holdings Limited",
+    turnover_entity_pan="AAACH7788P",
+    work_order_value="Rs. 44,00,00,000",
+)
+
+
+ALL_BIDDERS = (BIDDER_A, BIDDER_B, BIDDER_C)
 
 
 def _page(doc: pymupdf.Document) -> pymupdf.Page:
@@ -138,7 +243,7 @@ def pan_card(c: Company, out: Path) -> Path:
             (150, 90, "Government of India", 11, "helv"),
             (60, 150, "Permanent Account Number", 11, "hebo"),
             (60, 176, f"{c.pan}", 15, "cour"),
-            (60, 220, f"Name : {c.legal_name}", 11, "helv"),
+            (60, 220, f"Name : {c.pan_name}", 11, "helv"),
             (60, 246, f"Date of Incorporation : {c.incorporated}", 11, "helv"),
         ],
     )
@@ -199,7 +304,7 @@ def work_order(c: Company, out: Path) -> Path:
             (60, 150, "Work Order No. : CPCL/ENG/2022/0417", 11, "cour"),
             (60, 178, "Awarded By : Chennai Petroleum Corporation Limited", 11, "helv"),
             (60, 202, f"Contractor : {c.legal_name}", 11, "helv"),
-            (60, 226, "Order Value : Rs. 47,50,00,000", 11, "helv"),
+            (60, 226, f"Order Value : {c.work_order_value}", 11, "helv"),
             (60, 250, "Date of Completion : 22/11/2023", 11, "helv"),
             (60, 286, "Description of Work : Supply, fabrication and installation of", 11, "helv"),
             (60, 304, "corrosion resistant piping systems including hydrotesting and", 11, "helv"),
@@ -212,8 +317,14 @@ def work_order(c: Company, out: Path) -> Path:
 
 
 def ca_turnover_certificate(c: Company, out: Path) -> Path:
-    """Average of the three years is 105.33 Cr against a 100 Cr threshold —
-    a pass, but not a trivial one."""
+    """The figures the turnover condition is judged on.
+
+    ``turnover_entity`` is the holding-company case: the certificate is issued
+    to a different legal person than the bidder, so the figure clears the
+    threshold while belonging to someone else.
+    """
+    entity = c.turnover_entity or c.legal_name
+    entity_pan = c.turnover_entity_pan or c.pan
     doc = pymupdf.open()
     page = _page(doc)
     _write(
@@ -221,14 +332,43 @@ def ca_turnover_certificate(c: Company, out: Path) -> Path:
         [
             (150, 70, "Statement of Turnover", 14, "hebo"),
             (150, 92, "Certified by Chartered Accountant", 11, "helv"),
-            (60, 150, f"Name of Entity : {c.legal_name}", 11, "helv"),
-            (60, 176, f"Permanent Account Number : {c.pan}", 11, "cour"),
+            (60, 150, f"Name of Entity : {entity}", 11, "helv"),
+            (60, 176, f"Permanent Account Number : {entity_pan}", 11, "cour"),
             (60, 214, "Audited turnover for the preceding three financial years:", 11, "helv"),
-            (60, 242, "FY 2023-24 : Rs. 1,18,00,00,000", 11, "helv"),
-            (60, 266, "FY 2022-23 : Rs. 1,02,00,00,000", 11, "helv"),
-            (60, 290, "FY 2021-22 : Rs. 96,00,00,000", 11, "helv"),
+            (60, 242, f"FY 2023-24 : {c.turnover[0]}", 11, "helv"),
+            (60, 266, f"FY 2022-23 : {c.turnover[1]}", 11, "helv"),
+            (60, 290, f"FY 2021-22 : {c.turnover[2]}", 11, "helv"),
             (60, 330, "Membership No. : 214872", 10, "helv"),
             (60, 350, "UDIN : 24214872BKFAAB1234", 10, "cour"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def holding_company_undertaking(c: Company, out: Path) -> Path:
+    """Only produced where a holding company's turnover is being relied on.
+
+    Real oil-sector tenders permit this, subject to an undertaking and a board
+    resolution. Whether it is permitted *here* is a policy judgement for the
+    officer, which is exactly why this bidder exists (§16).
+    """
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (110, 70, "Letter of Undertaking and Board Resolution", 13, "hebo"),
+            (60, 140, f"Bidding Entity : {c.legal_name}", 11, "helv"),
+            (60, 166, f"Holding Company : {c.turnover_entity}", 11, "helv"),
+            (60, 192, "Shareholding : 100 percent", 11, "helv"),
+            (60, 230, "The holding company undertakes to make available its financial", 10, "helv"),
+            (60, 248, "and technical resources to the bidding entity for the full", 10, "helv"),
+            (60, 266, "duration of the contract, and accepts joint and several", 10, "helv"),
+            (60, 284, "liability for performance.", 10, "helv"),
+            (60, 320, "Board Resolution Reference : CMW/BR/2026/014", 11, "cour"),
+            (60, 344, "Date of Resolution : 04/08/2026", 11, "helv"),
         ],
     )
     doc.save(out)
@@ -251,7 +391,7 @@ def iso_certificate(c: Company, out: Path) -> Path:
             (60, 200, "Standard : ISO 9001:2015", 11, "helv"),
             (60, 224, "Scope : Fabrication and installation of piping systems", 11, "helv"),
             (60, 248, "Date of Issue : 19/09/2023", 11, "helv"),
-            (60, 272, "Valid Until : 18/09/2026", 11, "helv"),
+            (60, 272, f"Valid Until : {c.iso_valid_until}", 11, "helv"),
         ],
     )
     doc.save(out)
@@ -269,7 +409,7 @@ def oem_authorisation(c: Company, out: Path) -> Path:
             (60, 130, "Issued By OEM : Hindustan Alloy Systems Limited", 11, "helv"),
             (60, 156, f"Authorised Party : {c.legal_name}", 11, "helv"),
             (60, 180, "Product Scope : Corrosion resistant alloy piping and fittings", 11, "helv"),
-            (60, 204, "Valid Until : 31/12/2026", 11, "helv"),
+            (60, 204, f"Valid Until : {c.oem_valid_until}", 11, "helv"),
             (60, 240, "We confirm the above party is authorised to supply and service", 10, "helv"),
             (60, 258, "our products for the tendered requirement.", 10, "helv"),
         ],
@@ -340,6 +480,66 @@ def emd_instrument(c: Company, out: Path) -> Path:
     return out
 
 
+def epfo_certificate(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Employees' Provident Fund Organisation", 12, "hebo"),
+            (150, 92, "EPFO Registration Certificate", 12, "helv"),
+            (60, 150, f"EPFO Registration Number : TN/MAS/{c.udyam_serial[:6]}", 11, "cour"),
+            (60, 178, f"Name of Establishment : {c.legal_name}", 11, "helv"),
+            (60, 202, "Type of Establishment : Private Limited Company", 11, "helv"),
+            (60, 226, "Date of Registration : 15/06/2021", 11, "helv"),
+            (60, 250, "Valid Until : 31/12/2027", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def esic_certificate(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Employees' State Insurance Corporation", 12, "hebo"),
+            (150, 92, "ESIC Registration Certificate", 12, "helv"),
+            (60, 150, f"ESIC Registration Number : {c.state_code}{c.udyam_serial}", 11, "cour"),
+            (60, 178, f"Name of Employer : {c.legal_name}", 11, "helv"),
+            (60, 202, "Date of Registration : 18/08/2021", 11, "helv"),
+            (60, 226, "Valid Until : 31/12/2027", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
+def local_content_certificate(c: Company, out: Path) -> Path:
+    doc = pymupdf.open()
+    page = _page(doc)
+    _write(
+        page,
+        [
+            (150, 70, "Local Content Certificate", 14, "hebo"),
+            (150, 92, "Make in India - Local Supplier Declaration", 11, "helv"),
+            (60, 150, f"Name of Supplier : {c.legal_name}", 11, "helv"),
+            (60, 178, "Local Content Percentage : 62 percent", 11, "helv"),
+            (60, 214, "We declare that the goods offered for the tendered requirement", 10, "helv"),
+            (60, 232, "have been produced in India with local content not less", 10, "helv"),
+            (60, 250, "than the percentage declared above.", 10, "helv"),
+            (60, 290, "Date of Declaration : 20/08/2026", 11, "helv"),
+        ],
+    )
+    doc.save(out)
+    doc.close()
+    return out
+
+
 BUILDERS = {
     "gst_certificate": gst_certificate,
     "pan_card": pan_card,
@@ -352,24 +552,49 @@ BUILDERS = {
     "technical_datasheet": technical_datasheet,
     "declaration_non_blacklisting": declaration_non_blacklisting,
     "emd_instrument": emd_instrument,
+    "holding_company_undertaking": holding_company_undertaking,
+    "epfo_certificate": epfo_certificate,
+    "esic_certificate": esic_certificate,
+    "local_content_certificate": local_content_certificate,
 }
 
-# Deliberately absent from Bidder A's bundle, so MISSING_EVIDENCE is a state the
-# demo actually exercises: local_content_certificate (§6.13, not mandatory).
+# The local-content certificate is deliberately absent from Bidder A's bundle,
+# so MISSING_EVIDENCE stays a state the demo exercises for §6.13 (not mandatory).
+# It stays absent too from Bidder B, who is already clearly non-compliant.
+LOCAL_CONTENT_OMITTED = ("local_content_certificate",)
 
 
 def generate(company: Company) -> list[Path]:
+    """Write the bundle, minus anything this bidder deliberately does not have."""
     out_dir = OUT_ROOT / company.slug
     out_dir.mkdir(parents=True, exist_ok=True)
-    return [build(company, out_dir / f"{name}.pdf") for name, build in BUILDERS.items()]
+    for stale in out_dir.glob("*.pdf"):
+        stale.unlink()
+
+    written = []
+    for name, build in BUILDERS.items():
+        if name in company.omit:
+            continue
+        if name == "holding_company_undertaking" and not company.turnover_entity:
+            continue
+        written.append(build(company, out_dir / f"{name}.pdf"))
+    return written
 
 
 if __name__ == "__main__":
-    c = BIDDER_A
-    print(f"{c.legal_name}")
-    print(f"  PAN   {c.pan}")
-    print(f"  GSTIN {c.gstin}   (chars 3-12 == PAN: {c.gstin[2:12] == c.pan})")
-    print(f"  CIN   {c.cin}     (year == incorporation: {c.cin[8:12] == c.incorporated[-4:]})")
-    print(f"  Udyam {c.udyam_urn}")
-    for path in generate(c):
-        print(f"  wrote {path.relative_to(REPO_ROOT)}")
+    for c in ALL_BIDDERS:
+        print(f"\n{c.legal_name}  ({c.slug})")
+        print(
+            f"  PAN   {c.pan}" + (f"   on the card as '{c.name_on_pan}'" if c.name_on_pan else "")
+        )
+        embedded = c.gstin[2:12]
+        note = "consistent" if embedded == c.pan else f"MISMATCH — embeds {embedded}"
+        print(f"  GSTIN {c.gstin}   {note}")
+        print(f"  CIN   {c.cin}   year matches incorporation: {c.cin[8:12] == c.incorporated[-4:]}")
+        print(f"  Udyam {c.udyam_urn}")
+        if c.turnover_entity:
+            print(f"  turnover certificate issued to: {c.turnover_entity}  (NOT the bidder)")
+        if c.omit:
+            print(f"  deliberately absent: {', '.join(c.omit)}")
+        for path in generate(c):
+            print(f"    {path.relative_to(REPO_ROOT)}")

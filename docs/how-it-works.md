@@ -8,18 +8,22 @@ technical background assumed.
 
 ## Where this document is ahead of the software
 
-**Build status as of 27 August 2026.** This document describes the system as
-designed. Only part of it is built.
+**Build status as of 6 September 2026.** This document is updated in the same
+commit as the feature it describes, so it stays accurate.
 
 | Built and working | Specified, not yet built |
 |---|---|
-| Reading a tender into a checklist, and the confirmation step | The screens — everything below is currently reachable only through the software's interface for other programs |
-| Adding bidders and uploading their documents | Recording your decision, and your reasons for it |
-| Working out what kind of document each file is | Overriding a verdict |
-| Reading facts out of a document, and recording exactly where on the page each came from | The printable report |
-| Every check listed below | A second and third demo bidder |
-| The score, the risk level, and the reasons behind both | |
+| Reading a tender into a checklist, and the confirmation step | Signing in — there is no login yet |
+| The screen for setting up a tender, checklist, and bidders | Reading scanned or photographed documents |
+| Adding bidders and uploading their documents | |
+| Working out what kind of document each file is | |
+| Reading facts out of a document, and recording where on the page each came from | |
+| Every check listed below | |
+| The screen showing the checklist, the evidence, and the record | |
+| Accepting or overriding a verdict, with your reason | |
 | The tamper-evident record — including that editing or deleting an entry is refused | |
+| The printable report, including a statement of whether the record is intact | |
+| The advisory recommendation, written after verification and always marked as a suggestion | |
 
 The language model is currently a stand-in that reads documents with fixed
 rules rather than a real model. Everything around it — storage, page reading,
@@ -45,7 +49,7 @@ Each bidder then submits a stack of PDFs — certificates, balance sheets, work
 orders, declarations — and somebody has to read all of it and work out, for
 every condition, whether that bidder meets it.
 
-For one tender with fifteen conditions and five bidders, that is seventy-five
+For one tender with seventeen conditions and five bidders, that is eighty-five
 judgements, each requiring someone to find the right document, find the right
 number in it, and compare. It is slow, it is easy to lose your place, and six
 months later, when someone asks why a particular bidder was rejected, the
@@ -131,6 +135,12 @@ its pre-qualification section into a checklist: one line per condition, each
 with the threshold it sets, whether it is mandatory, how much weight it carries,
 and — importantly — **who it applies to**.
 
+Tenders arrive in more than one shape. A classical Request for Proposal states
+its criteria as a numbered table running over several pages. A GeM bid states
+them as structured form fields, often in Hindi and English side by side. The
+system recognises which it is looking at and reads it accordingly, producing the
+same checklist either way.
+
 That last column matters more than it looks. Real tenders say things like "sole
 bidder or prime bidder of the consortium" for turnover, but "sole bidder or any
 consortium member" for technical experience. Those are different rules. The
@@ -146,6 +156,31 @@ is a suggestion, not an interpretation. That is exactly why you confirm the
 checklist before anything is evaluated against it.
 
 **Status:** built and working.
+
+## Setting up a tender
+
+The screen the officer reaches first takes the whole tender through its opening
+steps in order.
+
+**Start the tender** with its title, bid number, buyer, and the date bids are
+due. Then **upload the NIT** — the notice inviting tender, as a PDF.
+
+With the tender file in hand, the system **reads it into the checklist** one
+condition at a time. You see each condition beside the sentence it came from,
+and can correct a misread name, or mark a condition mandatory or optional, in
+place. Nothing is final until you press **confirm the checklist**, and until you
+do, no bidder can be assessed against it — the system refuses, and says why.
+
+Once the checklist is confirmed, the same screen hands you to the next step:
+**adding a bidder**. You give the company's name and its statutory identifiers
+(PAN, GSTIN, Udyam), and the system keeps that company as one row even if it
+bids on another tender later. Then you pick how the documents were submitted —
+one file per document, a pile you want the system to sort, or one combined
+bundle — and upload them. From there the checks in the next section take over.
+
+**Status:** built and working. The three upload modes (separate, auto-classify,
+merged) run; a live tender, the live extraction of its checklist, and one
+bidder's verification have all been exercised end to end.
 
 ## The checks it performs
 
@@ -267,8 +302,49 @@ For a consortium bid, this comparison happens *within* each member company's
 own documents. Two different companies in a consortium having two different
 names is normal, not a red flag.
 
+There are three possible readings, and the system keeps them apart rather than
+forcing a yes or no:
+
+- **The same name**, once spelling and legal suffixes are set aside. Nothing to
+  report.
+- **Close, but not the same** — "ABC Engineering Pvt Ltd" against "ABC Engineers
+  Private Limited". This is treated as the bidder's own document with
+  inconsistent paperwork. Its contents are still checked, and the difference is
+  put in front of you.
+- **Not the same company at all** — "Coastal Holdings Limited" against "Coastal
+  Marine Works Private Limited". That document's name and tax numbers are set
+  aside rather than compared, because a different company's details differing
+  is not a contradiction. You are told the document is in the bundle and whose
+  it is.
+
+That middle case is the one that matters. Treat it as the same company and a
+substituted identity slips through; treat it as different and every clerical
+variation reads as fraud.
+
 **What it can't tell you:** whether two similarly-named companies are actually
 related. That is a judgement, and it is left to you.
+
+**Status:** built and working.
+
+### Does the evidence actually belong to this bidder?
+
+A turnover certificate that clears the threshold four times over is worth
+nothing if it was issued to a different company.
+
+This is Bidder C's situation, and it is deliberately not a trick. Coastal
+Marine Works is a real bidder with real documents; its turnover certificate
+belongs to its parent, Coastal Holdings, and the bundle includes a signed
+undertaking and a board resolution in which the parent accepts liability. Oil
+sector tenders do permit this. Whether *this* tender permits it is a policy
+question.
+
+So the system does not pass it and does not fail it. It says: this rests on a
+certificate issued to Coastal Holdings Limited, which is not the bidding entity,
+and that is a decision for you. The arithmetic is shown, the other company is
+named, and the undertaking is there to read.
+
+**What it can't tell you:** whether the parent's backing is acceptable under the
+tender's terms. That is a reading of the tender, not of the documents.
 
 **Status:** built and working.
 
@@ -312,6 +388,40 @@ submitted. It sees what was in the bundle.
 ISO certificate is valid on the bid due date with three days to spare — and
 separately raises, as a risk rather than a failure, that it lapses before the
 contract is due to start.
+
+### Are the EPFO and ESIC registrations in force?
+
+Where the tender requires it, the system checks the bidder's Employees'
+Provident Fund and Employees' State Insurance certificates — that the numbers
+are well-formed (the EPFO number carries its regional office and establishment
+code; the ESIC number is a ten-digit employer code) and, like every other
+certificate, that they were still valid as of the bid due date.
+
+**What it can't tell you:** whether the registration is actually live at the
+EPFO or ESIC. As with every government register in this version, the certificate
+is checked as a document, not against a live portal — see the last section.
+
+**Status:** built and working. Both are in the demo tender's checklist and both
+demo bidders who hold them are judged compliant, because their certificates are
+valid as of the bid due date.
+
+### Does the bidder qualify for the "Make in India" local-content preference?
+
+Some tenders prefer suppliers whose goods have a minimum amount of Indian local
+content, declared under the Make in India scheme. When the tender sets such a
+preference, the system reads the declared percentage from the bidder's local
+content certificate and compares it against the tender's threshold — 50 percent
+in the demo tender.
+
+**What it can't tell you:** whether the declared percentage is true. That is the
+declaration's own claim, and verifying it would mean inspecting the bidder's
+production records. The system compares the number declared against the number
+the tender asks for, and names the document in play.
+
+**Status:** built and working. Of the three demo bidders, only Bidder C declares
+a local content certificate; it is above the threshold and judged compliant.
+Bidders A and B submitted none, so the condition is left at "missing evidence"
+rather than marked failed.
 
 ### Is the document trying to give the system instructions?
 
@@ -391,19 +501,79 @@ You can check the arithmetic by hand from the table on screen. That is the
 point: no model produces this number, and there is nothing inside it you cannot
 see.
 
-Separately from the score, there is a **mandatory gate**. If any condition the
-tender marked mandatory is unmet, the bidder cannot be qualified regardless of
-how high the score is — and the specific condition is named rather than buried
-behind a percentage.
+Separately from the score, there are **two lists of outstanding mandatory
+conditions**, and the difference between them matters:
+
+- **Failed** — the system looked at the evidence and the condition is not met.
+  A turnover shortfall, an expired certificate, a contradiction. Clearing one
+  of these means deliberately overriding the system's finding, and saying why.
+- **Awaiting you** — the system declined to conclude. A judgement call, a check
+  that could not be run, a document that was never submitted. Nobody has said
+  this bidder falls short; nobody has looked yet.
+
+They are kept apart because merging them would tell you a perfectly good bidder
+had failed. Bidder A meets every condition the system can decide mechanically,
+and the only thing outstanding is a materials specification that is a matter of
+engineering judgement. That is not a failure — it is a question for you, and
+once you answer it the bidder is qualifiable.
+
+Either way, the specific condition is named rather than buried behind a
+percentage.
 
 **The risk level** counts red flags instead: contradictions between documents,
 a company incorporated shortly before a large bid, a certificate that lapses
-before the contract starts, a debarment record. Any critical flag makes the
-whole assessment critical. Every flag that fired is listed with its reason.
+before the contract starts, a debarment record, and — importantly — a bid that
+came in with nothing verifiable in it. An empty submission is not treated as a
+clean one: if no evidence could be extracted, the system cannot vet the bidder
+at all, and that is itself a flag, so an empty bid reads as a risk rather than
+as "low." Any critical flag makes the whole assessment critical. Every flag
+that fired is listed with its reason.
 
 **What they can't tell you:** neither number is a recommendation. A high score
 is not an instruction to qualify, and a high risk level is not an instruction to
 reject — both are summaries of findings you can open and read.
+
+**Status:** built and working.
+
+## Comparing bidders
+
+When more than one bidder has been assessed, a second screen puts them side by
+side: the tender's conditions down the left, one column per bidder, and each
+bidder's standing where they meet.
+
+The useful part is a filter that hides every condition on which the bidders all
+land in the same place. On the demo tender that leaves six rows out of seventeen —
+those six are what a shortlisting decision actually turns on, and the other
+eleven are noise for that purpose.
+
+Bidders appear in the order they bid. The screen does not sort them by score,
+and there is no "best" column. Ordering bidders would be the system expressing a
+preference between them, and it does not have one.
+
+**What it can't tell you:** which bidder to choose. It shows you where they
+differ.
+
+**Status:** built and working.
+
+## Exporting a report
+
+From the comparison screen, the "Export report" button opens a single printable
+page of the whole tender's record: the tender's own details, the confirmed
+eligibility checklist, and one section per bidder with each condition, its
+verdict, the evidence behind it, and any risk flags raised. It includes the
+file's generation timestamp and a statement of whether the audit chain that
+records every action taken on the tender is intact.
+
+The report is assembled from what is already stored — it does not ask the
+evaluation model anything and it does not form an opinion. It cannot rank
+bidders or recommend one; you will find no score-based ordering anywhere in it.
+When government-portal checks were simulated rather than live, the page says so,
+on the page and in the printout, because a fabricated check must never be
+presented as a real one.
+
+What it is for: a defensible record you can hand to someone who was not in the
+room — an evaluator, a reviewer, or a scrutiny committee. Every line of it
+traces back to a document the bidder actually submitted.
 
 **Status:** built and working.
 
@@ -469,6 +639,19 @@ erase what the system concluded. Both are stored, and both stay visible, so the
 record shows what the system found *and* what you decided *and* why. That is
 what makes the record useful if the decision is ever questioned.
 
+The system distinguishes two things you might be doing, because they are
+different acts and the record should say which:
+
+- **Accepting** — you have read the evidence on something the system left open,
+  and you are satisfied. Available only where the system declined to conclude.
+- **Overriding** — you are substituting your judgement for a finding the system
+  actually made. If you try to "accept" something the system found wanting, you
+  are told to record it as an override instead, so the trail says what really
+  happened.
+
+Both require a reason. The database itself refuses to store either without one
+— this is not a form validation you can work around.
+
 Everything you do is written to a permanent log. That log cannot be edited or
 deleted — not by the application, and not by someone with database access,
 because the database itself refuses the operation. Each entry is sealed against
@@ -477,10 +660,55 @@ every entry that follows and becomes visible immediately.
 
 **Status:** the checklist confirmation gate is built and enforced — verification
 refuses to run against an unconfirmed checklist, and says so. The permanent log
-and its tamper-evidence are built. The screens, the decision itself, and the
-override are not yet built.
+and its tamper-evidence are built. The tender-setup screen, the bidder-upload
+screen, the compliance dashboard with the decision bar and overrides are all
+built and wired to the backend.
 
 ---
+
+## The screen
+
+One screen carries the work, and it answers three questions in order.
+
+**Where does this bid stand?** A sentence at the top, not a dashboard of
+numbers to interpret: *"Nothing has failed — 1 item needs your decision"*, or
+*"Cannot be qualified as things stand"*, or *"Ready to qualify"*. The score, the
+risk level and the count of conditions met sit underneath as supporting detail.
+
+**What needs me?** An explicit list of only the unresolved conditions, each
+saying in plain words what is outstanding and what would clear it — *"The system
+would not decide this one. It is a matter of judgement rather than something
+that can be measured"*, followed by *"read the evidence and accept it, or
+override with your own verdict"*. A button on each takes you straight to it. If
+nothing is outstanding, the list is not shown at all.
+
+**What does the whole checklist say?** Every condition the tender sets, grouped
+the way the tender groups them, filterable to just the outstanding or just the
+mandatory ones.
+
+Contradictions between the bidder's own documents appear as a band across the
+page rather than as a row in the table, because a contradiction is a concern
+about the whole submission.
+
+**The evidence opens over the top, on request.** Clicking a condition slides in
+a panel: what the bidder submitted on the left, what the register returned on
+the right, a rule down the middle, and a mark in the gutter saying whether they
+agree. Where you have overridden a verdict, the system's original finding stays
+in the left column and yours sits beside it — the record shows both, always.
+
+**The bar along the bottom** offers Accept and Override, each opening a box for
+your reason that cannot be left blank. Beside them sits the system's read of the
+situation, set in quotation marks and labelled advisory, because it describes
+what was found rather than recommending what to do.
+
+Identifiers — GSTINs, PANs, Udyam numbers, CINs — are set in a monospaced face
+throughout. Officers read these character by character to spot mismatches, and a
+monospaced face keeps 0 apart from O and 1 apart from I, and lines the
+characters up when you are comparing two of them.
+
+Nothing on the screen tells you what to decide.
+
+**Status:** built and working.
 
 ## What is real and what is simulated in this version
 

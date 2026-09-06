@@ -75,11 +75,35 @@ DOCUMENT_SCHEMAS: dict[str, dict[str, str]] = {
         "emd_amount": "Amount of the earnest money deposit",
         "valid_until": "Validity of the instrument",
     },
+    "holding_company_undertaking": {
+        "legal_name": "Name of the bidding entity",
+        "holding_company_name": "Name of the holding company whose resources are relied on",
+        "shareholding_percent": "Holding company's shareholding in the bidder",
+        "board_resolution_ref": "Board resolution reference",
+    },
     "financial_statement": {
         "legal_name": "Name of the entity the statement belongs to",
         "turnover_fy1": "Turnover for the most recent financial year shown",
         "turnover_fy2": "Turnover for the second financial year shown",
         "turnover_fy3": "Turnover for the third financial year shown",
+    },
+    "epfo_certificate": {
+        "epfo_reg_number": "The Employees' Provident Fund (EPFO) registration number",
+        "legal_name": "Name of the establishment as registered with EPFO",
+        "establishment_type": "Type of establishment (entity/company/general)",
+        "registration_date": "Date of EPFO registration",
+        "valid_until": "Validity of the registration, where the certificate shows one",
+    },
+    "esic_certificate": {
+        "esic_reg_number": "The Employees' State Insurance (ESIC) registration number",
+        "legal_name": "Name of the employer as registered with ESIC",
+        "registration_date": "Date of ESIC registration",
+        "valid_until": "Validity of the registration, where the certificate shows one",
+    },
+    "local_content_certificate": {
+        "legal_name": "Name of the supplier making the declaration",
+        "local_content_percent": "Declared percentage of local content, e.g. '62 percent'",
+        "declaration_date": "Date of the local content declaration",
     },
 }
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -208,8 +209,13 @@ class ComplianceRowOut(BaseModel):
     # Rendered wherever the result appears, and printed in every export.
     external_check_source: VerificationSource | None
     evidence_field_ids: list[uuid.UUID] = Field(default_factory=list)
-    # An officer override sits alongside the machine verdict, never replacing it.
+    # The officer's verdict, stored alongside the machine's — never replacing it.
+    # Both are rendered; `status` above is always what the system concluded.
     override_status: ComplianceStatus | None = None
+    override_reason: str | None = None
+    override_at: datetime | None = None
+    # What the gate and the score actually count.
+    effective_status: ComplianceStatus | None = None
 
 
 class FindingOut(BaseModel):
@@ -243,13 +249,118 @@ class VerificationSummary(BaseModel):
     run_status: VerificationRunStatus
     bid_due_date: date | None
     compliance_score: Decimal | None
+    # Nothing mandatory has *failed*. Says nothing about what is still pending.
     mandatory_gate_passed: bool | None
-    failed_mandatory: list[str] = Field(default_factory=list)
+    # Evaluated and found wanting. Only an officer override clears these.
+    mandatory_failed: list[str] = Field(default_factory=list)
+    # Unresolved, not failed. An officer's acceptance clears these.
+    pending_review: list[str] = Field(default_factory=list)
+    # Both lists empty: the officer could qualify this bidder as things stand.
+    qualifiable: bool = False
     risk_level: RiskLevel | None
     status_counts: dict[str, int] = Field(default_factory=dict)
     requirements: list[ComplianceRowOut] = Field(default_factory=list)
     cross_document_findings: list[FindingOut] = Field(default_factory=list)
     risk_flags: list[RiskFlagOut] = Field(default_factory=list)
+    # Advisory narrative (layer 8) — produced by the reasoning model from the
+    # structured verdicts above, labelled as advice and never a control (§11).
+    recommendation_text: str | None = None
+    recommendation_action: str | None = None
+    recommendation_cited_requirements: list[str] = Field(default_factory=list)
     # Every external check in this run was simulated unless stated otherwise.
     external_checks_simulated: int = 0
     external_checks_live: int = 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Officer review and the audit trail
+# ─────────────────────────────────────────────────────────────────────────────
+class ReviewRequest(BaseModel):
+    """One officer action on one requirement. The reason cannot be skipped."""
+
+    requirement_code: str
+    action: Literal["accept", "override"]
+    officer_id: uuid.UUID
+    reason: str = Field(min_length=1)
+    # Required for 'override', ignored for 'accept'.
+    override_status: ComplianceStatus | None = None
+
+
+class AuditEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    seq: int
+    id: uuid.UUID
+    event_type: str
+    actor_type: str
+    actor_id: uuid.UUID | None
+    actor_component: str | None
+    requirement_id: uuid.UUID | None
+    previous_state: str | None
+    new_state: str | None
+    reason: str | None
+    llm_provider: str | None
+    llm_model_id: str | None
+    prev_hash: str
+    row_hash: str
+    created_at: datetime
+
+
+class ChainIntegrityOut(BaseModel):
+    """Shown at the top of the audit trail (CLAUDE.md §11)."""
+
+    total_events: int
+    intact: bool
+    first_broken_seq: int | None
+    head_hash: str | None
+
+
+class AuditTrailOut(BaseModel):
+    integrity: ChainIntegrityOut
+    events: list[AuditEventOut]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comparison across bidders (architecture.md §9.4)
+# ─────────────────────────────────────────────────────────────────────────────
+class ComparisonBidder(BaseModel):
+    """One column of the comparison table."""
+
+    bid_id: uuid.UUID
+    bidder_name: str
+    compliance_score: Decimal | None
+    risk_level: RiskLevel | None
+    mandatory_failed: list[str] = Field(default_factory=list)
+    pending_review: list[str] = Field(default_factory=list)
+    qualifiable: bool = False
+    verified: bool = False
+
+
+class ComparisonCell(BaseModel):
+    """One bidder's standing on one condition."""
+
+    bid_id: uuid.UUID
+    status: ComplianceStatus | None
+    effective_status: ComplianceStatus | None
+    overridden: bool = False
+
+
+class ComparisonRow(BaseModel):
+    requirement_code: str
+    requirement_name: str
+    category: str | None
+    mandatory: bool
+    weight: Decimal
+    applicability_scope: ApplicabilityScope
+    cells: list[ComparisonCell] = Field(default_factory=list)
+    #: True when the bidders do not all land in the same place. This is the
+    #: column worth reading first when shortlisting.
+    differentiating: bool = False
+
+
+class ComparisonOut(BaseModel):
+    tender_id: uuid.UUID
+    tender_title: str
+    bid_due_date: date | None
+    bidders: list[ComparisonBidder] = Field(default_factory=list)
+    requirements: list[ComparisonRow] = Field(default_factory=list)

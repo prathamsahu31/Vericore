@@ -123,12 +123,112 @@ def test_a_page_with_no_signals_is_read_as_a_continuation():
     assert [c.doc_type for c in result] == ["gst_certificate", "continuation"]
 
 
+# ── EPFO / ESIC / local-content (problem statement items 6 & Make in India) ──
+EPFO_TEXT = """[page 1]
+Employees' Provident Fund Organisation
+EPFO Registration Certificate
+EPFO Registration Number : TN/MAS/123456
+Name of Establishment : ABC Infrastructure Private Limited
+Type of Establishment : Private Limited Company
+Date of Registration : 15/06/2021
+Valid Until : 31/12/2027
+"""
+
+ESIC_TEXT = """[page 1]
+Employees' State Insurance Corporation
+ESIC Registration Certificate
+ESIC Registration Number : 3312345678
+Name of Employer : ABC Infrastructure Private Limited
+Date of Registration : 18/08/2021
+Valid Until : 31/12/2027
+"""
+
+LOCAL_CONTENT_TEXT = """[page 1]
+Local Content Certificate
+Make in India - Local Supplier Declaration
+Name of Supplier : ABC Infrastructure Private Limited
+Local Content Percentage : 62 percent
+Date of Declaration : 20/08/2026
+"""
+
+
+def test_epfo_spans_are_quoted_verbatim():
+    result = StubProvider().extract_evidence(
+        DocumentInput(text=EPFO_TEXT), schema_for("epfo_certificate"), "epfo_certificate"
+    )
+    assert {f.field_name: f.value for f in result.fields} == {
+        "epfo_reg_number": "TN/MAS/123456",
+        "legal_name": "ABC Infrastructure Private Limited",
+        "establishment_type": "Private Limited Company",
+        "registration_date": "15/06/2021",
+        "valid_until": "31/12/2027",
+    }
+    for field in result.fields:
+        assert field.source_span in EPFO_TEXT, f"{field.field_name} span was invented"
+
+
+def test_esic_spans_are_quoted_verbatim():
+    result = StubProvider().extract_evidence(
+        DocumentInput(text=ESIC_TEXT), schema_for("esic_certificate"), "esic_certificate"
+    )
+    assert {f.field_name: f.value for f in result.fields} == {
+        "esic_reg_number": "3312345678",
+        "legal_name": "ABC Infrastructure Private Limited",
+        "registration_date": "18/08/2021",
+        "valid_until": "31/12/2027",
+    }
+    for field in result.fields:
+        assert field.source_span in ESIC_TEXT, f"{field.field_name} span was invented"
+
+
+def test_local_content_percent_is_read_as_a_number_with_its_label():
+    result = StubProvider().extract_evidence(
+        DocumentInput(text=LOCAL_CONTENT_TEXT),
+        schema_for("local_content_certificate"),
+        "local_content_certificate",
+    )
+    assert {f.field_name: f.value for f in result.fields} == {
+        "legal_name": "ABC Infrastructure Private Limited",
+        "local_content_percent": "62",
+        "declaration_date": "20/08/2026",
+    }
+    for field in result.fields:
+        assert field.source_span in LOCAL_CONTENT_TEXT, f"{field.field_name} span was invented"
+
+
+def test_epfo_esic_and_local_content_are_in_the_document_vocabulary():
+    """The routing lookup is against a fixed list, not a guess (§21)."""
+    from app.llm.schemas import KNOWN_DOCUMENT_TYPES
+
+    for doc_type in ("epfo_certificate", "esic_certificate", "local_content_certificate"):
+        assert doc_type in KNOWN_DOCUMENT_TYPES
+        assert schema_for(doc_type), f"{doc_type} has no fields"
+
+
+def test_the_new_pages_classify_under_their_own_type():
+    provider = StubProvider()
+    assert provider.classify_pages(DocumentInput(text=EPFO_TEXT))[0].doc_type == "epfo_certificate"
+    assert provider.classify_pages(DocumentInput(text=ESIC_TEXT))[0].doc_type == "esic_certificate"
+    assert (
+        provider.classify_pages(DocumentInput(text=LOCAL_CONTENT_TEXT))[0].doc_type
+        == "local_content_certificate"
+    )
+
+
 # ── Factory ──────────────────────────────────────────────────────────────────
 def test_the_default_provider_chain_is_offline():
     """A test that reaches the network is a broken test (CLAUDE.md §7.7)."""
     provider = get_provider(LLMRole.EXTRACTION)
     assert provider.name == "stub"
     assert provider.model_id_for(LLMRole.EXTRACTION) == "stub-extraction-v1"
+
+
+def test_no_role_resolves_to_a_live_provider_during_tests():
+    """Guards the whole suite, including a developer whose .env points at Gemini."""
+    for role in (LLMRole.EXTRACTION, LLMRole.REASONING):
+        provider = get_provider(role)
+        assert provider.name == "stub", f"{role} resolved to {provider.name}"
+        assert provider.is_offline is True
 
 
 # ── Cache round-trip (CLAUDE.md §7.2) ────────────────────────────────────────

@@ -1,0 +1,11 @@
+{
+  "AABCA1234C": {
+    "status": "found",
+    "data": {
+      "account_name": "ABC Infrastructure Private Limited",
+      "identity_verified": "PAN-based KYC",
+      "issued_documents": ["PAN card", "Driving licence"],
+      "data_date": "2026-08-20"
+    }
+  }
+}

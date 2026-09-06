@@ -11,8 +11,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import extraction_provider
 from app.api.schemas import (
+    AuditEventOut,
+    AuditTrailOut,
+    ChainIntegrityOut,
+    ComparisonBidder,
+    ComparisonCell,
+    ComparisonOut,
+    ComparisonRow,
     ComplianceRowOut,
     FindingOut,
+    ReviewRequest,
     RiskFlagOut,
     VerificationSummary,
 )
@@ -32,7 +40,9 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.errors import NotFoundError
+from app.modules.audit_service import service as audit
 from app.modules.compliance_engine import service as compliance
+from app.modules.compliance_engine.scoring import effective_status
 
 router = APIRouter(tags=["verification"])
 
@@ -109,7 +119,8 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
         result = results.get(requirement.id)
         if result is None:
             continue
-        counts[str(result.status)] = counts.get(str(result.status), 0) + 1
+        shown = effective_status(result.status, result.override_status)
+        counts[str(shown)] = counts.get(str(shown), 0) + 1
         rows.append(
             ComplianceRowOut(
                 requirement_code=requirement.code,
@@ -127,6 +138,9 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
                 external_check_source=result.external_check_source,
                 evidence_field_ids=evidence_by_requirement.get(requirement.id, []),
                 override_status=result.override_status,
+                override_reason=result.override_reason,
+                override_at=result.override_at,
+                effective_status=effective_status(result.status, result.override_status),
             )
         )
 
@@ -146,14 +160,148 @@ def _summary(db: Session, bid_id: uuid.UUID) -> VerificationSummary:
         bid_due_date=tender.bid_due_date if tender else None,
         compliance_score=bid.compliance_score,
         mandatory_gate_passed=bid.mandatory_gate_passed,
-        failed_mandatory=breakdown.get("failed_mandatory", []),
+        mandatory_failed=breakdown.get("mandatory_failed", []),
+        pending_review=breakdown.get("pending_review", []),
+        qualifiable=bool(breakdown.get("qualifiable", False)),
         risk_level=bid.risk_level,
         status_counts=counts,
         requirements=rows,
         cross_document_findings=[FindingOut.model_validate(f) for f in findings],
         risk_flags=[RiskFlagOut.model_validate(f) for f in flags],
+        recommendation_text=bid.recommendation_text,
+        recommendation_action=(
+            str(bid.recommendation_action) if bid.recommendation_action else None
+        ),
+        recommendation_cited_requirements=[
+            str(c) for c in (bid.recommendation_cited_requirements or [])
+        ],
         external_checks_simulated=sum(
             1 for c in checks if c.source is VerificationSource.SIMULATED
         ),
         external_checks_live=sum(1 for c in checks if c.source is VerificationSource.LIVE),
+    )
+
+
+@router.post("/bids/{bid_id}/review", response_model=VerificationSummary, status_code=201)
+def review(bid_id: uuid.UUID, payload: ReviewRequest, db: DbSession) -> VerificationSummary:
+    """Record an officer's judgement on one requirement.
+
+    The machine verdict is kept. The officer's verdict is stored beside it, both
+    are returned, and the gate is recomputed from the officer's (CLAUDE.md §5).
+    """
+    audit.review_requirement(
+        db,
+        bid_id=bid_id,
+        requirement_code=payload.requirement_code,
+        action=payload.action,
+        officer_id=payload.officer_id,
+        reason=payload.reason,
+        override_status=payload.override_status,
+    )
+    db.commit()
+    return _summary(db, bid_id)
+
+
+@router.get("/bids/{bid_id}/audit", response_model=AuditTrailOut)
+def get_audit_trail(bid_id: uuid.UUID, db: DbSession) -> AuditTrailOut:
+    """The trail for one bid, with the chain-integrity status at the top."""
+    integrity = audit.chain_integrity(db)
+    events = audit.audit_trail(db, bid_id=bid_id)
+    return AuditTrailOut(
+        integrity=ChainIntegrityOut(**integrity.__dict__),
+        events=[AuditEventOut.model_validate(e) for e in events],
+    )
+
+
+@router.get("/tenders/{tender_id}/comparison", response_model=ComparisonOut)
+def compare(tender_id: uuid.UUID, db: DbSession) -> ComparisonOut:
+    """Every bidder on one tender, side by side, conditions as rows.
+
+    The shortlisting view (architecture.md §9.4). It reports where the bidders
+    differ and does not rank them: ordering bidders by score would be the system
+    expressing a preference, and it has none.
+    """
+    tender = db.get(Tender, tender_id)
+    if tender is None:
+        raise NotFoundError(f"Tender {tender_id} not found")
+
+    bids = list(
+        db.execute(select(Bid).where(Bid.tender_id == tender_id).order_by(Bid.created_at)).scalars()
+    )
+    requirements = list(
+        db.execute(
+            select(Requirement)
+            .where(Requirement.tender_id == tender_id)
+            .order_by(Requirement.display_order)
+        ).scalars()
+    )
+
+    columns: list[ComparisonBidder] = []
+    results: dict[uuid.UUID, dict[uuid.UUID, ComplianceResult]] = {}
+
+    for bid in bids:
+        member = (
+            db.execute(
+                select(BidMember).where(BidMember.bid_id == bid.id).order_by(BidMember.member_order)
+            )
+            .scalars()
+            .first()
+        )
+        bidder = db.get(Bidder, member.bidder_id) if member else None
+        breakdown = bid.score_breakdown or {}
+        rows = {
+            r.requirement_id: r
+            for r in db.execute(
+                select(ComplianceResult).where(ComplianceResult.bid_id == bid.id)
+            ).scalars()
+        }
+        results[bid.id] = rows
+        columns.append(
+            ComparisonBidder(
+                bid_id=bid.id,
+                bidder_name=bidder.legal_name if bidder else "(unknown)",
+                compliance_score=bid.compliance_score,
+                risk_level=bid.risk_level,
+                mandatory_failed=breakdown.get("mandatory_failed", []),
+                pending_review=breakdown.get("pending_review", []),
+                qualifiable=bool(breakdown.get("qualifiable", False)),
+                verified=bool(rows),
+            )
+        )
+
+    comparison_rows: list[ComparisonRow] = []
+    for requirement in requirements:
+        cells: list[ComparisonCell] = []
+        for bid in bids:
+            result = results[bid.id].get(requirement.id)
+            cells.append(
+                ComparisonCell(
+                    bid_id=bid.id,
+                    status=result.status if result else None,
+                    effective_status=(
+                        effective_status(result.status, result.override_status) if result else None
+                    ),
+                    overridden=bool(result and result.override_status),
+                )
+            )
+        distinct = {c.effective_status for c in cells if c.effective_status is not None}
+        comparison_rows.append(
+            ComparisonRow(
+                requirement_code=requirement.code,
+                requirement_name=requirement.name,
+                category=requirement.category,
+                mandatory=requirement.mandatory,
+                weight=requirement.weight,
+                applicability_scope=requirement.applicability_scope,
+                cells=cells,
+                differentiating=len(distinct) > 1,
+            )
+        )
+
+    return ComparisonOut(
+        tender_id=tender.id,
+        tender_title=tender.title,
+        bid_due_date=tender.bid_due_date,
+        bidders=columns,
+        requirements=comparison_rows,
     )
