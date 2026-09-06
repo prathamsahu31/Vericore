@@ -7,6 +7,9 @@ Vericore extracts the tender's eligibility requirements into a structured
 checklist, extracts evidence from the bidder documents, matches evidence
 against requirements, cross-checks documents against each other, and produces
 a per-requirement verdict traceable to a specific page of a specific document.
+Cross-checks against government portals (GSTN, PAN, Udyam/MSME, MCA21,
+DigiLocker, DPIIT/Startup India, NSIC, blacklisting) are mocked and clearly
+labelled `simulated`.
 
 **The officer decides. The system recommends.**
 
@@ -14,57 +17,91 @@ SIH 2026 · Problem Statement 26100 · CPCL, Ministry of Petroleum & Natural Gas
 
 ---
 
-## Getting started
+## Clone and run
 
-Requires Docker, Python 3.11+, and Node 20+.
+Requires **Docker** (for Postgres), **Python 3.11+**, and **Node 20+**.
 
 ```bash
 git clone https://github.com/prathamsahu31/Vericore.git
 cd Vericore
 
-cp .env.example .env      # defaults run without any API key
-docker compose up -d      # starts Postgres
+# Configuration — the defaults need no API key and run fully offline.
+cp .env.example .env
 
+# 1. Start Postgres
+docker compose up -d
+
+# 2. Backend  (http://localhost:8000, API docs at /docs)
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload
 
-# in a second terminal
+# 3. Frontend, in a second terminal  (http://localhost:3000)
 cd frontend
 npm install
 npm run dev
 ```
 
-Backend at `http://localhost:8000`, frontend at `http://localhost:3000`,
-API docs at `http://localhost:8000/docs`.
+That is everything. With `LLM_PROVIDER=stub` the full pipeline runs keyless and
+offline; a seed tender and three demo bidder bundles are included.
 
-## The API key
+## Run the demo
 
-`LLM_PROVIDER=stub` is the default and needs no key — it returns fixtures,
-so a fresh clone runs offline and the test suite never touches the network.
+All the demo data lives in `seed/` — a DARPG-style NIT and three bidder bundles.
+One command verifies the whole pipeline end to end (tender → requirements →
+bidders → documents → verdicts → score → risk → report):
 
-For live runs, get a free Gemini key at `aistudio.google.com/apikey` (no card
-required), set `LLM_PROVIDER=gemini` and fill `GEMINI_API_KEY` in `.env`.
+```bash
+cd backend
+python scripts/run_demo.py
+```
 
-Responses cache to `.llm_cache/`, so re-running the pipeline on unchanged
-inputs consumes no quota. Requests are rate-limited below the free-tier cap.
+Or drive it yourself from the frontend: create a tender, upload
+`seed/tender/nit_darpg_style.pdf`, upload one bidder's folder of PDFs, and run
+the checks.
 
-The provider is swappable by env var — see §7.8 of `CLAUDE.md` for moving the
-reasoning calls to Anthropic without touching any other code.
+## Run the tests
 
-Never commit `.env`.
+```bash
+cd backend
+docker compose up -d          # from the repository root — tests need Postgres
+pytest
+```
+
+If no database is reachable, the database-dependent tests **skip with an
+explanation** rather than failing — the pure-logic suites (rule engine, routing,
+risk, locator) still run. Tests always use the stub LLM and never touch the
+network.
+
+## Using a live language model
+
+The default `stub` provider reads documents with fixed rules so a fresh clone
+works offline. For real output, point the pipeline at one of:
+
+| Provider | Env var + key |
+|---|---|
+| OpenAI | `LLM_PROVIDER=openai` + `OPENAI_API_KEY` |
+| Google Gemini | `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` |
+| Anthropic | `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` |
+
+Responses cache to `.llm_cache/`, so re-running on unchanged inputs consumes no
+quota. Requests are rate-limited below the free-tier cap. Extraction and
+reasoning can use different providers (`LLM_PROVIDER_EXTRACTION`,
+`LLM_PROVIDER_REASONING`).
+
+**Never commit `.env`** — it holds your keys and is gitignored.
 
 ## Verifying the schema
 
-The first migration creates all sixteen tables and installs the append-only,
-hash-chained audit log. Two ways to check it:
+The first migration creates all **seventeen** tables and installs the
+append-only, hash-chained audit log. Two ways to check it:
 
 ```bash
 cd backend
 
-# 1. Render the DDL without a database — useful for review, needs nothing running
+# 1. Render the DDL without a database — nothing needs to be running
 alembic upgrade head --sql
 
 # 2. Apply it and prove the guarantees hold, against a real Postgres
@@ -73,19 +110,18 @@ alembic upgrade head
 pytest tests/test_schema_integrity.py -v
 ```
 
-The tests assert that the database *refuses* things it must refuse: updating or
-deleting an audit event, storing an adapter result without its `live`/`simulated`
-label, storing an extracted field without page coordinates, or recording a
-decision without a justification. They skip with an explanatory message if no
-database is reachable, rather than passing vacuously.
+The tests assert the database *refuses* things it must refuse: updating or
+deleting an audit event, storing an adapter result without its
+`live`/`simulated` label, storing an extracted field without page coordinates,
+or recording a decision without a justification.
 
 ## Documentation
 
 | File | What it covers |
 |---|---|
-| `CLAUDE.md` | Build rules, architecture, conventions. Read before writing code |
+| `docs/how-it-works.md` | Plain-language explainer — how the checks work and their limits |
 | `docs/architecture.md` | Full system design and requirements traceability |
-| `docs/blueprint.md` | Domain research, portal API reality check, day-by-day plan |
+| `CLAUDE.md` | Build rules, architecture, conventions. Read before writing code |
 
 ## Working on this repo
 
