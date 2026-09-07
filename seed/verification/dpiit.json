@@ -1,33 +1,11 @@
 {
-  "_comment": "DPIIT Startup India recognition responses. Key is Udyam URN (same enterprise). Recognition is separate from MSME registration.",
-
-  "UDYAM-MH-27-0089213": {
-    "status": "found",
-    "data": {
-      "entity_name": "NovaTech Solutions Private Limited",
-      "recognition_number": "DIPP158432",
-      "recognition_date": "2020-12-15",
-      "certificate_number": "DIPP/2020/158432",
-      "stage": "Growth",
-      "sector": "IT Services & Products",
-      "recognition_status": "Active",
-      "tax_exemption_80iac": true,
-      "valid_until": "2027-12-14"
-    }
-  },
-
   "UDYAM-TN-33-0041827": {
     "status": "found",
     "data": {
-      "entity_name": "ABC Infrastructure Private Limited",
-      "recognition_number": "DIPP123456",
-      "recognition_date": "2018-05-22",
-      "certificate_number": "DIPP/2018/123456",
-      "stage": "Growth",
-      "sector": "Infrastructure",
-      "recognition_status": "Active",
-      "tax_exemption_80iac": false,
-      "valid_until": "2028-05-21"
+      "enterprise_name": "ABC Infrastructure Private Limited",
+      "recognition": "Startup India recognised",
+      "recognition_date": "2022-11-02",
+      "state": "Tamil Nadu"
     }
   }
 }

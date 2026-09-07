@@ -1,81 +1,15 @@
 {
-  "_comment": "Simulated GSTN responses. Each key is a 15-char GSTIN. A missing key returns not_found (clean). Source is always 'simulated'.",
-
   "33AABCA1234C1ZM": {
     "status": "found",
     "data": {
       "legal_name": "ABC Infrastructure Private Limited",
       "trade_name": "ABC Infra",
-      "gstin": "33AABCA1234C1ZM",
       "registration_status": "Active",
       "registration_date": "2017-07-01",
       "state_jurisdiction": "Tamil Nadu",
-      "ward": "Ward 42, Chennai North",
       "constitution": "Private Limited Company",
-      "principal_place_of_business": "12, Anna Salai, Chennai - 600002",
-      "gst_type": "Regular",
       "returns_filed_through": "GSTR-3B for August 2026",
-      "returns_compliant": true,
-      "last_filed_period": "August 2026",
-      "e_invoice_enabled": true
-    }
-  },
-
-  "27AADCN5678F1ZP": {
-    "status": "found",
-    "data": {
-      "legal_name": "NovaTech Solutions Private Limited",
-      "trade_name": "NovaTech",
-      "gstin": "27AADCN5678F1ZP",
-      "registration_status": "Active",
-      "registration_date": "2016-04-15",
-      "state_jurisdiction": "Maharashtra",
-      "ward": "Ward 12, Pune East",
-      "constitution": "Private Limited Company",
-      "principal_place_of_business": "4th Floor, Cyber City Tower, Hinjewadi, Pune - 411057",
-      "gst_type": "Regular",
-      "returns_filed_through": "GSTR-3B for August 2026",
-      "returns_compliant": true,
-      "last_filed_period": "August 2026",
-      "e_invoice_enabled": true
-    }
-  },
-
-  "07AABCG9012H1ZK": {
-    "status": "found",
-    "data": {
-      "legal_name": "GlobalTech Consortium Private Limited",
-      "trade_name": "GlobalTech",
-      "gstin": "07AABCG9012H1ZK",
-      "registration_status": "Active",
-      "registration_date": "2014-11-20",
-      "state_jurisdiction": "Delhi",
-      "ward": "Ward 8, South Delhi",
-      "constitution": "Private Limited Company",
-      "principal_place_of_business": "Plot 7, Sector 44, Gurugram, Haryana - 122003",
-      "gst_type": "Regular",
-      "returns_filed_through": "GSTR-3B for July 2026",
-      "returns_compliant": true,
-      "last_filed_period": "July 2026",
-      "e_invoice_enabled": true
-    }
-  },
-
-  "29AABCF1111B1ZX": {
-    "status": "found",
-    "data": {
-      "legal_name": "Fake Cert Pvt Ltd",
-      "trade_name": "FakeCert",
-      "gstin": "29AABCF1111B1ZX",
-      "registration_status": "Cancelled",
-      "registration_date": "2022-01-10",
-      "cancellation_date": "2023-06-01",
-      "state_jurisdiction": "Karnataka",
-      "constitution": "Private Limited Company",
-      "returns_filed_through": "No returns filed",
-      "returns_compliant": false,
-      "last_filed_period": null,
-      "e_invoice_enabled": false
+      "returns_compliant": true
     }
   }
 }

@@ -1,44 +1,11 @@
 {
-  "_comment": "DigiLocker verified document status. Key is PAN (the account anchor). Checks what documents the bidder has verified via DigiLocker.",
-
   "AABCA1234C": {
     "status": "found",
     "data": {
-      "account_holder": "ABC Infrastructure Private Limited",
-      "pan": "AABCA1234C",
-      "verified_documents": [
-        {"type": "GST Certificate", "issuer": "GSTN", "verified_date": "2024-03-10"},
-        {"type": "Udyam Certificate", "issuer": "Ministry of MSME", "verified_date": "2024-01-15"},
-        {"type": "Incorporation Certificate", "issuer": "MCA", "verified_date": "2023-11-20"}
-      ],
-      "account_active": true
-    }
-  },
-
-  "AADCN5678F": {
-    "status": "found",
-    "data": {
-      "account_holder": "NovaTech Solutions Private Limited",
-      "pan": "AADCN5678F",
-      "verified_documents": [
-        {"type": "GST Certificate", "issuer": "GSTN", "verified_date": "2024-04-01"},
-        {"type": "DPIIT Startup Recognition", "issuer": "DPIIT", "verified_date": "2024-02-14"},
-        {"type": "Udyam Certificate", "issuer": "Ministry of MSME", "verified_date": "2024-01-22"}
-      ],
-      "account_active": true
-    }
-  },
-
-  "AABCG9012H": {
-    "status": "found",
-    "data": {
-      "account_holder": "GlobalTech Consortium Private Limited",
-      "pan": "AABCG9012H",
-      "verified_documents": [
-        {"type": "GST Certificate", "issuer": "GSTN", "verified_date": "2024-05-01"},
-        {"type": "Incorporation Certificate", "issuer": "MCA", "verified_date": "2024-03-15"}
-      ],
-      "account_active": true
+      "account_name": "ABC Infrastructure Private Limited",
+      "identity_verified": "PAN-based KYC",
+      "issued_documents": ["PAN card", "Driving licence"],
+      "data_date": "2026-08-20"
     }
   }
 }

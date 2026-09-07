@@ -1,55 +1,12 @@
 {
-  "_comment": "Simulated PAN responses. Key is a 10-char PAN. The 4th character encodes entity type: C=company, P=individual, H=HUF.",
-
   "AABCA1234C": {
     "status": "found",
     "data": {
-      "pan": "AABCA1234C",
       "legal_name": "ABC Infrastructure Private Limited",
       "holder_type": "company",
       "status": "Valid",
-      "itr_status": "Returns filed for AY 2025-26",
-      "itr_filing_year": "2025-26",
-      "jurisdiction": "Chennai, Tamil Nadu"
-    }
-  },
-
-  "AADCN5678F": {
-    "status": "found",
-    "data": {
-      "pan": "AADCN5678F",
-      "legal_name": "NovaTech Solutions Private Limited",
-      "holder_type": "company",
-      "status": "Valid",
-      "itr_status": "Returns filed for AY 2025-26",
-      "itr_filing_year": "2025-26",
-      "jurisdiction": "Pune, Maharashtra"
-    }
-  },
-
-  "AABCG9012H": {
-    "status": "found",
-    "data": {
-      "pan": "AABCG9012H",
-      "legal_name": "GlobalTech Consortium Private Limited",
-      "holder_type": "company",
-      "status": "Valid",
-      "itr_status": "Returns filed for AY 2025-26",
-      "itr_filing_year": "2025-26",
-      "jurisdiction": "New Delhi"
-    }
-  },
-
-  "AABCZ9999Z": {
-    "status": "found",
-    "data": {
-      "pan": "AABCZ9999Z",
-      "legal_name": "Shell Firm Pvt Ltd",
-      "holder_type": "company",
-      "status": "Valid",
-      "itr_status": "No returns filed",
-      "itr_filing_year": null,
-      "jurisdiction": "Bengaluru, Karnataka"
+      "itr_status": "returns filed for AY 2025-26",
+      "itr_filing_year": "2025-26"
     }
   }
 }

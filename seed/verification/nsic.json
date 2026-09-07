@@ -1,18 +1,11 @@
 {
-  "_comment": "NSIC (National Small Industries Corporation) registration responses. Key is Udyam URN. NSIC provides single point registration for MSMEs.",
-
   "UDYAM-TN-33-0041827": {
     "status": "found",
     "data": {
-      "entity_name": "ABC Infrastructure Private Limited",
-      "nsic_registration_number": "TN/2021/NSIC/04582",
-      "registration_date": "2021-09-10",
-      "valid_until": "2027-09-09",
-      "scheme": "Single Point Registration Scheme (SPRS)",
-      "monetary_limit": "75000000",
+      "enterprise_name": "ABC Infrastructure Private Limited",
+      "nsic_registration": "Registered with NSIC",
       "category": "Small Enterprise",
-      "product_services": "Civil Construction, Infrastructure Development",
-      "status": "Active"
+      "valid_until": "2027-06-13"
     }
   }
 }

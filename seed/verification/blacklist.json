@@ -1,31 +1,7 @@
 {
-  "_comment": "Debarment / blacklist register. A PAN present here is CRITICAL. Absence means clean — the system labels a missing key as not_found (the good outcome).",
-
+  "_comment": "Represents what a real CVC / GeM debarment feed would populate. An identifier absent from this table returns not_found, which is the clean case.",
   "AABCZ9999Z": {
     "status": "found",
-    "data": {
-      "debarring_authority": "Ministry of Railways",
-      "pan": "AABCZ9999Z",
-      "entity_name": "Shell Firm Pvt Ltd",
-      "reason": "Submission of forged performance certificates in tender no. RLY/2023/IT/04",
-      "order_date": "2024-02-15",
-      "debarred_until": "2027-02-14",
-      "order_reference": "MW/HQ/2024/DEB/0042",
-      "portal": "CVC / Ministry of Finance debarment register"
-    }
-  },
-
-  "FAKEPAN001F": {
-    "status": "found",
-    "data": {
-      "debarring_authority": "Central Vigilance Commission",
-      "pan": "FAKEPAN001F",
-      "entity_name": "Fraud Infra Co Pvt Ltd",
-      "reason": "Cartel bidding and bid rigging in multiple GeM tenders",
-      "order_date": "2023-09-01",
-      "debarred_until": "2028-08-31",
-      "order_reference": "CVC/DEBAR/2023/112",
-      "portal": "CVC debarment list"
-    }
+    "data": {"debarred_by": "Example PSU", "reason": "Non-performance", "until": "2027-03-31"}
   }
 }

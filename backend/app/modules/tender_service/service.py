@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,7 +18,6 @@ from sqlalchemy.orm import Session
 from app.db.enums import BoundaryMethod, IngestionMode, TenderStatus
 from app.db.models import Document, DocumentSegment, Requirement, Tender
 from app.errors import ConflictError, NotFoundError
-from app.llm.schemas import DOCUMENT_SCHEMAS
 from app.llm.types import DocumentInput
 from app.modules.document_intelligence.pdf_reader import build_provider_text, read_pdf
 from app.modules.verification_adapter.adapter import portal_for
@@ -130,21 +128,9 @@ def extract_requirements(db: Session, *, tender_id: uuid.UUID, provider) -> list
         raise NotFoundError(f"Tender {tender_id} has no uploaded NIT to parse")
 
     pdf = read_pdf(document.storage_path)
-
-    # Pass raw bytes when the provider supports native PDF ingestion (Gemini).
-    # Gemini can *see* the table layout visually, which is far more accurate
-    # than text-extracted from complex multi-column RFP tables (improvement #3).
-    if getattr(provider, "supports_native_documents", False):
-        file_bytes = Path(document.storage_path).read_bytes()
-        doc_input = DocumentInput(
-            text=build_provider_text(pdf.pages),  # fallback text in case bytes fail
-            file_bytes=file_bytes,
-            mime_type="application/pdf",
-        )
-    else:
-        doc_input = DocumentInput(text=build_provider_text(pdf.pages), mime_type="application/pdf")
-
-    result = provider.extract_requirements(doc_input)
+    result = provider.extract_requirements(
+        DocumentInput(text=build_provider_text(pdf.pages), mime_type="application/pdf")
+    )
 
     for existing in db.execute(
         select(Requirement).where(Requirement.tender_id == tender.id)
@@ -165,11 +151,7 @@ def extract_requirements(db: Session, *, tender_id: uuid.UUID, provider) -> list
             weight=draft.weight,
             applicability_scope=draft.applicability_scope,
             accepts_document_types=draft.accepts_document_types,
-            # Fix: populate required_fields from the known schema vocabulary
-            # instead of leaving it always empty. This allows the compliance
-            # engine to check specific data points (e.g. turnover_fy1) rather
-            # than just checking whether the document was present (improvement #1).
-            required_fields=_infer_required_fields(draft),
+            required_fields=draft.required_fields,
             external_check=draft.external_check or portal_for(draft),
             source_page=draft.source_page,
             source_clause_ref=draft.source_clause_ref,
@@ -226,58 +208,3 @@ def confirm_requirements(
     tender.requirements_confirmed_by = officer_id
     db.flush()
     return tender
-
-
-def _infer_required_fields(draft) -> list[str]:
-    """Populate required_fields from the schema vocabulary when the LLM left it empty.
-
-    The compliance engine uses required_fields to know *which exact data points*
-    to look for in a document, rather than just checking that the document was
-    submitted. Without this, every non-numeric requirement falls back to a shallow
-    'document present' check.
-
-    Strategy: if the draft already has required_fields (from the LLM), keep them.
-    Otherwise, infer from:
-    1. The condition field (e.g. condition.field == 'average_annual_turnover')
-    2. The accepted document types' known schema fields.
-    """
-    from app.llm.schemas import DOCUMENT_SCHEMAS
-
-    if draft.required_fields:
-        return draft.required_fields
-
-    fields: list[str] = []
-
-    # Priority 1: the condition field is the specific thing we need to verify.
-    condition = draft.condition or {}
-    if isinstance(condition, dict):
-        cond_field = condition.get("field")
-        if cond_field:
-            fields.append(cond_field)
-            # Turnover conditions also need the other FY figures for averaging.
-            if cond_field == "average_annual_turnover":
-                fields += ["turnover_fy1", "turnover_fy2", "turnover_fy3"]
-                fields = list(dict.fromkeys(fields))  # deduplicate
-            elif cond_field == "order_value":
-                fields += ["order_value", "completion_date", "client_name"]
-                fields = list(dict.fromkeys(fields))
-
-    # Priority 2: pull the most diagnostic fields from each accepted document type.
-    # 'diagnostic' means identity fields (pan, gstin, cin) and the primary
-    # verifiable value (valid_until, emd_amount, etc.). We skip generic prose
-    # fields like 'work_description' which the engine can't check arithmetically.
-    DIAGNOSTIC_FIELDS = {
-        "pan", "gstin", "udyam_urn", "cin",
-        "valid_until", "emd_amount", "incorporation_date",
-        "turnover_fy1", "turnover_fy2", "turnover_fy3",
-        "order_value", "completion_date",
-        "registration_status", "declaration_signed",
-        "local_content_percent", "epfo_reg_number", "esic_reg_number",
-    }
-    for doc_type in (draft.accepts_document_types or []):
-        schema = DOCUMENT_SCHEMAS.get(doc_type, {})
-        for field_name in schema:
-            if field_name in DIAGNOSTIC_FIELDS and field_name not in fields:
-                fields.append(field_name)
-
-    return fields

@@ -412,43 +412,21 @@ def _presence(verdict, requirement, evidence, routing, provider) -> Verdict:
 
     is_prose = requirement.category == "technical"
     if is_prose:
-        # Quote the most informative prose value for the officer, then ask the
-        # model to analyze it against the requirement (§7.4). The verdict is
-        # always NEEDS_HUMAN_REVIEW — the model's analysis is advisory only.
+        # Quote the descriptive field, not whichever happened to be extracted
+        # first. A prose specification is answered by the longest prose value —
+        # a model number tells the officer nothing about materials.
         quoted = max(present, key=lambda f: len(f.field_value or ""))
+        verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
+        verdict.verification_method = "semantic_judgement"
+        verdict.reasoning = (
+            f"This requirement is worded as a judgement rather than a measurement, so it "
+            f"is referred to you by policy. The {humanise_doc_type(segment.doc_type)} states "
+            f"under '{quoted.field_name.replace('_', ' ')}': "
+            f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
+        )
+        verdict.confidence = quoted.confidence
         _cite(verdict, evidence, quoted)
-
-        # Attempt semantic judgement via judge(). Failure is graceful: we fall
-        # back to the raw quote so the officer still has something to read.
-        try:
-            evidence_dicts = [
-                {"field_name": f.field_name, "value": f.field_value, "page": f.page}
-                for f in present[:6]
-            ]
-            judgment = provider.judge(
-                requirement=f"{requirement.name}: {requirement.normalized_clause or requirement.raw_clause or ''}",
-                evidence=evidence_dicts,
-            )
-            verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
-            verdict.verification_method = "semantic_judgement"
-            verdict.confidence = judgment.confidence
-            verdict.reasoning = (
-                f"[AI analysis — advisory only] {judgment.reasoning} "
-                f"The {humanise_doc_type(segment.doc_type)} states: "
-                f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
-            )
-        except Exception:  # noqa: BLE001 — a failed judgement degrades to quote
-            verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
-            verdict.verification_method = "semantic_judgement"
-            verdict.reasoning = (
-                f"This requirement is worded as a judgement rather than a measurement, so it "
-                f"is referred to you by policy. The {humanise_doc_type(segment.doc_type)} states "
-                f"under '{quoted.field_name.replace('_', ' ')}': "
-                f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
-            )
-            verdict.confidence = quoted.confidence
         return verdict
-
 
     verdict.status = ComplianceStatus.COMPLIANT
     verdict.verification_method = "document_presence"
