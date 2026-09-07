@@ -33,7 +33,7 @@ docker compose up -d
 
 # 2. Backend  (http://localhost:8000, API docs at /docs)
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate  [WHY HAVE WE GIVEN LINUX/BASH COMMAND FOR POWERSHELL??]
 pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload
