@@ -1,5 +1,5 @@
-import { Masthead } from "../../../components/Masthead";
-import { Identifier } from "../../../components/status";
+import { Masthead } from "../../../components/layout/Masthead";
+import { Identifier } from "../../../components/ui/status";
 import { getAudit, getCompliance } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ComplianceRow, VerificationSummary } from "../lib/types";
-import { Identifier, SourceChip, StatusChip } from "./status";
+import type { ComplianceRow, VerificationSummary } from "../../types/api";
+import { Identifier, SourceChip, StatusChip } from "../ui/status";
 
 const SCOPE_LABEL: Record<string, string> = {
   lead_only: "Lead only",

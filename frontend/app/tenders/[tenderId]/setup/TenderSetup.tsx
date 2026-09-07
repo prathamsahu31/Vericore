@@ -10,8 +10,8 @@ import {
   updateRequirement,
   uploadNit,
 } from "../../../lib/api";
-import { SiteHeader } from "../../../components/SiteHeader";
-import type { Requirement, Tender } from "../../../lib/types";
+import { SiteHeader } from "../../../components/layout/SiteHeader";
+import type { Requirement, Tender } from "../../../types/api";
 
 const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
 

@@ -10,8 +10,8 @@ import {
   uploadDocument,
   verifyBid,
 } from "../../../../lib/api";
-import { SiteHeader } from "../../../../components/SiteHeader";
-import type { IngestionMode, Tender, UploadResult } from "../../../../lib/types";
+import { SiteHeader } from "../../../../components/layout/SiteHeader";
+import type { IngestionMode, Tender, UploadResult } from "../../../../types/api";
 
 const DOC_TYPES = [
   "gst_certificate",

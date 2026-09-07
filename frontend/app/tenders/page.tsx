@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { SiteHeader } from "../components/SiteHeader";
+import { SiteHeader } from "../components/layout/SiteHeader";
 import { listTenders } from "../lib/api";
-import type { Tender } from "../lib/types";
+import type { Tender } from "../types/api";
 
 export const dynamic = "force-dynamic";
 

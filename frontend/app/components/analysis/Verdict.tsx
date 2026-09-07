@@ -1,4 +1,4 @@
-import type { VerificationSummary } from "../lib/types";
+import type { VerificationSummary } from "../../types/api";
 
 /**
  * One question, answered at the top of the page: can this bidder be qualified?

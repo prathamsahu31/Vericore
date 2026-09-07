@@ -1,7 +1,7 @@
 "use client";
 
-import type { ComplianceRow } from "../lib/types";
-import { Identifier, SourceChip, StatusChip } from "./status";
+import type { ComplianceRow } from "../../types/api";
+import { Identifier, SourceChip, StatusChip } from "../ui/status";
 
 /**
  * The evidence ledger — the component §11 says the interface should be

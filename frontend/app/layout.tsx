@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter, Source_Serif_4 } from "next/font/google";
-import "./globals.css";
+import "./styles/globals.css";
 
 // Three roles, chosen for this brief specifically (CLAUDE.md §11).
 const serif = Source_Serif_4({

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SiteHeader } from "./components/SiteHeader";
+import { SiteHeader } from "./components/layout/SiteHeader";
 
 const STEPS = [
   {
