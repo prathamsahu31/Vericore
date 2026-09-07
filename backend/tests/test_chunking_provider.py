@@ -16,13 +16,21 @@ BIG_TOKEN_BUDGET = 10_000_000  # keeps _wait_tokens from ever sleeping in tests
 
 
 def _nit_pages(count: int) -> str:
-    """A multi-page NIT with one PQ-table clause per page."""
+    """A multi-page NIT with one PQ-table clause per page.
+
+    Each clause carries the labelled block the stub's PQ filter requires
+    (Applicability + Documents Required), otherwise a full 103-page scope
+    document like RFP Volume 1 would produce dozens of junk requirements.
+    """
     pages = []
     for page in range(1, count + 1):
         pages.append(
             f"[page {page}]\n"
-            f"{page}.{page} Clause Title Number {page}\n"
-            f"Detail paragraph for clause {page}.\n"
+            f"6.{page} Clause Title Number {page}\n"
+            f"Detail paragraph for clause {page} shall be met.\n"
+            f"Applicability: Sole Bidder\n"
+            f"Documents Required: PAN card\n"
+            f"Mandatory: Yes\n"
         )
     return "\n".join(pages)
 
@@ -100,8 +108,11 @@ def test_oversized_document_is_sent_as_multiple_chunks(count=0):
 
 
 def test_duplicate_requirements_across_chunks_are_dropped():
-    text = "[page 1]\n1.1 Shared Clause Title\nDetail for clause.\n" "[page 2]\n2.2 Shared Clause Title\nDetail for clause.\n"
-    one_page = "[page 1]\n1.1 Shared Clause Title\nDetail for clause.\n"
+    text = (
+        "[page 1]\n6.1 Shared Clause Title\nDetail for clause shall be met.\nApplicability: Sole\nDocuments Required: PAN\n"
+        "[page 2]\n6.2 Shared Clause Title\nDetail for clause shall be met.\nApplicability: Sole\nDocuments Required: PAN\n"
+    )
+    one_page = "[page 1]\n6.1 Shared Clause Title\nDetail for clause shall be met.\nApplicability: Sole\nDocuments Required: PAN\n"
     provider = ChunkingProvider(
         StubProvider(),
         max_request_tokens=len(one_page) // 4,
@@ -114,8 +125,11 @@ def test_duplicate_requirements_across_chunks_are_dropped():
 
 
 def test_merged_result_keeps_provenance():
-    text = "[page 1]\n1.1 Clause Title Number 1\nDetail for clause one.\n" "[page 2]\n2.2 Clause Title Number 2\nDetail for clause two.\n"
-    one_page = "[page 1]\n1.1 Clause Title Number 1\nDetail for clause one.\n"
+    text = (
+        "[page 1]\n6.1 Clause Title Number 1\nDetail for clause one shall be met.\nApplicability: Sole\nDocuments Required: PAN\n"
+        "[page 2]\n6.2 Clause Title Number 2\nDetail for clause two shall be met.\nApplicability: Sole\nDocuments Required: PAN\n"
+    )
+    one_page = "[page 1]\n6.1 Clause Title Number 1\nDetail for clause one shall be met.\nApplicability: Sole\nDocuments Required: PAN\n"
     provider = ChunkingProvider(
         StubProvider(),
         max_request_tokens=len(one_page) // 4,

@@ -332,6 +332,55 @@ def _labelled(body: str, label: str | None) -> str:
     return ""
 
 
+_REQUIRED_FIELDS_BY_CONDITION: dict[str, list[str]] = {
+    "average_annual_turnover": ["turnover_fy1", "turnover_fy2", "turnover_fy3"],
+    "order_value": ["order_value", "completion_date"],
+    "incorporation_date": ["incorporation_date", "legal_name"],
+    "rated_throughput_tpd": ["rated_throughput_tpd"],
+    "local_content_percent": ["local_content_percent"],
+    "emd_amount": ["emd_amount"],
+    "valid_until": ["valid_until"],
+}
+
+_DOC_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
+    "gst_certificate": ["gstin", "legal_name"],
+    "pan_card": ["pan", "legal_name"],
+    "udyam_certificate": ["udyam_urn", "enterprise_name"],
+    "incorporation_certificate": ["cin", "legal_name", "incorporation_date"],
+    "work_order": ["order_value", "completion_date", "work_description"],
+    "ca_turnover_certificate": ["turnover_fy1", "turnover_fy2", "turnover_fy3"],
+    "iso_certificate": ["valid_until"],
+    "oem_authorisation": ["valid_until", "oem_name"],
+    "technical_datasheet": ["rated_throughput_tpd", "material_of_construction"],
+    "declaration_non_blacklisting": ["declaration_signed"],
+    "emd_instrument": ["emd_amount"],
+    "epfo_certificate": ["valid_until"],
+    "esic_certificate": ["valid_until"],
+    "local_content_certificate": ["local_content_percent"],
+}
+
+
+def _required_fields_for(condition: dict | None, doc_types: list[str]) -> list[str]:
+    if condition and isinstance(condition.get("field"), str):
+        mapped = _REQUIRED_FIELDS_BY_CONDITION.get(condition["field"])
+        if mapped:
+            return mapped
+    # Fallback: derive from document types if no arithmetic condition
+    fields: list[str] = []
+    for dt in doc_types:
+        if dt == ANY_DOCUMENT_TYPE:
+            continue
+        fields.extend(_DOC_TYPE_REQUIRED_FIELDS.get(dt, []))
+    # Deduplicate preserving order
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for f in fields:
+        if f not in seen:
+            seen.add(f)
+            deduped.append(f)
+    return deduped
+
+
 def _scope_for(applicability: str) -> str:
     lowered = applicability.lower()
     for needle, scope in _SCOPES:
@@ -572,6 +621,19 @@ class StubProvider:
             mandatory = _labelled(body, "Mandatory")
             weight = _labelled(body, "Weight")
 
+            # Only headings that look like a PQ criterion row have the labelled
+            # block. Without this filter every "1.1 Content of the RFP" heading
+            # in Volume-I (103 pages of scope) becomes a fake requirement —
+            # that's why RFP Volume 1.pdf was producing 52 junk items.
+            # A real PQ row always carries Applicability + Documents Required;
+            # generic TOC headings have neither.
+            if not applicability and not documents:
+                continue
+            if not detail:
+                continue
+
+            condition = _condition_for(detail)
+            doc_types = _doc_types_for(documents)
             drafts.append(
                 RequirementDraft(
                     code=f"REQ-{index:03d}",
@@ -579,12 +641,12 @@ class StubProvider:
                     category=_category_for(title, detail),
                     raw_clause=f"{clause} {title}. {detail}".strip(),
                     normalized_clause=detail or title,
-                    condition=_condition_for(detail),
+                    condition=condition,
                     mandatory=(mandatory or "yes").strip().lower().startswith("y"),
                     weight=float(weight) if weight.strip().isdigit() else 0.0,
                     applicability_scope=_scope_for(applicability),
-                    accepts_document_types=_doc_types_for(documents),
-                    required_fields=[],
+                    accepts_document_types=doc_types,
+                    required_fields=_required_fields_for(condition, doc_types),
                     external_check=_external_check_for(title, detail),
                     source_page=_page_of(text, match.start()),
                     source_clause_ref=clause,
@@ -595,11 +657,27 @@ class StubProvider:
         return RequirementSet(requirements=drafts, provenance=self._provenance(LLMRole.REASONING))
 
     def judge(self, requirement: str, evidence: list[dict]) -> JudgmentResult:
+        # In stub mode we still produce a human-readable advisory so the
+        # compliance ledger and tests show *why* prose goes to review.
+        if evidence:
+            fields = ", ".join(str(e.get("field_name") or e.get("name") or "") for e in evidence[:3] if isinstance(e, dict))
+            reasoning = (
+                f"This requirement is worded as a judgement rather than a measurement, so it was "
+                f"referred to you by policy. The submitted evidence includes {fields or 'relevant fields'} "
+                f"related to '{requirement[:80]}'."
+            )
+            cited = [str(e.get("field_name") or "") for e in evidence[:2] if isinstance(e, dict) and e.get("field_name")]
+        else:
+            reasoning = (
+                f"This requirement is worded as a judgement rather than a measurement, so it was "
+                f"referred to you by policy. No relevant evidence was extracted for '{requirement[:80]}'."
+            )
+            cited = []
         return JudgmentResult(
             status="NEEDS_HUMAN_REVIEW",
-            confidence=0.0,
-            reasoning="StubProvider does not perform semantic judgement.",
-            cited_field_names=[],
+            confidence=0.45,
+            reasoning=reasoning,
+            cited_field_names=[c for c in cited if c],
             provenance=self._provenance(LLMRole.REASONING),
         )
 
