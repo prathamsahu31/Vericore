@@ -1,12 +1,41 @@
 {
+  "_comment": "Simulated Udyam (MSME) registration responses. Format: UDYAM-XX-00-0000000. Data sourced from publicly available Ministry of MSME format.",
+
   "UDYAM-TN-33-0041827": {
     "status": "found",
     "data": {
+      "udyam_urn": "UDYAM-TN-33-0041827",
       "enterprise_name": "ABC Infrastructure Private Limited",
       "enterprise_type": "Small",
       "registration_date": "2021-06-14",
       "state": "Tamil Nadu",
-      "major_activity": "Services"
+      "district": "Chennai",
+      "major_activity": "Services",
+      "nic_5_digit_code": "45200",
+      "activity_description": "Construction of Buildings",
+      "investment_in_plant": "12500000",
+      "turnover": "85000000",
+      "social_category": "General",
+      "date_of_commencement": "2015-04-01"
+    }
+  },
+
+  "UDYAM-MH-27-0089213": {
+    "status": "found",
+    "data": {
+      "udyam_urn": "UDYAM-MH-27-0089213",
+      "enterprise_name": "NovaTech Solutions Private Limited",
+      "enterprise_type": "Medium",
+      "registration_date": "2020-11-02",
+      "state": "Maharashtra",
+      "district": "Pune",
+      "major_activity": "Services",
+      "nic_5_digit_code": "62099",
+      "activity_description": "Other Information Technology Service Activities NEC",
+      "investment_in_plant": "45000000",
+      "turnover": "320000000",
+      "social_category": "General",
+      "date_of_commencement": "2016-05-01"
     }
   }
 }

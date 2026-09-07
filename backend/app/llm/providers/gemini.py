@@ -99,11 +99,12 @@ def _read_prompt(name: str) -> str:
 
 
 class GeminiProvider:
-    """Primary provider. Reads PDFs natively, so no separate OCR step."""
+    """Uses Google's genai SDK to fulfill the LLMProvider protocol."""
 
     name: ClassVar[str] = "gemini"
+    supports_native_documents = True
 
-    def __init__(self, api_key: str, timeout: int = 180) -> None:
+    def __init__(self, api_key: str | None = None, timeout: int = 180) -> None:
         if not api_key:
             raise LLMError(
                 "LLM_PROVIDER is set to gemini but GEMINI_API_KEY is empty. "
@@ -333,6 +334,67 @@ class GeminiProvider:
             payload, results=results, provenance=self._provenance(LLMRole.REASONING)
         )
 
-    # ── Not yet used; present so the Protocol is satisfied ───────────────
+    # ── Prose judgement (layer 7) ────────────────────────────────────────────
     def judge(self, requirement: str, evidence: list[dict]) -> JudgmentResult:
-        raise LLMError("GeminiProvider.judge is not implemented yet.")
+        """Semantic evaluation of whether evidence satisfies a prose requirement.
+
+        Only called for requirements the rule engine cannot check arithmetically
+        (CLAUDE.md §7.4). The status is always NEEDS_HUMAN_REVIEW — the model
+        provides analysis and cited field names, and the officer makes the call.
+        The model's opinion is advisory, never a verdict.
+        """
+        evidence_text = json.dumps(evidence, indent=2, default=str)
+        prompt = (
+            "You are a procurement compliance analyst.\n\n"
+            "REQUIREMENT:\n"
+            f"{requirement}\n\n"
+            "EVIDENCE EXTRACTED FROM THE BIDDER'S DOCUMENTS:\n"
+            f"{evidence_text}\n\n"
+            "Your task:\n"
+            "1. Determine whether the evidence plausibly satisfies the requirement.\n"
+            "2. Explain your reasoning in 2-4 sentences, citing specific field values.\n"
+            "3. List the field names from the evidence that are most relevant.\n"
+            "4. Assign a confidence score (0.0 = no evidence, 1.0 = clearly satisfied).\n\n"
+            "IMPORTANT: You are providing analysis for a human officer who will make the "
+            "final decision. Do not state that the bidder 'passes' or 'fails'. "
+            "State what the evidence shows and what is still unclear.\n\n"
+            "Return JSON matching the schema exactly."
+        )
+        judgment_schema: dict = {
+            "type": "OBJECT",
+            "properties": {
+                "reasoning": {"type": "STRING"},
+                "confidence": {"type": "NUMBER"},
+                "cited_field_names": {"type": "ARRAY", "items": {"type": "STRING"}},
+            },
+            "required": ["reasoning", "confidence", "cited_field_names"],
+        }
+        doc = DocumentInput(
+            text=evidence_text,
+            file_bytes=None,
+            mime_type=None,
+            page_range=None,
+        )
+        try:
+            payload = self._call(
+                role=LLMRole.REASONING,
+                prompt=prompt,
+                doc=doc,
+                response_schema=judgment_schema,
+            )
+        except LLMError as exc:
+            return JudgmentResult(
+                status="NEEDS_HUMAN_REVIEW",
+                confidence=0.0,
+                reasoning=f"The semantic analysis could not be completed: {exc}",
+                cited_field_names=[],
+                provenance=self._provenance(LLMRole.REASONING),
+            )
+        return JudgmentResult(
+            status="NEEDS_HUMAN_REVIEW",
+            confidence=float(payload.get("confidence") or 0.5),
+            reasoning=str(payload.get("reasoning") or ""),
+            cited_field_names=list(payload.get("cited_field_names") or []),
+            provenance=self._provenance(LLMRole.REASONING),
+        )
+

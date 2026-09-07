@@ -56,9 +56,13 @@ def assess(
     flags += _turnover_ratio(evidence, estimated_value)
     flags += _expiring_certificates(evidence, bid_due_date, contract_start_date)
     flags += _unverifiable(verdicts)
+    flags += _round_number_turnover(evidence)
+    flags += _work_order_exceeds_turnover(evidence)
+    flags += _missing_identity_documents(evidence)
 
     flags = _one_per_code(flags)
     return RiskAssessment(level=_band(flags), flags=flags, rationale=_rationale(flags))
+
 
 
 def _no_evidence(evidence: BidEvidence) -> list[RiskFlag]:
@@ -295,3 +299,120 @@ def _rationale(flags: list[RiskFlag]) -> str:
         counts[str(f.severity)] = counts.get(str(f.severity), 0) + 1
     parts = ", ".join(f"{n} {sev}" for sev, n in sorted(counts.items()))
     return f"{len(flags)} signal(s) fired: {parts}."
+
+
+def _round_number_turnover(evidence: BidEvidence) -> list[RiskFlag]:
+    """Suspiciously round turnover figures are a fabrication indicator.
+
+    A genuine audited turnover is almost never a perfectly round number (e.g.
+    exactly ₹5,00,00,000). When all three FY figures end in multiple zeros, it
+    suggests the figures were invented rather than extracted from real accounts.
+    """
+    from app.modules.compliance_engine.evidence_index import parse_amount
+
+    ROUND_THRESHOLD = 4  # trailing zeros in the integer part
+    suspects: list[str] = []
+    for name in ("turnover_fy1", "turnover_fy2", "turnover_fy3"):
+        for extracted in evidence.find(name):
+            try:
+                amount = parse_amount(extracted.field_value)
+                if amount and amount > 0:
+                    # Count trailing zeros in the integer part
+                    trailing = len(str(int(amount))) - len(str(int(amount)).rstrip("0"))
+                    if trailing >= ROUND_THRESHOLD:
+                        suspects.append(f"{name}: {extracted.field_value}")
+            except Exception:  # noqa: BLE001
+                pass
+
+    if len(suspects) < 2:
+        return []
+    return [
+        RiskFlag(
+            code="round_number_turnover",
+            category="integrity",
+            severity=Severity.WARNING,
+            description=(
+                f"Multiple turnover figures are suspiciously round, which is a known "
+                f"indicator of fabricated financial data: {'; '.join(suspects)}. "
+                f"Verify against the original audited financial statements."
+            ),
+            evidence_refs={"suspects": suspects},
+        )
+    ]
+
+
+def _work_order_exceeds_turnover(evidence: BidEvidence) -> list[RiskFlag]:
+    """A work order value larger than the company's turnover is physically impossible.
+
+    A company cannot complete a project worth more than its entire annual revenue
+    without that project itself appearing in the turnover. This pattern indicates
+    a fabricated or inflated work order.
+    """
+    from app.modules.compliance_engine.evidence_index import parse_amount
+
+    turnover = evidence.amount("turnover_fy1")
+    if turnover is None or turnover == 0:
+        return []
+
+    suspects: list[str] = []
+    for extracted in evidence.find("order_value"):
+        try:
+            order_val = parse_amount(extracted.field_value)
+            if order_val and order_val > float(turnover):
+                suspects.append(
+                    f"order value {extracted.field_value} > turnover ₹{int(turnover):,}"
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+    if not suspects:
+        return []
+    return [
+        RiskFlag(
+            code="work_order_exceeds_turnover",
+            category="integrity",
+            severity=Severity.HIGH,
+            description=(
+                f"One or more work order values exceed the company's stated annual turnover, "
+                f"which is not financially possible: {'; '.join(suspects)}. "
+                f"This may indicate a fabricated or inflated work order."
+            ),
+            evidence_refs={"suspects": suspects},
+        )
+    ]
+
+
+def _missing_identity_documents(evidence: BidEvidence) -> list[RiskFlag]:
+    """Financial claims without identity documents are unverifiable.
+
+    A bid that asserts high turnover or large work orders but contains no
+    statutory ID documents (PAN, GSTIN, CIN) cannot be verified against any
+    government portal. This is not an automatic disqualification, but it is
+    a material gap that increases fraud risk.
+    """
+    has_financial_claim = bool(
+        evidence.find("turnover_fy1") or evidence.find("order_value")
+    )
+    if not has_financial_claim:
+        return []
+
+    has_identity = bool(
+        evidence.find("pan") or evidence.find("gstin") or evidence.find("cin")
+    )
+    if has_identity:
+        return []
+
+    return [
+        RiskFlag(
+            code="missing_identity_documents",
+            category="verification",
+            severity=Severity.HIGH,
+            description=(
+                "The submission contains financial claims (turnover or work order values) "
+                "but no statutory identity documents (PAN, GST Certificate, or Incorporation "
+                "Certificate) were extracted. Without these, the claimed figures cannot be "
+                "cross-checked against GSTN, PAN, or MCA21 records."
+            ),
+            evidence_refs={},
+        )
+    ]

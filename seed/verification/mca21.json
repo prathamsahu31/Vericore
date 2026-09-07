@@ -1,11 +1,60 @@
 {
+  "_comment": "Simulated MCA21 (Ministry of Corporate Affairs) responses. Key is a 21-char CIN. Format: U/L + NIC code + state + year + PTC/PLC/OPC + reg number.",
+
   "U45200TN2015PTC101234": {
     "status": "found",
     "data": {
+      "cin": "U45200TN2015PTC101234",
       "company_name": "ABC Infrastructure Private Limited",
       "incorporation_date": "2015-03-18",
       "company_status": "Active",
-      "registrar": "RoC Chennai"
+      "company_type": "Private Limited Company",
+      "category": "Company limited by Shares",
+      "registrar": "RoC Chennai",
+      "registered_address": "12, Anna Salai, Chennai - 600002, Tamil Nadu",
+      "authorized_capital": "50000000",
+      "paid_up_capital": "45000000",
+      "last_agm_date": "2025-09-30",
+      "last_balance_sheet": "2025-03-31",
+      "directors": ["Rajesh Kumar Sharma", "Priya Anand"]
+    }
+  },
+
+  "U72200MH2016PTC278456": {
+    "status": "found",
+    "data": {
+      "cin": "U72200MH2016PTC278456",
+      "company_name": "NovaTech Solutions Private Limited",
+      "incorporation_date": "2016-04-15",
+      "company_status": "Active",
+      "company_type": "Private Limited Company",
+      "category": "Company limited by Shares",
+      "registrar": "RoC Mumbai",
+      "registered_address": "4th Floor, Cyber City Tower, Hinjewadi, Pune - 411057, Maharashtra",
+      "authorized_capital": "100000000",
+      "paid_up_capital": "75000000",
+      "last_agm_date": "2025-09-30",
+      "last_balance_sheet": "2025-03-31",
+      "directors": ["Amit Verma", "Sneha Patil", "Rohan Mehta"]
+    }
+  },
+
+  "U62010DL2014PTC392781": {
+    "status": "found",
+    "data": {
+      "cin": "U62010DL2014PTC392781",
+      "company_name": "GlobalTech Consortium Private Limited",
+      "incorporation_date": "2014-11-20",
+      "company_status": "Active",
+      "company_type": "Private Limited Company",
+      "category": "Company limited by Shares",
+      "registrar": "RoC Delhi",
+      "registered_address": "Plot 7, Sector 44, Gurugram, Haryana - 122003",
+      "authorized_capital": "500000000",
+      "paid_up_capital": "350000000",
+      "last_agm_date": "2025-09-30",
+      "last_balance_sheet": "2025-03-31",
+      "directors": ["Vikram Singh", "Ananya Krishnan", "Suresh Nair", "Deepika Rao"]
     }
   }
 }
