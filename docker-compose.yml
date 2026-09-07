@@ -7,11 +7,11 @@ services:
       POSTGRES_PASSWORD: vericore
       POSTGRES_DB: vericore
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - vericore_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vericore -d vericore"]
+      test: [ "CMD-SHELL", "pg_isready -U vericore -d vericore" ]
       interval: 5s
       timeout: 5s
       retries: 10
