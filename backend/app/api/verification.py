@@ -64,6 +64,28 @@ def verify(
     return _summary(db, bid_id)
 
 
+@router.post("/tenders/{tender_id}/verify-all", response_model=list[VerificationSummary], status_code=201)
+def verify_all(
+    tender_id: uuid.UUID, db: DbSession, provider: Annotated[Any, Depends(extraction_provider)]
+) -> list[VerificationSummary]:
+    """Verify every bid on a tender in one call (improvement_roadmap §7).
+
+    Verifies bids sequentially — background-task fan-out is the production
+    follow-up (§3). Returns the updated comparison summaries so the frontend
+    can render the matrix without a second round-trip.
+    """
+    tender = db.get(Tender, tender_id)
+    if tender is None:
+        raise NotFoundError(f"Tender {tender_id} not found")
+    bids = list(db.execute(select(Bid).where(Bid.tender_id == tender_id)).scalars())
+    results: list[VerificationSummary] = []
+    for bid in bids:
+        compliance.verify_bid(db, bid_id=bid.id, provider=provider)
+        db.commit()
+        results.append(_summary(db, bid.id))
+    return results
+
+
 @router.get("/bids/{bid_id}/compliance", response_model=VerificationSummary)
 def get_compliance(bid_id: uuid.UUID, db: DbSession) -> VerificationSummary:
     return _summary(db, bid_id)

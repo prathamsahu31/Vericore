@@ -189,11 +189,13 @@ export interface Requirement {
   name: string;
   category: string | null;
   raw_clause: string | null;
+  normalized_clause: string | null;
   condition: Record<string, unknown> | null;
   mandatory: boolean;
   weight: string;
   applicability_scope: string;
   accepts_document_types: string[];
+  required_fields: string[];
   external_check: string | null;
   source_page: number | null;
   source_clause_ref: string | null;

@@ -9,6 +9,8 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi.responses import FileResponse
+from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -140,3 +142,15 @@ def list_fields(document_id: uuid.UUID, db: DbSession) -> list[ExtractedFieldOut
         .all()
     )
     return [ExtractedFieldOut.model_validate(r) for r in rows]
+
+
+@router.get("/documents/{document_id}/file")
+def get_document_file(document_id: uuid.UUID, db: DbSession):
+    """Serve the original PDF so the officer can verify a citation in one click (CLAUDE.md §11)."""
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise NotFoundError(f"Document {document_id} not found")
+    path = Path(doc.storage_path)
+    if not path.exists():
+        raise NotFoundError(f"File for document {document_id} not found on disk")
+    return FileResponse(str(path), media_type=doc.mime_type or "application/pdf", filename=doc.original_filename)

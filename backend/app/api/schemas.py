@@ -163,11 +163,13 @@ class RequirementOut(BaseModel):
     name: str
     category: str | None
     raw_clause: str | None
+    normalized_clause: str | None
     condition: dict | None
     mandatory: bool
     weight: Decimal
     applicability_scope: ApplicabilityScope
     accepts_document_types: list[str]
+    required_fields: list[str] = Field(default_factory=list)
     external_check: str | None
     source_page: int | None
     source_clause_ref: str | None
@@ -180,6 +182,8 @@ class RequirementUpdate(BaseModel):
     """Officer corrections at the confirmation gate (CLAUDE.md §11)."""
 
     name: str | None = None
+    normalized_clause: str | None = None
+    category: str | None = None
     condition: dict | None = None
     mandatory: bool | None = None
     weight: Decimal | None = None

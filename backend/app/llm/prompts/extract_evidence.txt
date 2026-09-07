@@ -1,5 +1,8 @@
 Extract the requested fields from the document below.
 
+You are reading ONE specific type of document. Only extract what this document
+type would naturally contain — do not infer fields from other document types.
+
 Document type: {doc_type}
 Pages: {page_range}
 

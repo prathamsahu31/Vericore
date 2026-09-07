@@ -92,6 +92,21 @@ def update_requirement(
     return RequirementOut.model_validate(row)
 
 
+@router.delete("/tenders/{tender_id}", status_code=204)
+def delete_tender(tender_id: uuid.UUID, db: DbSession) -> None:
+    """Delete a tender and its checklist/bids (testing helper)."""
+    tenders.delete_tender(db, tender_id=tender_id)
+    db.commit()
+
+
+@router.post("/tenders/{tender_id}/reset-requirements", response_model=TenderOut)
+def reset_requirements(tender_id: uuid.UUID, db: DbSession) -> TenderOut:
+    """Clear the checklist so it can be re-extracted without deleting the tender."""
+    tender = tenders.reset_requirements(db, tender_id=tender_id)
+    db.commit()
+    return TenderOut.model_validate(tender)
+
+
 @router.post("/tenders/{tender_id}/confirm-requirements", response_model=TenderOut)
 def confirm_requirements(
     tender_id: uuid.UUID, db: DbSession, officer_id: uuid.UUID | None = None

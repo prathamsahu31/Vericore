@@ -9,6 +9,8 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.llm.base import LLMError
+
 
 class VericoreError(Exception):
     """Base class for every error the application raises deliberately."""
@@ -59,4 +61,25 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content={"error": {"code": exc.code, "message": exc.message, "detail": exc.detail}},
+        )
+
+    @app.exception_handler(LLMError)
+    async def _handle_llm(_: Request, exc: LLMError) -> JSONResponse:
+        message = str(exc)
+        lower = message.casefold()
+        retryable = any(t in lower for t in ("429", "rate limit", "timeout", "temporarily", "unavailable"))
+        hint = (
+            "Live provider is rate-limited right now. Retry in a minute, or switch to LLM_PROVIDER=stub for a stable offline run."
+            if retryable
+            else "LLM call failed. Retry once; if it keeps failing, switch to LLM_PROVIDER=stub to keep working offline."
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": {
+                    "code": "llm_provider_error",
+                    "message": message,
+                    "detail": {"retryable": retryable, "hint": hint},
+                }
+            },
         )

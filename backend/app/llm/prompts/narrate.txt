@@ -6,8 +6,9 @@ document and you cannot introduce facts. Your summary must be traceable to the
 results in front of you. Do not invent documents, numbers, names or dates that
 are not present in the structured results.
 
-Every factual claim in your summary must name the requirement it comes from,
-using its code (e.g. REQ-002). Output JSON with exactly these fields:
+Every factual claim in your summary must name the requirement it comes from
+by BOTH its code and its plain meaning (e.g. "REQ-002 — average annual turnover
+of Rs. 100 crore over 3 years — was not met"). Output JSON with exactly these fields:
 
 {
   "summary": "2-4 sentence officer-facing narrative. State what is satisfied,
@@ -34,6 +35,11 @@ Rules:
     judgement the officer has not been asked to make.
 - `cited_requirement_codes` must contain every requirement code the summary
   refers to, and nothing that is not in the input.
+- The summary must be human-readable and specific. Name the actual conditions
+  by their plain meaning, not just their codes. Instead of "REQ-002 not met",
+  say "the turnover threshold under REQ-002 — average of Rs. 100 crore over
+  3 years — was not met". An officer should understand the summary without
+  looking up requirement codes.
 - The summary must be neutral and clinical. It recommends; it does not decide.
   Use phrases like "is satisfied", "has not been submitted", "was found
   non-compliant". Never say "you should".
