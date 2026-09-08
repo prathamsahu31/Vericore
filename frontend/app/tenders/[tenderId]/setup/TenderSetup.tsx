@@ -11,9 +11,9 @@ import {
   resetRequirements,
   updateRequirement,
   uploadNit,
-} from "../../../lib/api";
-import { SiteHeader } from "../../../components/SiteHeader";
-import type { Requirement, Tender } from "../../../lib/types";
+} from "@/lib/api";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import type { Requirement, Tender } from "@/types/api";
 
 const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
 
@@ -166,105 +166,78 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
       <main className="mx-auto max-w-[900px] px-6 py-10">
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Tender setup</p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight">{tender?.title}</h1>
-      <p className="mt-2 text-[13px] text-ink-muted">
-        {tender?.bid_number && <span className="identifier">{tender.bid_number} · </span>}
-        {tender?.bid_due_date && (
-          <>
-            bid due <span className="identifier">{tender.bid_due_date}</span>
-          </>
-        )}
-      </p>
-
-      {/* Testing helpers: delete the tender or clear the draft checklist to re-run extraction */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {!confirmed && requirements.length > 0 && (
-            <button
-              onClick={handleReset}
-              disabled={resetting || deleting}
-              className="inline-flex h-8 items-center justify-center rounded-[4px] border border-rule bg-surface px-4 text-[13px] font-medium text-ink-muted hover:text-ink disabled:opacity-40"
-              title="Clear the draft checklist so you can extract again after prompt changes"
-            >
-              {resetting ? "Resetting…" : "Re-extract requirements"}
-            </button>
+        <p className="mt-2 text-[13px] text-ink-muted">
+          {tender?.bid_number && <span className="identifier">{tender.bid_number} · </span>}
+          {tender?.bid_due_date && (
+            <>
+              bid due <span className="identifier">{tender.bid_due_date}</span>
+            </>
           )}
-          {confirmed && (
-            <span className="text-[12px] leading-8 text-ink-faint">Re-extract is disabled after confirmation — delete the tender to start over.</span>
+        </p>
+
+        <div className="mt-8 space-y-8">
+          {confirmed ? (
+            <ConfirmedStage tenderId={tenderId} />
+          ) : stage.kind === "confirmed" ? (
+            <ConfirmedStage tenderId={tenderId} />
+          ) : (
+            <>
+              <UploadStage
+                uploaded={uploaded}
+                uploading={uploading}
+                nitFile={nitFile}
+                setNitFile={setNitFile}
+                onUpload={handleUpload}
+                extracted={tender?.status === "requirements_extracted"}
+                onExtract={handleExtract}
+                extracting={stage.kind === "extracting"}
+                hasDrafts={requirements.length > 0}
+              />
+
+              {stage.kind === "review" && (
+                <>
+                  <ReviewStage
+                    requirements={stage.requirements}
+                    onPatch={async (id, patch) => {
+                      const updated = await updateRequirement(id, patch);
+                      setRequirements((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+                      setStage((s) =>
+                        s.kind === "review"
+                          ? { ...s, requirements: s.requirements.map((r) => (r.id === updated.id ? updated : r)) }
+                          : s,
+                      );
+                    }}
+                  />
+                  <ConfirmBar saving={stage.saving} onConfirm={handleConfirm} />
+                </>
+              )}
+            </>
           )}
         </div>
-        <button
-          onClick={handleDelete}
-          disabled={deleting || resetting}
-          className="inline-flex h-8 shrink-0 items-center justify-center rounded-[4px] border bg-surface px-4 text-[13px] font-medium disabled:opacity-40"
-          style={{ borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)", color: "var(--failed)" }}
-        >
-          {deleting ? "Deleting…" : "Delete tender"}
-        </button>
-      </div>
 
-      <div className="mt-8 space-y-8">
-        {confirmed ? (
-          <ConfirmedStage tenderId={tenderId} />
-        ) : stage.kind === "confirmed" ? (
-          <ConfirmedStage tenderId={tenderId} />
-        ) : (
-          <>
-            <UploadStage
-              uploaded={uploaded}
-              uploading={uploading}
-              nitFile={nitFile}
-              setNitFile={setNitFile}
-              onUpload={handleUpload}
-              extracted={tender?.status === "requirements_extracted"}
-              onExtract={handleExtract}
-              extracting={stage.kind === "extracting"}
-              hasDrafts={requirements.length > 0}
-            />
-
-            {stage.kind === "review" && (
-              <>
-                <ReviewStage
-                  requirements={stage.requirements}
-                  onPatch={async (id, patch) => {
-                    const updated = await updateRequirement(id, patch);
-                    setRequirements((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
-                    setStage((s) =>
-                      s.kind === "review"
-                        ? { ...s, requirements: s.requirements.map((r) => (r.id === updated.id ? updated : r)) }
-                        : s,
-                    );
-                  }}
-                />
-                <ConfirmBar saving={stage.saving} onConfirm={handleConfirm} />
-              </>
-            )}
-          </>
+        {error && (
+          <p
+            className="mt-6 rounded-[4px] border px-4 py-3 text-[14px]"
+            style={{
+              borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
+              color: "var(--failed)",
+            }}
+          >
+            {error}
+          </p>
         )}
-      </div>
 
-      {error && (
-        <p
-          className="mt-6 rounded-[4px] border px-4 py-3 text-[14px]"
-          style={{
-            borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
-            color: "var(--failed)",
-          }}
-        >
-          {error}
+        <p className="mt-10 border-t border-rule pt-5 text-[13px] text-ink-faint">
+          Went through the checklist already?{" "}
+          <Link href={`/tenders/${tenderId}`} className="text-seal hover:underline">
+            Compare the bidders on this tender
+          </Link>
+          , or{" "}
+          <Link href={`/tenders/${tenderId}/bidders/new`} className="text-seal hover:underline">
+            add a bidder&rsquo;s documents
+          </Link>
+          .
         </p>
-      )}
-
-      <p className="mt-10 border-t border-rule pt-5 text-[13px] text-ink-faint">
-        Went through the checklist already?{" "}
-        <Link href={`/tenders/${tenderId}`} className="text-seal hover:underline">
-          Compare the bidders on this tender
-        </Link>
-        , or{" "}
-        <Link href={`/tenders/${tenderId}/bidders/new`} className="text-seal hover:underline">
-          add a bidder&rsquo;s documents
-        </Link>
-        .
-      </p>
       </main>
     </div>
   );
@@ -484,84 +457,45 @@ function ReviewStage({
           bidder checked against it. Mark anything wrong before pressing confirm.
         </p>
       </div>
-
-      {grouped.map(([category, rows]) => (
-        <div key={category}>
-          <div className="bg-paper px-7 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-              {CATEGORY_LABEL[category] ?? category.replace(/_/g, " ")}
-            </span>
-            <span className="ml-2 text-[11px] text-ink-faint">{rows.length} condition{rows.length === 1 ? "" : "s"}</span>
-          </div>
-          <ul className="divide-y divide-rule">
-            {rows.map((r) => {
-              const humanCondition = humaniseCondition(r.condition);
-              return (
-                <li key={r.id} className="px-7 py-5">
-                  {/* Header line: code + category + mandatory toggle */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="identifier rounded-[3px] bg-paper px-1.5 py-0.5 text-[12px] text-ink-faint">
-                        {r.code}
-                      </span>
-                      <span
-                        className={`rounded-[3px] px-2 py-0.5 text-[11px] font-medium ${
-                          r.mandatory ? "text-seal" : "bg-paper text-ink-faint"
-                        }`}
-                        style={
-                          r.mandatory
-                            ? { background: "color-mix(in srgb, var(--seal) 14%, transparent)" }
-                            : undefined
+      <ul className="divide-y divide-rule">
+        {requirements.map((r) => (
+          <li key={r.id} className="px-7 py-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="max-w-[58ch]">
+                <p className="flex items-center gap-2">
+                  <span className="identifier text-[12px] text-ink-faint">{r.code}</span>
+                  <span
+                    className={`rounded-[3px] px-2 py-0.5 text-[11px] font-medium ${r.mandatory
+                        ? "text-seal"
+                        : "bg-paper text-ink-faint"
+                      }`}
+                    style={
+                      r.mandatory
+                        ? {
+                          background:
+                            "color-mix(in srgb, var(--seal) 14%, transparent)",
                         }
-                      >
-                        {r.mandatory ? "Mandatory" : "Optional"}
-                      </span>
-                      {r.applicability_scope && r.applicability_scope !== "lead_only" && (
-                        <span className="rounded-[3px] bg-seal-tint px-2 py-0.5 text-[11px] text-seal">
-                          {SCOPE_LABEL[r.applicability_scope] ?? r.applicability_scope}
-                        </span>
-                      )}
-                      {r.weight !== null && Number(r.weight) > 0 && (
-                        <span className="text-[11px] text-ink-faint">weight {String(r.weight)}</span>
-                      )}
-                      {r.edited_by_officer && (
-                        <span className="text-[11px]" style={{ color: "var(--review)" }}>
-                          edited
-                        </span>
-                      )}
-                    </div>
-                    <label className="flex items-center gap-1.5 text-[13px] text-ink-muted">
-                      <input
-                        type="checkbox"
-                        defaultChecked={r.mandatory}
-                        disabled={savingId === r.id}
-                        onChange={async (e) => {
-                          setSavingId(r.id);
-                          try {
-                            await onPatch(r.id, { mandatory: e.target.checked });
-                          } finally {
-                            setSavingId(null);
-                          }
-                        }}
-                        className="h-4 w-4"
-                        style={{ accentColor: "var(--seal)" }}
-                      />
-                      Mandatory
-                    </label>
-                  </div>
-
-                  {/* Editable name */}
-                  <input
-                    defaultValue={r.name}
-                    disabled={savingId === r.id}
-                    onBlur={async (e) => {
-                      if (e.target.value.trim() && e.target.value.trim() !== r.name) {
-                        setSavingId(r.id);
-                        try {
-                          await onPatch(r.id, { name: e.target.value.trim() });
-                        } finally {
-                          setSavingId(null);
-                        }
+                        : undefined
+                    }
+                  >
+                    {r.mandatory ? "Mandatory" : "Optional"}
+                  </span>
+                  {r.edited_by_officer && (
+                    <span className="text-[11px]" style={{ color: "var(--review)" }}>
+                      edited
+                    </span>
+                  )}
+                </p>
+                <input
+                  defaultValue={r.name}
+                  disabled={savingId === r.id}
+                  onBlur={async (e) => {
+                    if (e.target.value.trim() && e.target.value.trim() !== r.name) {
+                      setSavingId(r.id);
+                      try {
+                        await onPatch(r.id, { name: e.target.value.trim() });
+                      } finally {
+                        setSavingId(null);
                       }
                     }}
                     className="mt-2 w-full rounded-[4px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] font-medium outline-none hover:border-rule focus:border-seal"

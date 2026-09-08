@@ -1,4 +1,4 @@
-import type { ComplianceStatus, RiskLevel, Severity } from "../lib/types";
+import type { ComplianceStatus, RiskLevel, Severity } from "../../types/api";
 
 /**
  * Status is never conveyed by colour alone (CLAUDE.md §11 quality floor).

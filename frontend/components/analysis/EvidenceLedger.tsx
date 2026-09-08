@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { ComplianceRow, DocumentSummary } from "../lib/types";
-import { documentFileUrl, getDocuments } from "../lib/api";
-import { Identifier, SourceChip, StatusChip } from "./status";
+import type { ComplianceRow } from "../../types/api";
+import { Identifier, SourceChip, StatusChip } from "../ui/status";
 
 /**
  * The evidence ledger — the component §11 says the interface should be

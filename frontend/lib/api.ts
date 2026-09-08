@@ -8,7 +8,7 @@ import type {
   Tender,
   UploadResult,
   VerificationSummary,
-} from "./types";
+} from "../types/api";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 

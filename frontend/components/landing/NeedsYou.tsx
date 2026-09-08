@@ -1,7 +1,7 @@
 "use client";
 
-import type { ComplianceRow, VerificationSummary } from "../lib/types";
-import { Identifier } from "./status";
+import type { ComplianceRow, VerificationSummary } from "../../types/api";
+import { Identifier } from "../ui/status";
 
 /**
  * What to do next, spelled out.
