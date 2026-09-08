@@ -30,14 +30,14 @@ export function SiteHeader() {
           >
             <Link
               data-id="problem-statement"
-              href="/ps"
+              href="/problem-statement"
               className="rounded-[4px] px-3 py-2 text-[14px] transition-colors hover:text-seal"
             >
               Problem Statement
             </Link>
             <Link
               data-id="about-us"
-              href="/about"
+              href="/about-us"
               className="rounded-[4px] px-3 py-2 text-[14px] text-navy transition-colors hover:text-seal">
               About Us
             </Link>

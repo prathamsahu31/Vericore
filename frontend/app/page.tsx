@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import Cards from "@/components/layout/HomeCarousel";
 import IntroAnimation from "@/components/layout/IntroAnimation";
+import GlassBox from "@/components/layout/GlassBox";
 
 
 export default function Home() {
@@ -43,7 +44,7 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <HeroPanel />
+          <HeroPanel isActive={!showIntro} />
         </section>
 
         <Cards />
@@ -64,53 +65,16 @@ export default function Home() {
           </div>
         </section>
       </main>
+
     </div>
+
   );
 }
 
-/** SAMPLE COMPANY PANEL FOR THE HERO SECTION**/
-function HeroPanel() {
-  const rows = [
-    { label: "Turnover threshold", verdict: "Compliant", chip: "green", span: "2023–24 ₹38.2 Cr" },
-    { label: "GST registration", verdict: "Compliant", chip: "green", span: "PAN matches" },
-    { label: "OEM authorisation", verdict: "Your review", chip: "amber", span: "needs a person" },
-    { label: "Blacklist declaration", verdict: "No document", chip: "amber", span: "ask the bidder" },
-  ];
+/** SAMPLE COMPANY PANEL FOR THE HERO SECTION   import glass box**/
+
+function HeroPanel({ isActive }: { isActive: boolean }) {
   return (
-    <div className="rounded-[6px] border border-rule bg-surface p-6">
-      <div className="flex items-baseline justify-between border-b border-rule pb-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">Sample verdict</p>
-          <p className="mt-1 font-serif text-[18px] font-semibold">ABC Infra Private Ltd</p>
-        </div>
-        <span className="identifier text-[13px] text-ink-faint">REQ-007</span>
-      </div>
-
-      <ul className="divide-y divide-rule">
-        {rows.map((r) => (
-          <li key={r.label} className="flex items-center justify-between gap-4 py-4">
-            <div className="min-w-0">
-              <p className="truncate text-[14px] font-medium">{r.label}</p>
-              <p className="identifier mt-0.5 text-[12px] text-ink-faint">{r.span}</p>
-            </div>
-            <span
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border px-2.5 py-1 text-[12px] font-medium"
-              style={{
-                color: r.chip === "green" ? "var(--verified)" : "var(--review)",
-                background: `color-mix(in srgb, ${r.chip === "green" ? "var(--verified)" : "var(--review)"} 9%, transparent)`,
-                borderColor: `color-mix(in srgb, ${r.chip === "green" ? "var(--verified)" : "var(--review)"} 26%, transparent)`,
-              }}
-            >
-              <span aria-hidden>{r.chip === "green" ? "✓" : "◆"}</span>
-              {r.verdict}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <p className="border-t border-rule pt-4 text-[13px] text-ink-muted">
-        Every row opens to its exact page, with the field highlighted and the source quoted.
-      </p>
-    </div>
+    <GlassBox isActive={isActive} />
   );
 }

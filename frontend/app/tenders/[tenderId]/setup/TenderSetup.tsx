@@ -9,9 +9,9 @@ import {
   getTender,
   updateRequirement,
   uploadNit,
-} from "../../../lib/api";
-import { SiteHeader } from "../../../components/layout/SiteHeader";
-import type { Requirement, Tender } from "../../../types/api";
+} from "@/lib/api";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import type { Requirement, Tender } from "@/types/api";
 
 const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
 
@@ -126,78 +126,78 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
       <main className="mx-auto max-w-[900px] px-6 py-10">
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Tender setup</p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight">{tender?.title}</h1>
-      <p className="mt-2 text-[13px] text-ink-muted">
-        {tender?.bid_number && <span className="identifier">{tender.bid_number} · </span>}
-        {tender?.bid_due_date && (
-          <>
-            bid due <span className="identifier">{tender.bid_due_date}</span>
-          </>
-        )}
-      </p>
-
-      <div className="mt-8 space-y-8">
-        {confirmed ? (
-          <ConfirmedStage tenderId={tenderId} />
-        ) : stage.kind === "confirmed" ? (
-          <ConfirmedStage tenderId={tenderId} />
-        ) : (
-          <>
-            <UploadStage
-              uploaded={uploaded}
-              uploading={uploading}
-              nitFile={nitFile}
-              setNitFile={setNitFile}
-              onUpload={handleUpload}
-              extracted={tender?.status === "requirements_extracted"}
-              onExtract={handleExtract}
-              extracting={stage.kind === "extracting"}
-              hasDrafts={requirements.length > 0}
-            />
-
-            {stage.kind === "review" && (
-              <>
-                <ReviewStage
-                  requirements={stage.requirements}
-                  onPatch={async (id, patch) => {
-                    const updated = await updateRequirement(id, patch);
-                    setRequirements((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
-                    setStage((s) =>
-                      s.kind === "review"
-                        ? { ...s, requirements: s.requirements.map((r) => (r.id === updated.id ? updated : r)) }
-                        : s,
-                    );
-                  }}
-                />
-                <ConfirmBar saving={stage.saving} onConfirm={handleConfirm} />
-              </>
-            )}
-          </>
-        )}
-      </div>
-
-      {error && (
-        <p
-          className="mt-6 rounded-[4px] border px-4 py-3 text-[14px]"
-          style={{
-            borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
-            color: "var(--failed)",
-          }}
-        >
-          {error}
+        <p className="mt-2 text-[13px] text-ink-muted">
+          {tender?.bid_number && <span className="identifier">{tender.bid_number} · </span>}
+          {tender?.bid_due_date && (
+            <>
+              bid due <span className="identifier">{tender.bid_due_date}</span>
+            </>
+          )}
         </p>
-      )}
 
-      <p className="mt-10 border-t border-rule pt-5 text-[13px] text-ink-faint">
-        Went through the checklist already?{" "}
-        <Link href={`/tenders/${tenderId}`} className="text-seal hover:underline">
-          Compare the bidders on this tender
-        </Link>
-        , or{" "}
-        <Link href={`/tenders/${tenderId}/bidders/new`} className="text-seal hover:underline">
-          add a bidder&rsquo;s documents
-        </Link>
-        .
-      </p>
+        <div className="mt-8 space-y-8">
+          {confirmed ? (
+            <ConfirmedStage tenderId={tenderId} />
+          ) : stage.kind === "confirmed" ? (
+            <ConfirmedStage tenderId={tenderId} />
+          ) : (
+            <>
+              <UploadStage
+                uploaded={uploaded}
+                uploading={uploading}
+                nitFile={nitFile}
+                setNitFile={setNitFile}
+                onUpload={handleUpload}
+                extracted={tender?.status === "requirements_extracted"}
+                onExtract={handleExtract}
+                extracting={stage.kind === "extracting"}
+                hasDrafts={requirements.length > 0}
+              />
+
+              {stage.kind === "review" && (
+                <>
+                  <ReviewStage
+                    requirements={stage.requirements}
+                    onPatch={async (id, patch) => {
+                      const updated = await updateRequirement(id, patch);
+                      setRequirements((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+                      setStage((s) =>
+                        s.kind === "review"
+                          ? { ...s, requirements: s.requirements.map((r) => (r.id === updated.id ? updated : r)) }
+                          : s,
+                      );
+                    }}
+                  />
+                  <ConfirmBar saving={stage.saving} onConfirm={handleConfirm} />
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {error && (
+          <p
+            className="mt-6 rounded-[4px] border px-4 py-3 text-[14px]"
+            style={{
+              borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
+              color: "var(--failed)",
+            }}
+          >
+            {error}
+          </p>
+        )}
+
+        <p className="mt-10 border-t border-rule pt-5 text-[13px] text-ink-faint">
+          Went through the checklist already?{" "}
+          <Link href={`/tenders/${tenderId}`} className="text-seal hover:underline">
+            Compare the bidders on this tender
+          </Link>
+          , or{" "}
+          <Link href={`/tenders/${tenderId}/bidders/new`} className="text-seal hover:underline">
+            add a bidder&rsquo;s documents
+          </Link>
+          .
+        </p>
       </main>
     </div>
   );
@@ -337,17 +337,16 @@ function ReviewStage({
                 <p className="flex items-center gap-2">
                   <span className="identifier text-[12px] text-ink-faint">{r.code}</span>
                   <span
-                    className={`rounded-[3px] px-2 py-0.5 text-[11px] font-medium ${
-                      r.mandatory
+                    className={`rounded-[3px] px-2 py-0.5 text-[11px] font-medium ${r.mandatory
                         ? "text-seal"
                         : "bg-paper text-ink-faint"
-                    }`}
+                      }`}
                     style={
                       r.mandatory
                         ? {
-                            background:
-                              "color-mix(in srgb, var(--seal) 14%, transparent)",
-                          }
+                          background:
+                            "color-mix(in srgb, var(--seal) 14%, transparent)",
+                        }
                         : undefined
                     }
                   >
