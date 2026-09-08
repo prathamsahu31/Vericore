@@ -1,6 +1,6 @@
+"use client";
 import Link from "next/link";
-import { ThemeToggle } from "./ThemeToggle";
-
+import { AnimatedBackground } from "@/components/core/animated-background";
 /**
  * Site-wide wordmark and navigation. The monogram is the "seal" — the deep
  * official navy that anchors the whole identity (CLAUDE.md §11). The wordmark
@@ -9,32 +9,39 @@ import { ThemeToggle } from "./ThemeToggle";
  */
 export function SiteHeader() {
   return (
-    <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
+    <header className="border-b border-rule bg-surface/20 backdrop-blur-sm">
       <div className="mx-auto flex h-[64px] max-w-[1240px] items-center justify-between gap-6 px-6">
-        <Link href="/" className="flex items-center gap-3">
-          <span
-            aria-hidden
-            className="grid h-9 w-9 place-items-center rounded-[6px] bg-seal font-serif text-[18px] font-semibold text-white"
-          >
-            V
+        <Link href="/" className="flex items-center gap-3 group">
+          <img src="logo.png" alt="Logo" height={25} width={25} />
+          <span className="text-[15px] font-semibold tracking-tight text-navy-blue leading-none">
+            Vericore
           </span>
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Vericore</span>
         </Link>
 
         <nav className="flex items-center gap-1" aria-label="Primary">
-          <Link
-            href="/tenders"
-            className="rounded-[4px] px-3 py-2 text-[14px] text-ink-muted transition-colors hover:bg-seal-tint hover:text-seal"
+          <AnimatedBackground
+            className="rounded-[4px] bg-seal-tint" // The background color of the hover pill
+            transition={{
+              type: 'spring',
+              bounce: 0.2,
+              duration: 0.3,
+            }}
+            enableHover
           >
-            Tenders
-          </Link>
-          <Link
-            href="/tenders/new"
-            className="ml-2 rounded-[4px] bg-seal px-4 py-2 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
-          >
-            Start a tender
-          </Link>
-          <ThemeToggle />
+            <Link
+              data-id="problem-statement"
+              href="/ps"
+              className="rounded-[4px] px-3 py-2 text-[14px] transition-colors hover:text-seal"
+            >
+              Problem Statement
+            </Link>
+            <Link
+              data-id="about-us"
+              href="/about"
+              className="rounded-[4px] px-3 py-2 text-[14px] text-navy transition-colors hover:text-seal">
+              About Us
+            </Link>
+          </AnimatedBackground>
         </nav>
       </div>
     </header>
