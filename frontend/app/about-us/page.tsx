@@ -70,7 +70,7 @@ const teamMembers = [
 
 export default function AboutUsPage() {
     return (
-        <div className="relative min-h-screen overflow-hidden text-white" style={{ backgroundImage: "url('/bg1.svg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
+        <div className="relative min-h-screen overflow-hidden text-white" style={{ backgroundImage: "url('/bg2.svg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
 
             {/* Top Right  Glow */}
             <motion.div
