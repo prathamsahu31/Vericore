@@ -1,6 +1,8 @@
 "use client";
 
-import type { ComplianceRow } from "../../types/api";
+import { useEffect, useState } from "react";
+import type { ComplianceRow, DocumentSummary } from "../../types/api";
+import { documentFileUrl, getDocuments } from "../../lib/api";
 import { Identifier, SourceChip, StatusChip } from "../ui/status";
 
 /**

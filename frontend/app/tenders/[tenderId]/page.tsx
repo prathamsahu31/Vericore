@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Identifier, RiskChip, StatusChip } from "@/components/ui/status";
 import { getComparison, tenderReportPageUrl } from "@/lib/api";
 import type { ComparisonBidder, ComparisonRow } from "@/types/api";
+import { VerifyAllButton } from "./VerifyAllButton";
 
 export const dynamic = "force-dynamic";
 

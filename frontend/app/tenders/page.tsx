@@ -5,6 +5,13 @@ import type { Tender } from "@/types/api";
 
 export const dynamic = "force-dynamic";
 
+const STATUS_LABEL: Record<Tender["status"], string> = {
+  draft: "No checklist yet",
+  requirements_extracted: "Checklist ready to confirm",
+  requirements_confirmed: "Checklist confirmed",
+  closed: "Closed",
+};
+
 export default async function TendersPage() {
   let tenders: Awaited<ReturnType<typeof listTenders>>;
   try {
