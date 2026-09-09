@@ -11,6 +11,7 @@ import {
   verifyBid,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import Loader from "@/components/layout/Loader";
 import type { IngestionMode, Tender, UploadResult } from "@/types/api";
 
 const DOC_TYPES = [
@@ -298,13 +299,19 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
                   <p className="text-[13px] text-ink-muted">
                     {files.length} file{files.length === 1 ? "" : "s"} selected
                   </p>
-                  <button
-                    onClick={handleUploadAll}
-                    disabled={uploading}
-                    className="mt-3 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-                  >
-                    {uploading ? "Uploading & extracting…" : "Upload documents"}
-                  </button>
+                  {uploading ? (
+                    <div className="mt-8 flex flex-col items-center justify-center py-4">
+                      <Loader />
+                      <p className="mt-6 text-[14px] text-ink-muted">Uploading & extracting…</p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleUploadAll}
+                      className="mt-3 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+                    >
+                      Upload documents
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -336,9 +343,9 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
         )}
 
         {step === "verifying" && (
-          <section className="mt-8 rounded-[6px] border border-rule bg-surface p-6">
-            <div className="skeleton h-4 w-64 rounded" />
-            <p className="mt-3 text-[14px] text-ink-muted">
+          <section className="mt-8 rounded-[6px] border border-rule bg-surface p-6 flex flex-col items-center justify-center">
+            <Loader />
+            <p className="mt-8 text-center text-[14px] text-ink-muted max-w-[60ch]">
               Running the rule engine across the requirements and documents. This
               is deterministic Python plus, where a condition is prose, one
               reasoning call.

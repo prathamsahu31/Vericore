@@ -12,7 +12,7 @@ export function SiteHeader() {
     <header className="border-b border-rule bg-surface/20 backdrop-blur-sm">
       <div className="mx-auto flex h-[64px] max-w-[1240px] items-center justify-between gap-6 px-6">
         <Link href="/" className="flex items-center gap-3 group">
-          <img src="logo.png" alt="Logo" height={25} width={25} />
+          <img src="/logo.png" alt="Logo" height={25} width={25} />
           <span className="text-[15px] font-semibold tracking-tight text-navy-blue leading-none">
             Vericore
           </span>

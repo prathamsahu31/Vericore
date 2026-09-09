@@ -11,6 +11,7 @@ import {
   uploadNit,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import Loader from "@/components/layout/Loader";
 import type { Requirement, Tender } from "@/types/api";
 
 const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
@@ -252,13 +253,19 @@ function UploadStage({
             onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
             className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
           />
-          <button
-            type="submit"
-            disabled={uploading}
-            className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-          >
-            {uploading ? "Uploading…" : "Upload NIT"}
-          </button>
+          {uploading ? (
+            <div className="mt-6 flex flex-col items-center justify-center py-4">
+              <Loader />
+              <p className="mt-6 text-[14px] text-ink-muted">Uploading…</p>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+            >
+              Upload NIT
+            </button>
+          )}
         </form>
       </section>
     );
@@ -272,13 +279,19 @@ function UploadStage({
           {nitFile?.name} is stored. Extract the eligibility conditions into a
           structured checklist for your review.
         </p>
-        <button
-          onClick={onExtract}
-          disabled={extracting}
-          className="mt-4 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-        >
-          {extracting ? "Reading the tender…" : "Extract requirements"}
-        </button>
+        {extracting ? (
+          <div className="mt-8 flex flex-col items-center justify-center py-4">
+            <Loader />
+            <p className="mt-6 text-[14px] text-ink-muted">Reading the tender…</p>
+          </div>
+        ) : (
+          <button
+            onClick={onExtract}
+            className="mt-4 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+          >
+            Extract requirements
+          </button>
+        )}
       </section>
     );
   }
@@ -297,13 +310,19 @@ function UploadStage({
           onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
           className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
         />
-        <button
-          type="submit"
-          disabled={uploading}
-          className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-        >
-          {uploading ? "Uploading…" : "Upload NIT"}
-        </button>
+        {uploading ? (
+          <div className="mt-8 flex flex-col items-center justify-center py-4">
+            <Loader />
+            <p className="mt-6 text-[14px] text-ink-muted">Uploading…</p>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+          >
+            Upload NIT
+          </button>
+        )}
       </form>
     </section>
   );

@@ -7,6 +7,7 @@ import IntroAnimation from "@/components/layout/IntroAnimation";
 import GlassBox from "@/components/layout/GlassBox";
 
 
+
 export default function Home() {
   const [showIntro, setShowIntro] = useState(true);
   return (
