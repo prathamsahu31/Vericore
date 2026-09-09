@@ -51,6 +51,10 @@ def create_app() -> FastAPI:
     app.include_router(verification_router)
     app.include_router(reports_router)
 
+    @app.get("/", tags=["meta"])
+    def root() -> dict:
+        return {"service": "vericore-api", "version": app.version, "docs": "/docs", "health": "/health"}
+
     @app.get("/health", tags=["meta"])
     def health() -> dict:
         """Liveness only. Does not touch the database."""
