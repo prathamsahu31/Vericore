@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createTender } from "../../lib/api";
+import { createTender } from "@/lib/api";
 
 export function NewTenderForm() {
   const router = useRouter();
@@ -91,12 +91,12 @@ export function NewTenderForm() {
 
       {error && (
         <p
-        className="rounded-[4px] border px-4 py-3 text-[14px]"
-        style={{
-          borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
-          color: "var(--failed)",
-        }}
-      >
+          className="rounded-[4px] border px-4 py-3 text-[14px]"
+          style={{
+            borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
+            color: "var(--failed)",
+          }}
+        >
           {error}
         </p>
       )}

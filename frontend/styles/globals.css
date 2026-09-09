@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Design tokens — CLAUDE.md §11, verbatim.
+
+   The brief is an officer at a desk producing decisions that may face RTI or
+   CVC scrutiny. Institutional, not consumer: hairlines rather than shadows,
+   6px radii rather than 12, and status colour used only where status is the
+   message.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --ink: #111827;
+  --ink-muted: #4b5563;
+  --ink-faint: #9ca3af;
+  --paper: #fbfbf9;
+  /* slightly warm, not pure white */
+  --surface: #ffffff;
+  --rule: #e5e3de;
+  --seal: #1e3a5f;
+  /* deep official navy */
+  --seal-strong: #152c44;
+  /* pressed / hover shade of the seal */
+  --seal-tint: #eef2f7;
+  --verified: #0f6e56;
+  --review: #b45309;
+  --failed: #9f1239;
+  --inactive: #6b7280;
+
+  --radius: 6px;
+  --step: 8px;
+  /* everything sits on an 8px grid */
+}
+
+
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-rule: var(--rule);
+  --color-seal: var(--seal);
+  --color-seal-strong: var(--seal-strong);
+  --color-seal-tint: var(--seal-tint);
+  --color-verified: var(--verified);
+  --color-review: var(--review);
+  --color-failed: var(--failed);
+  --color-inactive: var(--inactive);
+
+  --font-serif: var(--font-source-serif), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* Scale 32 / 24 / 20 / 16 / 15 / 13 / 11 */
+  --text-display: 32px;
+  --text-title: 24px;
+  --text-heading: 20px;
+  --text-lead: 16px;
+  --text-body: 15px;
+  --text-small: 13px;
+  --text-micro: 11px;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--paper);
+}
+
+/* A very subtle ruled-paper texture on the page background, and a soft
+   seal-tinted bloom behind the mastheads. Reads official, not flat. */
+.page-backdrop {
+  background-image: url('/bg1.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-color: var(--paper);
+}
+
+
+
+/* Hairline rule cap used to finish off hero panels. */
+.rule-top-seal {
+  border-top: 3px solid var(--seal);
+}
+
+/* Smooth theme transition only when the toggle flips it — prefers-reduced-motion
+   still disables this block via the rule below. */
+html.theme-transitioning,
+html.theme-transitioning * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Every GSTIN, PAN, Udyam URN and CIN in the interface is monospaced. Officers
+   read these character by character to spot mismatches, and monospace both
+   disambiguates 0/O and 1/I and aligns them vertically for column comparison.
+   §11 calls this the most important typographic decision in the project. */
+.identifier {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  letter-spacing: 0.01em;
+}
+
+/* Visible keyboard focus, everywhere. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Shadow is used exactly once in the whole interface: to lift the decision bar
+   off the page. Everything else is a 1px hairline. */
+.decision-bar-shadow {
+  box-shadow: 0 -1px 16px rgb(17 24 39 / 0.10);
+}
+
+
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+* {
+  cursor: none !important;
+}
+
+/* Skeletons, not spinners, for content areas. */
+@keyframes sheen {
+  0% {
+    opacity: 0.55
+  }
+
+  50% {
+    opacity: 0.9
+  }
+
+  100% {
+    opacity: 0.55
+  }
+}
+
+.skeleton {
+  background: var(--rule);
+  animation: sheen 1.6s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typing-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}

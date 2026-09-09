@@ -1,5 +1,5 @@
-import { Masthead } from "../../../components/Masthead";
-import { Identifier } from "../../../components/status";
+import { Masthead } from "../../../components/layout/Masthead";
+import { Identifier } from "../../../components/ui/status";
 import { getAudit, getCompliance } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +76,7 @@ export default async function AuditPage({
                   <div>
                     <p className="flex flex-wrap items-baseline gap-2">
                       <span className="text-[14px] font-medium">
-                        {labelEventType(event.event_type)}
+                        {event.event_type.replace(/_/g, " ")}
                       </span>
                       <span className="text-[12px] text-ink-faint">
                         {event.actor_type === "officer"
@@ -93,7 +93,7 @@ export default async function AuditPage({
                     )}
                     {event.reason && (
                       <p className="mt-1 max-w-[76ch] text-[13px] leading-relaxed text-ink">
-                        &ldquo;{tidyReason(event.reason)}&rdquo;
+                        &ldquo;{event.reason}&rdquo;
                       </p>
                     )}
                     {event.llm_model_id && (
@@ -114,19 +114,4 @@ export default async function AuditPage({
       </main>
     </div>
   );
-}
-
-const EVENT_LABEL: Record<string, string> = {
-  verification_run_completed: "Verification run completed",
-  officer_accept: "Officer accepted machine-pending item",
-  officer_override: "Officer override recorded",
-};
-
-function labelEventType(eventType: string): string {
-  return EVENT_LABEL[eventType] ?? eventType.replace(/_/g, " ");
-}
-
-function tidyReason(text: string): string {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  return cleaned.length > 280 ? `${cleaned.slice(0, 277)}...` : cleaned;
 }

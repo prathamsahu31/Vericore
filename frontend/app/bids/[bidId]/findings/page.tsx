@@ -1,7 +1,7 @@
-import { Masthead } from "../../../components/Masthead";
-import { Identifier, SeverityMark } from "../../../components/status";
+import { Masthead } from "../../../components/layout/Masthead";
+import { Identifier, SeverityMark } from "../../../components/ui/status";
 import { getCompliance, getDocumentFields, getDocuments } from "../../../lib/api";
-import type { ExtractedField } from "../../../lib/types";
+import type { ExtractedField } from "../../../types/api";
 
 export const dynamic = "force-dynamic";
 
