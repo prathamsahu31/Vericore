@@ -23,7 +23,7 @@ Requires **Docker** (for Postgres), **Python 3.11+**, and **Node 20+**.
 
 ```bash
 git clone https://github.com/prathamsahu31/Vericore.git
-cd Vericore
+cd Vericore 
 
 # Configuration — the defaults need no API key and run fully offline.
 cp .env.example .env
@@ -133,6 +133,7 @@ git checkout -b feat/requirement-extraction
 # work, commit
 git push -u origin feat/requirement-extraction
 # open a pull request
+
 ```
 
 Commit format: `type(scope): message` — e.g. `feat(compliance): add turnover threshold rule`
