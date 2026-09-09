@@ -11,6 +11,7 @@ import {
   uploadNit,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import Loader from "@/components/layout/Loader";
 import type { Requirement, Tender } from "@/types/api";
 
@@ -125,6 +126,7 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[900px] px-6 py-10">
+        <BackButton />
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Tender setup</p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight">{tender?.title}</h1>
         <p className="mt-2 text-[13px] text-ink-muted">

@@ -22,19 +22,19 @@ const teamMembers = [
         role: "AI Engineer",
         description:
             "A highly motivated and detail-oriented individual with a strong foundation in mathematics and computer science.",
-        github: "https://github.com/KartikSisodia217",
-        linkedin: "https://www.linkedin.com/in/kartik-sisodia-5a5847375/",
-        instagram: "https://www.instagram.com/kartik21_/",
+        github: "https://github.com/PriyanshuKumar-CSE",
+        linkedin: " https://www.linkedin.com/in/priyanshukumaar",
+        instagram: " ",
     },
     {
         id: 3,
-        name: "Pratham Sahoo",
+        name: "Pratham Sahu",
         role: "Deployment Engineer",
         description:
             "A results-oriented professional with a solid understanding of software engineering principles.",
-        github: "https://github.com/Trishajha817",
-        linkedin: "https://www.linkedin.com/in/trisha-jha-50000a361/",
-        instagram: "https://www.instagram.com/807t_risha/",
+        github: "https://github.com/prathamsahu31",
+        linkedin: "https://linkedin.com/prathamsahu31",
+        instagram: " ",
     },
     {
         id: 4,
@@ -42,8 +42,8 @@ const teamMembers = [
         role: "Project Member",
         description:
             "Bringing ideas together, refining our vision, and helping shape the project from concept to execution.",
-        github: " ",
-        linkedin: " ",
+        github: "https://github.com/arpita2shokeen",
+        linkedin: "https://www.linkedin.com/in/arpita-shokeen-72968b360?utm_source=share_via&utm_content=profile&utm_medium=member_ios",
         instagram: " ",
     },
     {
@@ -52,9 +52,9 @@ const teamMembers = [
         role: "Project Member",
         description:
             "Helping transform complex ideas into a clear, cohesive vision that drives the project forward.",
-        github: " ",
-        linkedin: " ",
-        instagram: "https://www.instagram.com/807t_risha/",
+        github: "https://github.com/Kshitij-mit",
+        linkedin: "https://www.linkedin.com/in/kshitij-singhal-3a1b9028b/",
+        instagram: " ",
     },
     {
         id: 6,
@@ -62,9 +62,9 @@ const teamMembers = [
         role: "Project Member",
         description:
             "Contributing to the research, ideation, and problem-solving that helped turn our concept into a practical solution.",
-        github: " ",
-        linkedin: " ",
-        instagram: "https://www.instagram.com/807t_risha/",
+        github: "https://github.com/kinjalgoel597-byte",
+        linkedin: "https://www.linkedin.com/in/kinjal-goel-0526b7381?utm_source=share_via&utm_content=profile&utm_medium=member_android",
+        instagram: " ",
     },
 ];
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import Loader from "@/components/layout/Loader";
+import { BackButton } from "@/components/ui/BackButton";
 import type { IngestionMode, Tender, UploadResult } from "@/types/api";
 
 const DOC_TYPES = [
@@ -152,6 +153,7 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[820px] px-6 py-10">
+        <BackButton />
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Bidder upload</p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight">
           {tender ? tender.title : "Add a bidder"}

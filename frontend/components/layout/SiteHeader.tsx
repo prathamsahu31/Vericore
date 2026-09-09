@@ -13,7 +13,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-[64px] max-w-[1240px] items-center justify-between gap-6 px-6">
         <Link href="/" className="flex items-center gap-3 group">
           <img src="/logo.png" alt="Logo" height={25} width={25} />
-          <span className="text-[15px] font-semibold tracking-tight text-navy-blue leading-none">
+          <span className="text-[15px] font-semibold tracking-tight text-seal leading-none">
             Vericore
           </span>
         </Link>
@@ -31,14 +31,14 @@ export function SiteHeader() {
             <Link
               data-id="problem-statement"
               href="/problem-statement"
-              className="rounded-[4px] px-3 py-2 text-[14px] transition-colors hover:text-seal"
+              className="rounded-[4px] px-3 py-2 text-[14px] text-seal transition-colors hover:text-seal"
             >
               Problem Statement
             </Link>
             <Link
               data-id="about-us"
               href="/about-us"
-              className="rounded-[4px] px-3 py-2 text-[14px] text-navy transition-colors hover:text-seal">
+              className="rounded-[4px] px-3 py-2 text-[14px] text-seal transition-colors hover:text-seal">
               About Us
             </Link>
           </AnimatedBackground>
