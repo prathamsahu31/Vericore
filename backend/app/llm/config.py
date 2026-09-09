@@ -26,8 +26,8 @@ MODEL_IDS: dict[tuple[str, LLMRole], str] = {
     # on tokens per min (TPM)". Oversized tenders are sent in page-aligned
     # chunks by ChunkingProvider (app/llm/providers/decorators.py) so every
     # PQ-table row stays whole in at least one chunk.
-    ("openai", LLMRole.EXTRACTION): "gpt-4.1-mini",
-    ("openai", LLMRole.REASONING): "gpt-4.1",
+    ("openai", LLMRole.EXTRACTION): "gpt-4o-mini",
+    ("openai", LLMRole.REASONING): "gpt-4o",
     # Confirmed by *calling* each model on 27 Aug 2026, not by reading the
     # list endpoint — which advertises models the key cannot actually use.
     # gemini-2.5-flash and gemini-2.5-pro return 404 "no longer available to
@@ -51,6 +51,12 @@ class UnknownModelError(KeyError):
 
 
 def resolve_model_id(provider: str, role: LLMRole) -> str:
+    import os
+    if provider == "openai":
+        if role == LLMRole.EXTRACTION and os.environ.get("OPENAI_EXTRACTION_MODEL"):
+            return os.environ["OPENAI_EXTRACTION_MODEL"]
+        if role == LLMRole.REASONING and os.environ.get("OPENAI_REASONING_MODEL"):
+            return os.environ["OPENAI_REASONING_MODEL"]
     try:
         return MODEL_IDS[(provider, role)]
     except KeyError as exc:
@@ -58,3 +64,4 @@ def resolve_model_id(provider: str, role: LLMRole) -> str:
             f"No model configured for provider {provider!r} and role {role}. "
             f"Add a row to MODEL_IDS in app/llm/config.py — see CLAUDE.md §7.3."
         ) from exc
+

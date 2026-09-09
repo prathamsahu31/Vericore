@@ -3,6 +3,7 @@
 .env.local
 *.pem
 *.key
+deployment.md
 
 # LLM response cache
 .llm_cache/
