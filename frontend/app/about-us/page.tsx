@@ -18,35 +18,65 @@ const teamMembers = [
     },
     {
         id: 2,
-        name: "Kartik Sisodia",
+        name: "Priyanshu Kumar",
         role: "AI Engineer",
         description:
             "A highly motivated and detail-oriented individual with a strong foundation in mathematics and computer science.",
-        github: "https://github.com/KartikSisodia217",
-        linkedin: "https://www.linkedin.com/in/kartik-sisodia-5a5847375/",
-        instagram: "https://www.instagram.com/kartik21_/",
+        github: "https://github.com/PriyanshuKumar-CSE",
+        linkedin: " https://www.linkedin.com/in/priyanshukumaar",
+        instagram: " ",
     },
     {
         id: 3,
-        name: "Trisha Jha",
-        role: "Backend Developer",
+        name: "Pratham Sahu",
+        role: "Deployment Engineer",
         description:
             "A results-oriented professional with a solid understanding of software engineering principles.",
-        github: "https://github.com/Trishajha817",
-        linkedin: "https://www.linkedin.com/in/trisha-jha-50000a361/",
-        instagram: "https://www.instagram.com/807t_risha/",
+        github: "https://github.com/prathamsahu31",
+        linkedin: "https://linkedin.com/prathamsahu31",
+        instagram: " ",
+    },
+    {
+        id: 4,
+        name: "Arpita Shokeen",
+        role: "Project Member",
+        description:
+            "Bringing ideas together, refining our vision, and helping shape the project from concept to execution.",
+        github: "https://github.com/arpita2shokeen",
+        linkedin: "https://www.linkedin.com/in/arpita-shokeen-72968b360?utm_source=share_via&utm_content=profile&utm_medium=member_ios",
+        instagram: " ",
+    },
+    {
+        id: 5,
+        name: "Kshitij Singhal",
+        role: "Project Member",
+        description:
+            "Helping transform complex ideas into a clear, cohesive vision that drives the project forward.",
+        github: "https://github.com/Kshitij-mit",
+        linkedin: "https://www.linkedin.com/in/kshitij-singhal-3a1b9028b/",
+        instagram: " ",
+    },
+    {
+        id: 6,
+        name: "Kinjal Goel",
+        role: "Project Member",
+        description:
+            "Contributing to the research, ideation, and problem-solving that helped turn our concept into a practical solution.",
+        github: "https://github.com/kinjalgoel597-byte",
+        linkedin: "https://www.linkedin.com/in/kinjal-goel-0526b7381?utm_source=share_via&utm_content=profile&utm_medium=member_android",
+        instagram: " ",
     },
 ];
 
 export default function AboutUsPage() {
     return (
-        <div className="relative min-h-screen overflow-hidden bg-[#050507] text-white">
+        <div className="relative min-h-screen overflow-hidden text-white" style={{ backgroundImage: "url('/bg2.svg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
 
             {/* Top Right  Glow */}
             <motion.div
                 animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="pointer-events-none absolute -top-52 -right-52 h-[700px] w-[700px] rounded-full bg-[#FF9D9D]/20 blur-[220px]"
+                className="pointer-events-none absolute -top-52 -right-52 h-[700px] w-[700px] rounded-full bg-blue/100 blur-[220px]"
             />
 
             {/* Bottom Left  Glow */}
@@ -70,7 +100,7 @@ export default function AboutUsPage() {
                         transition={{ duration: 0.8 }}
                         className="text-center mb-20"
                     >
-                        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 bg-gradient-to-r from-grey/400 to-gray-50 bg-clip-text text-transparent">
+                        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 text-[#547491]">
                             Meet the Team
                         </h1>
                         <p className="max-w-2xl mx-auto text-lg text-gray-400">
@@ -85,21 +115,12 @@ export default function AboutUsPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.5, delay: index * 0.2 }}
-                                className="group relative rounded-2xl bg-white/[0.03] border border-white/10 p-8 backdrop-blur-sm overflow-hidden
-                                 flex flex-col items-center text-center transition-all duration-200 hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_0_40px_-10px_rgba(200,182,255,0.15)]
+                                className="group relative rounded-2xl bg-white border border-white/10 p-8 backdrop-blur-sm overflow-hidden
+                                 flex flex-col items-center text-center transition-all duration-200 hover:bg-white/[0.5] hover:border-white/20 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_0_40px_-10px_rgba(200,182,255,0.15)]
                                  "
                             >
-                                {/* Image Placeholder */}
-                                <div className="mb-6 relative w-32 h-32 rounded-full bg-gradient-to-b from-white/10 to-white/5 border border-white/10 
-                                flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform 
-                                duration-200 group-hover:border-white/30 group-hover:shadow-pink">
-                                    <img src="/profile2.png" alt="Aarushi Hans" className="w-full h-full object-cover transperancy-50" />
-                                    {/* replace the User icon above with an img tag like this:
-                      <img src="/your-image-path.jpg" alt={member.name} className="w-full h-full object-cover" /> 
-                  */}
-                                </div>
 
-                                <h3 className="text-2xl font-semibold mb-2">{member.name}</h3>
+                                <h3 className="text-[#78A4CB] font-semibold text-2xl mb-2">{member.name}</h3>
                                 <p className="text-[#898AA6] font-medium mb-4">{member.role}</p>
                                 <p className="text-gray-400 text-sm mb-8 leading-relaxed flex-grow">
                                     {member.description}
@@ -111,7 +132,7 @@ export default function AboutUsPage() {
                                         href={member.instagram}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 hover:text-white hover:scale-110 transition-all"
+                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue/100 hover:text-blue-300 hover:scale-110 transition-all"
                                     >
                                         <FaInstagram className="w-4 h-4" />
                                     </a>
@@ -120,7 +141,7 @@ export default function AboutUsPage() {
                                         href={member.linkedin}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 hover:text-white hover:scale-110 transition-all"
+                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue/100 hover:text-blue-300 hover:scale-110 transition-all"
                                     >
                                         <FaLinkedin className="w-4 h-4" />
                                     </a>
@@ -129,7 +150,7 @@ export default function AboutUsPage() {
                                         href={member.github}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 hover:text-white hover:scale-110 transition-all"
+                                        className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue/100 hover:text-blue-300 hover:scale-110 transition-all"
                                     >
                                         <FaGithub className="w-4 h-4" />
                                     </a>

@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useParallax } from "@/hooks/useParallax";
 
 const MESSAGES = [
-    { label: "Turnover threshold", verdict: "Compliant", color: "green", text: "2023–24 ₹38.2 Cr" },
-    { label: "GST registration", verdict: "Compliant", color: "green", text: "PAN matches" },
-    { label: "OEM authorisation", verdict: "Your review", color: "red", text: "Requires intervention" },
-    { label: "Blacklist declaration", verdict: "No document", color: "red", text: "Ask the bidder" },
+    { label: "Turnover threshold", verdict: "Compliant", color: "#79AE6F", text: "2023–24 ₹38.2 Cr" },
+    { label: "GST registration", verdict: "Compliant", color: "#79AE6F", text: "PAN matches" },
+    { label: "OEM authorisation", verdict: "Your review", color: "#95271D", text: "Requires intervention" },
+    { label: "Blacklist declaration", verdict: "No document", color: "#95271D", text: "Ask the bidder" },
 ];
 
 const PAUSE_TICKS = 3; // extra ticks after all messages before resetting
@@ -75,9 +75,6 @@ export default function GlassBox({ isActive = true }: { isActive?: boolean }) {
                             <div className="flex items-center gap-2">
                                 <span className="text-s font-medium text-black-300">
                                     Vericore
-                                </span>
-                                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wide text-emerald-400 border border-emerald-500/25 bg-emerald-500/10">
-                                    LIVE
                                 </span>
                             </div>
                             <span className="text-[10px] text-zinc-600">

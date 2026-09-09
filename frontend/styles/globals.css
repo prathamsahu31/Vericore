@@ -144,6 +144,10 @@ h3 {
   }
 }
 
+* {
+  cursor: none !important;
+}
+
 /* Skeletons, not spinners, for content areas. */
 @keyframes sheen {
   0% {

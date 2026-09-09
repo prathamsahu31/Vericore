@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import { NewTenderForm } from "./NewTenderForm";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export default function NewTenderPage() {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[760px] px-6 py-12">
+        <BackButton />
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
           Tender setup
         </p>

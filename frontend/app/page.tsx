@@ -7,10 +7,11 @@ import IntroAnimation from "@/components/layout/IntroAnimation";
 import GlassBox from "@/components/layout/GlassBox";
 
 
+
 export default function Home() {
   const [showIntro, setShowIntro] = useState(true);
   return (
-    <div className="page-backdrop min-h-screen">
+    <div className="page-backdrop min-h-screen" style={{ backgroundImage: "url('/bg2.svg')" }}>
       {showIntro && <IntroAnimation onFinish={() => setShowIntro(false)} />}
       <SiteHeader />
 
@@ -65,7 +66,7 @@ export default function Home() {
           </div>
         </section>
       </main>
-
+      </div>
     </div>
 
   );
