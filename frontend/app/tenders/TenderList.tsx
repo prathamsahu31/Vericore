@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { deleteTender } from "../lib/api";
-import type { Tender } from "../lib/types";
+import { deleteTender } from "@/lib/api";
+import type { Tender } from "@/types/api";
 
 const STATUS_LABEL: Record<Tender["status"], string> = {
   draft: "No checklist yet",
