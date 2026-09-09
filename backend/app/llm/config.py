@@ -26,8 +26,8 @@ MODEL_IDS: dict[tuple[str, LLMRole], str] = {
     # on tokens per min (TPM)". Oversized tenders are sent in page-aligned
     # chunks by ChunkingProvider (app/llm/providers/decorators.py) so every
     # PQ-table row stays whole in at least one chunk.
-    ("openai", LLMRole.EXTRACTION): "gpt-4o-mini",
-    ("openai", LLMRole.REASONING): "gpt-4o",
+    ("openai", LLMRole.EXTRACTION): "gpt-4.1-mini",
+    ("openai", LLMRole.REASONING): "gpt-4.1",
     # Confirmed by *calling* each model on 27 Aug 2026, not by reading the
     # list endpoint — which advertises models the key cannot actually use.
     # gemini-2.5-flash and gemini-2.5-pro return 404 "no longer available to
