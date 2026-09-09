@@ -1,5 +1,5 @@
-import { Masthead } from "../../components/Masthead";
-import { getCompliance } from "../../lib/api";
+import { Masthead } from "@/components/layout/Masthead";
+import { getCompliance } from "@/lib/api";
 import { BidWorkspace } from "./BidWorkspace";
 
 export const dynamic = "force-dynamic";

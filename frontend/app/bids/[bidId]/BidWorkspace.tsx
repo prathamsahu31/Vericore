@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ComplianceMatrix } from "../../components/ComplianceMatrix";
-import { DecisionBar } from "../../components/DecisionBar";
-import { EvidenceLedger } from "../../components/EvidenceLedger";
-import { NeedsYou } from "../../components/NeedsYou";
-import { SeverityMark } from "../../components/status";
-import { Verdict } from "../../components/Verdict";
-import type { ComplianceRow, VerificationSummary } from "../../lib/types";
-import { verifyBid } from "../../lib/api";
+import { ComplianceMatrix } from "@/components/analysis/ComplianceMatrix";
+import { DecisionBar } from "@/components/analysis/DecisionBar";
+import { EvidenceLedger } from "@/components/analysis/EvidenceLedger";
+import { NeedsYou } from "@/components/landing/NeedsYou";
+import { SeverityMark } from "@/components/ui/status";
+import { Verdict } from "@/components/analysis/Verdict";
+import type { ComplianceRow, VerificationSummary } from "@/types/api";
+import { verifyBid } from "@/lib/api";
 
 /**
  * The layout answers three questions in order, one screenful at a time:

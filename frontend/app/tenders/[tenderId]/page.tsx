@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { SiteHeader } from "../../components/SiteHeader";
-import { Identifier, RiskChip, StatusChip } from "../../components/status";
-import { getComparison, tenderReportPageUrl } from "../../lib/api";
-import type { ComparisonBidder, ComparisonRow } from "../../lib/types";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { Identifier, RiskChip, StatusChip } from "@/components/ui/status";
+import { getComparison, tenderReportPageUrl } from "@/lib/api";
+import type { ComparisonBidder, ComparisonRow } from "@/types/api";
 import { VerifyAllButton } from "./VerifyAllButton";
 
 export const dynamic = "force-dynamic";
@@ -169,11 +169,10 @@ function Tab({
     <Link
       href={href}
       aria-current={active ? "true" : undefined}
-      className={`rounded-[4px] border px-3 py-1.5 text-[13px] transition-colors ${
-        active
-          ? "border-seal bg-seal-tint font-medium text-seal"
-          : "border-rule text-ink-muted hover:text-ink"
-      }`}
+      className={`rounded-[4px] border px-3 py-1.5 text-[13px] transition-colors ${active
+        ? "border-seal bg-seal-tint font-medium text-seal"
+        : "border-rule text-ink-muted hover:text-ink"
+        }`}
     >
       {children}
     </Link>
@@ -183,9 +182,8 @@ function Tab({
 function Row({ row }: { row: ComparisonRow }) {
   return (
     <tr
-      className={`border-b border-rule align-top last:border-0 ${
-        row.differentiating ? "bg-paper" : ""
-      }`}
+      className={`border-b border-rule align-top last:border-0 ${row.differentiating ? "bg-paper" : ""
+        }`}
     >
       <th scope="row" className="px-7 py-4 text-left font-normal">
         <Identifier value={row.requirement_code} className="text-[12px] text-ink-faint" />

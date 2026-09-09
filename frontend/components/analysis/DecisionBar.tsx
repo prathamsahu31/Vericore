@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { ComplianceRow, VerificationSummary } from "../lib/types";
-import { submitReview } from "../lib/api";
+import type { ComplianceRow, VerificationSummary } from "../../types/api";
+import { submitReview } from "../../lib/api";
 
 /**
  * Sticky, and always deliberate (CLAUDE.md §11).

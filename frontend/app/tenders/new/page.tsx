@@ -1,4 +1,4 @@
-import { SiteHeader } from "../../components/SiteHeader";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import { NewTenderForm } from "./NewTenderForm";
 
 export const dynamic = "force-dynamic";

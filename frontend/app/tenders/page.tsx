@@ -1,9 +1,16 @@
 import Link from "next/link";
-import { SiteHeader } from "../components/SiteHeader";
-import { listTenders } from "../lib/api";
-import { TenderList } from "./TenderList";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { listTenders } from "@/lib/api";
+import type { Tender } from "@/types/api";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_LABEL: Record<Tender["status"], string> = {
+  draft: "No checklist yet",
+  requirements_extracted: "Checklist ready to confirm",
+  requirements_confirmed: "Checklist confirmed",
+  closed: "Closed",
+};
 
 export default async function TendersPage() {
   let tenders: Awaited<ReturnType<typeof listTenders>>;
@@ -45,7 +52,58 @@ export default async function TendersPage() {
           </Link>
         </div>
 
-      <TenderList initial={tenders} />
+        {tenders.length === 0 ? (
+          <section className="mt-10 rounded-[6px] border border-rule bg-surface p-8">
+            <h2 className="text-[16px]">Nothing here yet</h2>
+            <p className="mt-2 max-w-[60ch] text-[14px] leading-relaxed text-ink-muted">
+              Start a new tender to upload a NIT, then confirm its checklist before
+              adding bidders.
+            </p>
+          </section>
+        ) : (
+          <ul className="mt-10 divide-y divide-rule overflow-hidden rounded-[6px] border border-rule bg-surface">
+            {tenders.map((t) => (
+              <li key={t.id} className="flex flex-wrap items-center justify-between gap-4 px-7 py-5">
+                <div className="min-w-0">
+                  <p className="truncate text-[16px]">{t.title}</p>
+                  <p className="mt-1 text-[12px] text-ink-faint">
+                    {t.bid_number && <span className="identifier">{t.bid_number} · </span>}
+                    {STATUS_LABEL[t.status]}
+                    {t.bid_due_date && (
+                      <>
+                        {" · bid due "}
+                        <span className="identifier">{t.bid_due_date}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {t.status !== "requirements_confirmed" ? (
+                    <Link
+                      href={`/tenders/${t.id}/setup`}
+                      className="rounded-[4px] border border-rule px-4 py-2 text-[13px] font-medium text-ink-muted hover:text-ink"
+                    >
+                      Review checklist
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/tenders/${t.id}/bidders/new`}
+                      className="rounded-[4px] border border-rule px-4 py-2 text-[13px] font-medium text-ink-muted hover:text-ink"
+                    >
+                      Add a bidder
+                    </Link>
+                  )}
+                  <Link
+                    href={`/tenders/${t.id}`}
+                    className="rounded-[4px] border border-rule px-4 py-2 text-[13px] font-medium text-ink-muted hover:text-ink"
+                  >
+                    Compare bidders
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { verifyAllBids } from "../../lib/api";
+import { verifyAllBids } from "@/lib/api";
 
 export function VerifyAllButton({ tenderId }: { tenderId: string }) {
   const router = useRouter();
