@@ -44,6 +44,10 @@ export function getDocumentFields(documentId: string) {
   return get<ExtractedField[]>(`/documents/${documentId}/fields`);
 }
 
+export function documentFileUrl(documentId: string) {
+  return `${BASE}/documents/${documentId}/file`;
+}
+
 export async function submitReview(
   bidId: string,
   body: {
