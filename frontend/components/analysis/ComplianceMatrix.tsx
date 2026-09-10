@@ -42,15 +42,23 @@ export function ComplianceMatrix({
   onSelect: (row: ComplianceRow) => void;
   selectedCode: string | null;
 }) {
-  const [filter, setFilter] = useState<"all" | "outstanding" | "mandatory">("all");
+  const [filter, setFilter] = useState<"all" | "outstanding" | "mandatory" | "compliant" | "review">("all");
 
   const grouped = useMemo(() => {
     const rows = summary.requirements.filter((r) => {
+      const effective = r.effective_status ?? r.status;
       if (filter === "mandatory") return r.mandatory;
       if (filter === "outstanding") {
-        const effective = r.effective_status ?? r.status;
         return effective !== "COMPLIANT" && effective !== "NOT_APPLICABLE";
       }
+      if (filter === "compliant") return effective === "COMPLIANT";
+      if (filter === "review")
+        return (
+          effective === "NEEDS_HUMAN_REVIEW" ||
+          effective === "MISSING_EVIDENCE" ||
+          effective === "UNVERIFIED" ||
+          effective === "PARTIALLY_COMPLIANT"
+        );
       return true;
     });
     const buckets = new Map<string, ComplianceRow[]>();
@@ -80,12 +88,14 @@ export function ComplianceMatrix({
             {outstanding === 0 ? "all met" : `${outstanding} outstanding`}
           </p>
         </div>
-        <div className="flex gap-1" role="group" aria-label="Filter conditions">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Filter conditions">
           {(
             [
               ["all", "All"],
               ["outstanding", "Outstanding"],
               ["mandatory", "Mandatory"],
+              ["compliant", "Compliant"],
+              ["review", "Your review"],
             ] as const
           ).map(([key, label]) => (
             <button

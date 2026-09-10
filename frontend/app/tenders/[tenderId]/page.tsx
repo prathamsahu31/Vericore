@@ -194,9 +194,22 @@ function Row({ row }: { row: ComparisonRow }) {
       {row.cells.map((cell) => (
         <td key={cell.bid_id} className="border-l border-rule px-5 py-4">
           {cell.effective_status ? (
-            <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+            <Link
+              href={`/bids/${cell.bid_id}`}
+              title={`Open ${cell.effective_status.replace(/_/g, " ").toLowerCase()} — ${row.requirement_name} — see evidence and review`}
+              className="inline-flex rounded-[4px] focus:outline-none focus-visible:ring-2 focus-visible:ring-seal focus-visible:ring-offset-2"
+            >
+              <span className="transition-transform hover:scale-[1.02] hover:brightness-[0.98] cursor-pointer">
+                <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+              </span>
+            </Link>
           ) : (
-            <span className="text-[13px] text-ink-faint">not verified</span>
+            <Link
+              href={`/bids/${cell.bid_id}`}
+              className="text-[13px] text-ink-faint hover:text-ink hover:underline"
+            >
+              not verified
+            </Link>
           )}
         </td>
       ))}
