@@ -8,7 +8,6 @@ import { NeedsYou } from "@/components/landing/NeedsYou";
 import { SeverityMark } from "@/components/ui/status";
 import { Verdict } from "@/components/analysis/Verdict";
 import type { ComplianceRow, VerificationSummary } from "@/types/api";
-import { verifyBid } from "@/lib/api";
 
 /**
  * The layout answers three questions in order, one screenful at a time:
@@ -19,8 +18,6 @@ import { verifyBid } from "@/lib/api";
 export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
   const [summary, setSummary] = useState(initial);
   const [open, setOpen] = useState<ComplianceRow | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   function refresh(next: VerificationSummary) {
     setSummary(next);
@@ -31,46 +28,9 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
     );
   }
 
-  async function handleReverify() {
-    setVerifyError(null);
-    setVerifying(true);
-    try {
-      const next = await verifyBid(summary.bid_id);
-      setSummary(next);
-      setOpen((current) =>
-        current ? (next.requirements.find((r) => r.requirement_code === current.requirement_code) ?? null) : null,
-      );
-    } catch (e) {
-      setVerifyError(e instanceof Error ? e.message : "Re-verification failed.");
-    } finally {
-      setVerifying(false);
-    }
-  }
-
   return (
     <>
       <main className="mx-auto max-w-[1080px] space-y-8 px-6 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[13px] text-ink-muted">
-            {summary.run_status === "succeeded" ? "Last verification succeeded" : `Status: ${summary.run_status}`} · score{" "}
-            {summary.compliance_score ?? "—"} · risk {summary.risk_level ?? "—"}
-          </p>
-          <button
-            onClick={handleReverify}
-            disabled={verifying}
-            className="rounded-[4px] border border-rule bg-surface px-4 py-2 text-[13px] font-medium text-seal transition-opacity hover:border-seal disabled:opacity-50"
-          >
-            {verifying ? "Re-verifying…" : "Re-verify this bidder"}
-          </button>
-        </div>
-        {verifyError && (
-          <p className="rounded-[4px] border px-4 py-3 text-[13px]" style={{ borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)", color: "var(--failed)" }}>
-            {verifyError}
-          </p>
-        )}
-        <p className="max-w-[80ch] text-[12px] leading-relaxed text-ink-faint">
-          Added documents after the last run? Hit <span className="font-medium text-ink">Re-verify</span> — verdicts are a snapshot from the last run, not live.
-        </p>
         <Verdict summary={summary} />
 
         {/* A contradiction is a flag on the submission as a whole, so it
@@ -138,7 +98,7 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
         </p>
       </main>
 
-      <EvidenceLedger row={open} bidId={summary.bid_id} onClose={() => setOpen(null)} />
+      <EvidenceLedger row={open} onClose={() => setOpen(null)} />
 
       <DecisionBar
         bidId={summary.bid_id}

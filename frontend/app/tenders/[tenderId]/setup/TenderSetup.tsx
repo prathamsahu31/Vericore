@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   confirmRequirements,
-  deleteTender,
   extractRequirements,
   getRequirements,
   getTender,
-  resetRequirements,
   updateRequirement,
   uploadNit,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
+import Loader from "@/components/layout/Loader";
 import type { Requirement, Tender } from "@/types/api";
 
 const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
@@ -31,8 +31,6 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>({ kind: "tender" });
   const [requirements, setRequirements] = useState<Requirement[]>([]);
-  const [deleting, setDeleting] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -81,13 +79,6 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
       const updated = await getTender(tenderId);
       setTender(updated);
       setRequirements(rows);
-      if (rows.length === 0) {
-        setError(
-          "No eligibility conditions were found in this PDF. For this demo use seed/tender/nit_darpg_style.pdf (17 criteria in Section 6). RFP Volume 1 is the scope document — the PQ table is in Volume 2 / the NIT. Try re-extracting, or delete this tender and upload the NIT."
-        );
-        setStage({ kind: "tender" });
-        return;
-      }
       setStage({ kind: "review", requirements: rows, saving: false });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Requirements could not be extracted.");
@@ -113,35 +104,6 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
     }
   }
 
-  async function handleReset() {
-    if (!confirm("Clear this checklist so you can re-extract? This deletes the current draft checklist.")) return;
-    setResetting(true);
-    setError(null);
-    try {
-      const updated = await resetRequirements(tenderId);
-      setTender(updated);
-      setRequirements([]);
-      setStage({ kind: "tender" });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not reset checklist.");
-    } finally {
-      setResetting(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!confirm(`Delete tender "${tender?.title ?? tenderId}"? This removes its checklist and all bids. This cannot be undone.`)) return;
-    setDeleting(true);
-    setError(null);
-    try {
-      await deleteTender(tenderId);
-      window.location.href = "/tenders";
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed.");
-      setDeleting(false);
-    }
-  }
-
   if (!tender && !error) {
     return <Skeleton />;
   }
@@ -164,6 +126,7 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[900px] px-6 py-10">
+        <BackButton />
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Tender setup</p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight">{tender?.title}</h1>
         <p className="mt-2 text-[13px] text-ink-muted">
@@ -266,11 +229,10 @@ function UploadStage({
 }) {
   if (extracted && hasDrafts) {
     return (
-      <section className="rounded-[6px] border border-rule bg-surface p-6">
-        <h2 className="text-[16px]">Step 2 — confirm the checklist</h2>
+      <section className="rounded-[6px] border border-rule bg-surface p-6 opacity-75">
+        <h2 className="text-[16px] text-seal">✓ Step 1 — upload the NIT</h2>
         <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-          The checklist below was read from the NIT. Review each condition and
-          correct anything that is wrong before confirming.
+          The notice inviting tender was successfully uploaded and processed.
         </p>
       </section>
     );
@@ -292,13 +254,19 @@ function UploadStage({
             onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
             className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
           />
-          <button
-            type="submit"
-            disabled={uploading}
-            className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-          >
-            {uploading ? "Uploading…" : "Upload NIT"}
-          </button>
+          {uploading ? (
+            <div className="mt-6 flex flex-col items-center justify-center py-4">
+              <Loader />
+              <p className="mt-6 text-[14px] text-ink-muted">Uploading…</p>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+            >
+              Upload NIT
+            </button>
+          )}
         </form>
       </section>
     );
@@ -312,13 +280,19 @@ function UploadStage({
           {nitFile?.name} is stored. Extract the eligibility conditions into a
           structured checklist for your review.
         </p>
-        <button
-          onClick={onExtract}
-          disabled={extracting}
-          className="mt-4 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-        >
-          {extracting ? "Reading the tender…" : "Extract requirements"}
-        </button>
+        {extracting ? (
+          <div className="mt-8 flex flex-col items-center justify-center py-4">
+            <Loader />
+            <p className="mt-6 text-[14px] text-ink-muted">Reading the tender…</p>
+          </div>
+        ) : (
+          <button
+            onClick={onExtract}
+            className="mt-4 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+          >
+            Extract requirements
+          </button>
+        )}
       </section>
     );
   }
@@ -337,91 +311,22 @@ function UploadStage({
           onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
           className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
         />
-        <button
-          type="submit"
-          disabled={uploading}
-          className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-        >
-          {uploading ? "Uploading…" : "Upload NIT"}
-        </button>
+        {uploading ? (
+          <div className="mt-8 flex flex-col items-center justify-center py-4">
+            <Loader />
+            <p className="mt-6 text-[14px] text-ink-muted">Uploading…</p>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+          >
+            Upload NIT
+          </button>
+        )}
       </form>
     </section>
   );
-}
-
-// Human labels for the structured fields an officer needs to verify.
-const CATEGORY_LABEL: Record<string, string> = {
-  statutory: "Statutory",
-  financial_eligibility: "Financial eligibility",
-  experience: "Experience",
-  technical: "Technical specification",
-  bid_security: "Bid security",
-  declarations: "Declarations",
-};
-
-const DOC_TYPE_LABEL: Record<string, string> = {
-  gst_certificate: "GST certificate",
-  pan_card: "PAN card",
-  udyam_certificate: "Udyam certificate",
-  incorporation_certificate: "Certificate of incorporation",
-  financial_statement: "Audited financial statement",
-  ca_turnover_certificate: "CA turnover certificate",
-  work_order: "Work order / completion certificate",
-  iso_certificate: "ISO certificate",
-  oem_authorisation: "OEM authorisation letter",
-  technical_datasheet: "Technical datasheet",
-  declaration_non_blacklisting: "Non-blacklisting declaration",
-  emd_instrument: "EMD instrument",
-  holding_company_undertaking: "Holding-company undertaking",
-  epfo_certificate: "EPFO certificate",
-  esic_certificate: "ESIC certificate",
-  local_content_certificate: "Local content certificate",
-  "*": "Any document",
-};
-
-const SCOPE_LABEL: Record<string, string> = {
-  lead_only: "Lead bidder only",
-  any_member: "Any consortium member",
-  all_members: "Every member",
-  aggregate: "Combined (aggregate)",
-};
-
-const SCOPE_HINT: Record<string, string> = {
-  lead_only: "Only the lead (or sole) bidder must meet this.",
-  any_member: "If any one member satisfies it, the whole bid does.",
-  all_members: "Every member of a consortium must satisfy this individually.",
-  aggregate: "Members' values are added together, then compared to the threshold.",
-};
-
-function humaniseCondition(condition: Record<string, unknown> | null): string | null {
-  if (!condition) return null;
-  const op = String(condition.operator ?? ">=");
-  const threshold = condition.threshold;
-  const unit = String(condition.unit ?? "");
-  const field = String(condition.field ?? "");
-  // Rupee thresholds — use Indian formatting the officer recognises.
-  if (threshold !== undefined && unit === "INR") {
-    const cr = Number(threshold) / 10000000;
-    const label = cr >= 1 ? `Rs. ${cr % 1 === 0 ? cr.toFixed(0) : cr.toFixed(1)} crore` : `Rs. ${Number(threshold).toLocaleString("en-IN")}`;
-    if (field === "average_annual_turnover") {
-      const years = condition.period_years ? ` over the last ${condition.period_years} financial years` : "";
-      return `Average turnover ${op} ${label}${years}`;
-    }
-    if (field === "order_value") {
-      const count = condition.min_count ? `${condition.min_count} ` : "";
-      const within = condition.within_years ? ` within the last ${condition.within_years} years` : "";
-      return `At least ${count}similar work(s) of value ${op} ${label}${within}`;
-    }
-    if (field === "emd_amount") return `EMD ${op} ${label}`;
-    if (field === "net_worth") return `Net worth ${op} ${label}`;
-    return `${field.replace(/_/g, " ")} ${op} ${label}`;
-  }
-  if (threshold !== undefined && unit === "TPD") return `Rated throughput ${op} ${threshold} TPD`;
-  if (threshold !== undefined && unit === "percent") return `Local content ${op} ${threshold}%`;
-  if (field === "incorporation_date") return `In continuous operation for at least ${threshold} years before the bid due date`;
-  if (field === "valid_until") return "Certificate must be valid on the bid due date";
-  if (threshold !== undefined) return `${field.replace(/_/g, " ")} ${op} ${threshold}${unit ? ` ${unit}` : ""}`;
-  return null;
 }
 
 function ReviewStage({
@@ -433,28 +338,15 @@ function ReviewStage({
 }) {
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // Group by category so the officer reads the checklist the way the tender groups it.
-  const grouped = (() => {
-    const order = ["statutory", "financial_eligibility", "experience", "technical", "bid_security", "declarations"];
-    const buckets = new Map<string, Requirement[]>();
-    for (const r of requirements) {
-      const key = r.category ?? "other";
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(r);
-    }
-    return [...buckets.entries()].sort(
-      (a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99),
-    );
-  })();
-
   return (
-    <section className="overflow-hidden rounded-[6px] border border-rule bg-surface">
+    <section className="rounded-[6px] border border-rule bg-surface">
       <div className="border-b border-rule px-7 py-5">
         <h2 className="text-[20px]">Step 2 — confirm the checklist</h2>
         <p className="mt-1 max-w-[72ch] text-[13px] leading-relaxed text-ink-muted">
-          Each condition was read from the NIT. Check that the threshold, scope, and
-          document mapping are right — a misread number here would silently corrupt every
-          bidder checked against it. Mark anything wrong before pressing confirm.
+          Each condition was extracted from the NIT beside the source it came
+          from. This is a gate: nothing is verified against a checklist nobody
+          confirmed. A misread threshold here would silently corrupt every
+          downstream verdict.
         </p>
       </div>
       <ul className="divide-y divide-rule">
@@ -497,91 +389,43 @@ function ReviewStage({
                       } finally {
                         setSavingId(null);
                       }
-                    }}
-                    className="mt-2 w-full rounded-[4px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] font-medium outline-none hover:border-rule focus:border-seal"
-                    aria-label={`Rename ${r.code}`}
-                  />
-
-                  {/* What the system understood — the core of the review */}
-                  <div className="mt-2 rounded-[4px] border border-rule bg-paper px-3.5 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
-                      What this means
-                    </p>
-                    {r.normalized_clause && (
-                      <p className="mt-1 text-[14px] leading-relaxed text-ink">
-                        {r.normalized_clause}
-                      </p>
-                    )}
-                    {humanCondition ? (
-                      <p className={`text-[13px] font-medium leading-snug ${r.normalized_clause ? "mt-1.5 text-ink-muted" : "mt-1 text-ink"}`}>
-                        ↳ {humanCondition}
-                      </p>
-                    ) : r.condition ? (
-                      <p className="identifier mt-1 text-[13px] text-ink">
-                        {JSON.stringify(r.condition)}
-                      </p>
-                    ) : !r.normalized_clause ? (
-                      <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
-                        No numeric threshold — the system will check that the expected document
-                        was submitted and, where the wording is prose, refer it to you.
-                      </p>
-                    ) : null}
-
-                    {/* Applicability hint */}
-                    {r.applicability_scope && SCOPE_HINT[r.applicability_scope] && (
-                      <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
-                        Applies to: <span className="font-medium text-ink-muted">{SCOPE_LABEL[r.applicability_scope] ?? r.applicability_scope}</span>
-                        {" — "}{SCOPE_HINT[r.applicability_scope]}
-                      </p>
-                    )}
-
-                    {/* Documents that can satisfy this */}
-                    <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
-                      Satisfied by:{" "}
-                      {r.accepts_document_types.length
-                        ? r.accepts_document_types.map((t) => DOC_TYPE_LABEL[t] ?? t).join(", ")
-                        : "any document (no specific type mapped)"}
-                      {r.accepts_document_types.includes("*") && (
-                        <span className="ml-1 italic">— this condition checks consistency across all documents</span>
-                      )}
-                    </p>
-
-                    {r.external_check && (
-                      <p className="mt-1 text-[12px] text-ink-faint">
-                        External check: <span className="identifier font-medium text-ink-muted">{r.external_check}</span>
-                        <span className="ml-1.5 rounded-[3px] border px-1.5 py-px text-[10px]" style={{ borderColor: "color-mix(in srgb, var(--review) 30%, transparent)", color: "var(--review)", background: "color-mix(in srgb, var(--review) 8%, transparent)" }}>
-                          simulated
-                        </span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Source clause — collapsible so the card doesn't double in height */}
-                  {r.raw_clause && (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-[12px] text-ink-faint hover:text-ink-muted">
-                        Source text from the NIT
-                        {r.source_clause_ref && (
-                          <span className="identifier ml-1.5">§ {r.source_clause_ref}</span>
-                        )}
-                        {r.source_page && <span className="ml-1">· p. {r.source_page}</span>}
-                        {r.extraction_confidence !== null && (
-                          <span className="ml-1.5 text-[11px]">
-                            · confidence {Math.round((r.extraction_confidence ?? 0) * 100)}%
-                          </span>
-                        )}
-                      </summary>
-                      <p className="mt-1.5 rounded-[4px] border border-rule bg-paper px-3 py-2 text-[12px] leading-relaxed text-ink-muted">
-                        {r.raw_clause}
-                      </p>
-                    </details>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+                    }
+                  }}
+                  className="mt-1 w-full rounded-[4px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] outline-none hover:border-rule focus:border-seal"
+                  aria-label={`Rename ${r.code}`}
+                />
+                {r.raw_clause && (
+                  <p className="mt-2 rounded-[4px] border border-rule bg-paper px-3 py-2 text-[12px] leading-relaxed text-ink-faint">
+                    Source: {r.raw_clause}
+                  </p>
+                )}
+                <p className="mt-2 text-[12px] text-ink-faint">
+                  Accepts: {r.accepts_document_types.length ? r.accepts_document_types.join(", ") : "—"}
+                  {r.external_check ? ` · External check: ${r.external_check}` : ""}
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-[13px] text-ink-muted">
+                <input
+                  type="checkbox"
+                  defaultChecked={r.mandatory}
+                  disabled={savingId === r.id}
+                  onChange={async (e) => {
+                    setSavingId(r.id);
+                    try {
+                      await onPatch(r.id, { mandatory: e.target.checked });
+                    } finally {
+                      setSavingId(null);
+                    }
+                  }}
+                  className="h-4 w-4"
+                  style={{ accentColor: "var(--seal)" }}
+                />
+                Mandatory
+              </label>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

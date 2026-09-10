@@ -11,30 +11,27 @@ import {
   verifyBid,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import Loader from "@/components/layout/Loader";
+import { BackButton } from "@/components/ui/BackButton";
 import type { IngestionMode, Tender, UploadResult } from "@/types/api";
 
-// Must match KNOWN_DOCUMENT_TYPES in backend/app/llm/schemas.py — routing is a
-// lookup against this vocabulary, so a stray value produces MISSING_EVIDENCE forever.
-const DOC_TYPE_LABEL: Record<string, string> = {
-  gst_certificate: "GST certificate",
-  pan_card: "PAN card",
-  udyam_certificate: "Udyam certificate",
-  incorporation_certificate: "Certificate of incorporation",
-  financial_statement: "Audited financial statement",
-  ca_turnover_certificate: "CA turnover certificate",
-  work_order: "Work order / completion certificate",
-  iso_certificate: "ISO certificate",
-  oem_authorisation: "OEM authorisation letter",
-  technical_datasheet: "Technical datasheet",
-  declaration_non_blacklisting: "Non-blacklisting declaration",
-  emd_instrument: "EMD instrument",
-  holding_company_undertaking: "Holding-company undertaking",
-  epfo_certificate: "EPFO certificate",
-  esic_certificate: "ESIC certificate",
-  local_content_certificate: "Local content certificate",
-};
-
-const DOC_TYPES = Object.keys(DOC_TYPE_LABEL);
+const DOC_TYPES = [
+  "gst_certificate",
+  "gst_return_acknowledgement",
+  "pan_card",
+  "udyam_certificate",
+  "incorporation_certificate",
+  "financial_statement",
+  "work_order",
+  "oem_authorisation",
+  "emdy",
+  "blacklist_declaration",
+  "cover_letter",
+  "power_of_attorney",
+  "bid_security",
+  "msme_certificate",
+  "other",
+];
 
 export function BidderUpload({ tenderId }: { tenderId: string }) {
   const router = useRouter();
@@ -156,6 +153,7 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[820px] px-6 py-10">
+        <BackButton />
         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Bidder upload</p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight">
           {tender ? tender.title : "Add a bidder"}
@@ -303,13 +301,19 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
                   <p className="text-[13px] text-ink-muted">
                     {files.length} file{files.length === 1 ? "" : "s"} selected
                   </p>
-                  <button
-                    onClick={handleUploadAll}
-                    disabled={uploading}
-                    className="mt-3 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-                  >
-                    {uploading ? "Uploading & extracting…" : "Upload documents"}
-                  </button>
+                  {uploading ? (
+                    <div className="mt-8 flex flex-col items-center justify-center py-4">
+                      <Loader />
+                      <p className="mt-6 text-[14px] text-ink-muted">Uploading & extracting…</p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleUploadAll}
+                      className="mt-3 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
+                    >
+                      Upload documents
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -341,9 +345,9 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
         )}
 
         {step === "verifying" && (
-          <section className="mt-8 rounded-[6px] border border-rule bg-surface p-6">
-            <div className="skeleton h-4 w-64 rounded" />
-            <p className="mt-3 text-[14px] text-ink-muted">
+          <section className="mt-8 rounded-[6px] border border-rule bg-surface p-6 flex flex-col items-center justify-center">
+            <Loader />
+            <p className="mt-8 text-center text-[14px] text-ink-muted max-w-[60ch]">
               Running the rule engine across the requirements and documents. This
               is deterministic Python plus, where a condition is prose, one
               reasoning call.
@@ -374,64 +378,6 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
           </Link>
         </p>
       </main>
-    </div>
-  );
-}
-
-function AgentWorking({ mode }: { mode: "upload" | "verify" }) {
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => (t + 1) % 3), 500);
-    return () => clearInterval(id);
-  }, []);
-  const dots = ".".repeat(tick + 1);
-  const uploadSteps = [
-    "Reading your PDFs — making sure we can see the text clearly",
-    "Figuring out what kind of document each one is",
-    "Pulling out the important details (like numbers, dates, names)",
-    "Pinpointing each detail on its page so you can verify it",
-  ];
-  const verifySteps = [
-    "Checking each tender condition against what you sent",
-    "Running the simple checks — numbers, dates, IDs — with no guessing",
-    "Looking for anything that doesn’t line up across documents",
-    "Getting everything ready for your review",
-  ];
-  const steps = mode === "upload" ? uploadSteps : verifySteps;
-  const active = Math.floor((tick * 1.3) % steps.length);
-
-  return (
-    <div className="flex gap-4">
-      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-seal-tint">
-        <span className="absolute inline-flex h-10 w-10 animate-ping rounded-full bg-seal/20" />
-        <span className="relative inline-flex h-3 w-3 rounded-full bg-seal animate-pulse" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-medium text-ink">
-          {mode === "upload" ? "Working on your files" : "Checking your bid"}
-          <span className="inline-block w-6 text-left">{dots}</span>
-        </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
-          {mode === "upload"
-            ? "We’re reading what you uploaded — this usually takes a few seconds per document."
-            : "We’re comparing your documents to the tender’s checklist — you’ll see the results in a moment."}
-        </p>
-        <ul className="mt-3 space-y-1.5">
-          {steps.map((s, i) => (
-            <li
-              key={s}
-              className={`flex items-center gap-2 text-[12px] transition-colors ${i === active ? "text-seal font-medium" : i < active ? "text-ink-muted" : "text-ink-faint"}`}
-            >
-              <span
-                className={`inline-flex h-1.5 w-1.5 rounded-full ${i === active ? "bg-seal animate-pulse" : i < active ? "bg-ink-muted" : "bg-rule"}`}
-              />
-              {s}
-              {i === active && <span className="text-seal">{dots}</span>}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-[11px] text-ink-faint">You don’t need to stay on this page — we’ll keep your place.</p>
-      </div>
     </div>
   );
 }

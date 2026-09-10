@@ -33,22 +33,8 @@ export function NeedsYou({
       <ul className="divide-y divide-rule">
         {rows.map((row) => {
           const isFailure = summary.mandatory_failed.includes(row.requirement_code);
-          const status = row.effective_status ?? row.status;
           return (
-            <li
-              key={row.requirement_code}
-              onClick={() => onOpen(row)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen(row);
-                }
-              }}
-              tabIndex={0}
-              role="button"
-              aria-label={`Review ${row.requirement_code}: ${row.requirement_name}`}
-              className="cursor-pointer px-7 py-5 transition-colors hover:bg-paper focus:bg-seal-tint focus:outline-none"
-            >
+            <li key={row.requirement_code} className="px-7 py-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-baseline gap-2.5">
@@ -57,27 +43,6 @@ export function NeedsYou({
                       className="text-[12px] text-ink-faint"
                     />
                     <span className="text-[15px] font-medium">{row.requirement_name}</span>
-                    <span
-                      className="rounded-[3px] px-2 py-0.5 text-[11px] font-medium"
-                      style={{
-                        background:
-                          status === "MISSING_EVIDENCE"
-                            ? "color-mix(in srgb, var(--review) 14%, transparent)"
-                            : status === "NEEDS_HUMAN_REVIEW"
-                              ? "color-mix(in srgb, var(--review) 18%, transparent)"
-                              : status === "NON_COMPLIANT" || status === "EXPIRED" || status === "INCONSISTENT"
-                                ? "color-mix(in srgb, var(--failed) 14%, transparent)"
-                                : "var(--seal-tint)",
-                        color:
-                          status === "MISSING_EVIDENCE" || status === "NEEDS_HUMAN_REVIEW"
-                            ? "var(--review)"
-                            : status === "NON_COMPLIANT" || status === "EXPIRED" || status === "INCONSISTENT"
-                              ? "var(--failed)"
-                              : "var(--seal)",
-                      }}
-                    >
-                      {status.replace(/_/g, " ")}
-                    </span>
                   </p>
                   <p className="mt-1.5 max-w-[80ch] text-[14px] leading-relaxed text-ink-muted">
                     {plainReason(row, isFailure)}
@@ -90,13 +55,9 @@ export function NeedsYou({
                       ? "To clear this you would have to override the system's finding, and say why."
                       : "To clear this, read the evidence and accept it — or override with your own verdict."}
                   </p>
-                  <p className="mt-2 text-[12px] text-ink-faint">Click anywhere on this row to see the document and the reason it needs you →</p>
                 </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpen(row);
-                  }}
+                  onClick={() => onOpen(row)}
                   className="shrink-0 rounded-[4px] border border-seal px-4 py-2 text-[14px] font-medium text-seal transition-colors hover:bg-seal-tint"
                 >
                   Review this

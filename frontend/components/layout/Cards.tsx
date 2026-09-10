@@ -50,11 +50,11 @@ export const MinimalCarousel: React.FC<MinimalCarouselProps> = ({
                                     layoutId={activeCard.id}
                                     className={`relative flex w-full flex-col justify-between
                              rounded-[28px] sm:rounded-[32px] p-4 sm:p-5 text-white shadow-2xl
-                             ${activeCard.color}
+                             border border-black/[0.08] bg-white/[0.1] backdrop-blur-md
                              min-h-42.5 sm:h-48`}
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                 >
-                                    <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-start justify-between gap-100">
 
 
                                         <motion.button
@@ -65,10 +65,10 @@ export const MinimalCarousel: React.FC<MinimalCarouselProps> = ({
                                                 e.stopPropagation();
                                                 onCopyClick?.(activeCard);
                                             }}
-                                            className="flex items-center gap-1.5 rounded-full bg-white/10
+                                            className="flex items-center gap-1.5 rounded-full bg-white/800
                                  px-3 py-1.5 sm:px-4 sm:py-2 font-bold backdrop-blur-md 
                                  text-xs sm:text-base whitespace-nowrap
-                                 hover:bg-white/20 transition-colors"
+                                 hover:bg-white/200 transition-colors"
                                         >
                                             Copy <span className="hidden xs:inline">Address</span> <Copy size={16} />
                                         </motion.button>
@@ -104,7 +104,7 @@ export const MinimalCarousel: React.FC<MinimalCarouselProps> = ({
                         {/* Grid Layout */}
                         <motion.div
                             layout
-                            className={`grid gap-2 sm:gap-3 transition-all duration-500 ${activeId ? "grid-cols-3" : "grid-cols-2"
+                            className={`grid gap-2 sm:gap-3 transition-all duration-500 ${activeId ? "grid-cols-3" : "grid-cols-1"
                                 }`}
                         >
                             {(activeId ? secondaryCards : cards).map((card) => (
@@ -118,7 +118,7 @@ export const MinimalCarousel: React.FC<MinimalCarouselProps> = ({
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     className={`relative flex flex-col justify-between cursor-pointer
                              rounded-[22px] sm:rounded-[28px] p-3 sm:p-4 text-white shadow-lg
-                             ${card.color}
+                             border border-black/[0.08] bg-white/[0.1] backdrop-blur-md hover:bg-black/[0.15] transition-colors
                              ${activeId ? "h-24 sm:h-28" : "h-28 sm:h-32"}`}
                                 >
                                     <div className="flex justify-between items-start">

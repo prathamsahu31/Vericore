@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
+import { DeleteTenderButton } from "./DeleteTenderButton";
 import { listTenders } from "@/lib/api";
 import type { Tender } from "@/types/api";
 
@@ -13,7 +15,7 @@ const STATUS_LABEL: Record<Tender["status"], string> = {
 };
 
 export default async function TendersPage() {
-  let tenders: Awaited<ReturnType<typeof listTenders>>;
+  let tenders: Tender[];
   try {
     tenders = await listTenders();
   } catch {
@@ -32,7 +34,8 @@ export default async function TendersPage() {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[900px] px-6 py-12">
-        <div className="flex items-center justify-between gap-4">
+        <BackButton />
+        <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
               Officer workspace
@@ -46,7 +49,7 @@ export default async function TendersPage() {
           </div>
           <Link
             href="/tenders/new"
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-[4px] bg-seal px-5 text-[14px] font-medium text-white transition-colors hover:bg-seal-strong"
+            className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-seal-strong"
           >
             Start a new tender
           </Link>
@@ -99,6 +102,7 @@ export default async function TendersPage() {
                   >
                     Compare bidders
                   </Link>
+                  <DeleteTenderButton tenderId={t.id} />
                 </div>
               </li>
             ))}
