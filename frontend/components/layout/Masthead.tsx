@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "./SiteHeader";
+import { BackButton } from "../ui/BackButton";
 
 /**
  * Institutional rather than consumer: a ruled header, no logo lockup, the
@@ -29,6 +30,7 @@ export function Masthead({
       <SiteHeader />
 
       <div className="mx-auto max-w-[1240px] px-6 pt-6 pb-1">
+        <BackButton />
         <div className="flex items-baseline justify-between gap-6">
           <div>
             <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">

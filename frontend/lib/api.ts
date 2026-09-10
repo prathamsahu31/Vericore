@@ -8,26 +8,9 @@ import type {
   Tender,
   UploadResult,
   VerificationSummary,
-} from "@/types/api";
+} from "../types/api";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-
-type ApiErrorPayload = {
-  detail?: unknown;
-  error?: { code?: string; message?: string; detail?: { hint?: string } };
-};
-
-function asErrorMessage(path: string, response: Response, payload: ApiErrorPayload | null): string {
-  const errorMessage = payload?.error?.message;
-  if (typeof errorMessage === "string" && errorMessage.trim()) {
-    const hint = payload?.error?.detail?.hint;
-    return typeof hint === "string" && hint.trim() ? `${errorMessage} ${hint}` : errorMessage;
-  }
-  if (typeof payload?.detail === "string" && payload.detail.trim()) {
-    return payload.detail;
-  }
-  return `${response.status} ${response.statusText} for ${path}`;
-}
 
 export function tenderReportPageUrl(tenderId: string) {
   return `${BASE}/tenders/${tenderId}/report.html`;
@@ -35,11 +18,10 @@ export function tenderReportPageUrl(tenderId: string) {
 
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE}${path}`, { cache: "no-store" });
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
   if (!response.ok) {
-    throw new Error(asErrorMessage(path, response, payload));
+    throw new Error(`${response.status} ${response.statusText} for ${path}`);
   }
-  return payload as T;
+  return response.json() as Promise<T>;
 }
 
 export function getCompliance(bidId: string) {
@@ -86,9 +68,22 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(asErrorMessage(path, response, payload));
+    throw new Error(payload?.detail ? String(payload.detail) : "Request failed.");
+  }
+  return payload as T;
+}
+
+async function del<T>(path: string): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (response.status === 204) return {} as T;
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.detail ? String(payload.detail) : "Delete failed.");
   }
   return payload as T;
 }
@@ -106,6 +101,10 @@ export function createTender(body: {
 
 export function getTender(tenderId: string) {
   return get<Tender>(`/tenders/${tenderId}`);
+}
+
+export function deleteTender(tenderId: string) {
+  return del(`/tenders/${tenderId}`);
 }
 
 export function listTenders() {
@@ -128,34 +127,18 @@ export function updateRequirement(
   requirementId: string,
   changes: {
     name?: string;
-    normalized_clause?: string | null;
-    category?: string | null;
-    condition?: Record<string, unknown> | null;
     mandatory?: boolean;
     weight?: number;
     applicability_scope?: string;
-    accepts_document_types?: string[];
-    required_fields?: string[];
-    external_check?: string | null;
+    external_check?: string;
   },
 ) {
   return patch<Requirement>(`/requirements/${requirementId}`, changes);
 }
 
 export function confirmRequirements(tenderId: string, officerId: string) {
-  return post<Tender>(`/tenders/${tenderId}/confirm-requirements?officer_id=${officerId}`, {});
-}
-
-export async function deleteTender(tenderId: string): Promise<void> {
-  const response = await fetch(`${BASE}/tenders/${tenderId}`, { method: "DELETE" });
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
-    throw new Error(asErrorMessage(`/tenders/${tenderId}`, response, payload));
-  }
-}
-
-export function resetRequirements(tenderId: string) {
-  return post<Tender>(`/tenders/${tenderId}/reset-requirements`, {});
+  // Send officer ID in request body to avoid 422 errors when query params are rejected
+  return post<Tender>(`/tenders/${tenderId}/confirm-requirements`, { officer_id: officerId });
 }
 
 async function patch<T>(path: string, body: unknown): Promise<T> {
@@ -164,9 +147,9 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(asErrorMessage(path, response, payload));
+    throw new Error(payload?.detail ? String(payload.detail) : "Request failed.");
   }
   return payload as T;
 }
@@ -182,9 +165,9 @@ async function uploadFile<T>(path: string, file: File, extra?: Record<string, st
     method: "POST",
     body: form,
   });
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(asErrorMessage(path, response, payload));
+    throw new Error(payload?.detail ? String(payload.detail) : "Upload failed.");
   }
   return payload as T;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import { Identifier, RiskChip, StatusChip } from "@/components/ui/status";
 import { getComparison, tenderReportPageUrl } from "@/lib/api";
 import type { ComparisonBidder, ComparisonRow } from "@/types/api";
@@ -51,6 +52,7 @@ export default async function ComparisonPage({
       <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
         <SiteHeader />
         <div className="mx-auto max-w-[1240px] px-6 py-8">
+          <BackButton />
           <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
             Comparing bidders
           </p>
@@ -192,9 +194,29 @@ function Row({ row }: { row: ComparisonRow }) {
       {row.cells.map((cell) => (
         <td key={cell.bid_id} className="border-l border-rule px-5 py-4">
           {cell.effective_status ? (
-            <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+            <Link
+              href={`/bids/${cell.bid_id}`}
+              title={`Open ${cell.effective_status.replace(/_/g, " ").toLowerCase()} — ${row.requirement_name} — see evidence and review`}
+              className="group relative inline-flex rounded-[4px] focus:outline-none focus-visible:ring-2 focus-visible:ring-seal focus-visible:ring-offset-2"
+            >
+              <span className="transition-transform group-hover:scale-[1.02] group-hover:brightness-[0.98] cursor-pointer">
+                <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+              </span>
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block group-focus-visible:block">
+                View evidence →
+              </span>
+            </Link>
           ) : (
-            <span className="text-[13px] text-ink-faint">not verified</span>
+            <Link
+              href={`/bids/${cell.bid_id}`}
+              className="group relative text-[13px] text-ink-faint hover:text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-seal"
+              title="Open bidder — see evidence"
+            >
+              not verified
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block">
+                View evidence →
+              </span>
+            </Link>
           )}
         </td>
       ))}
