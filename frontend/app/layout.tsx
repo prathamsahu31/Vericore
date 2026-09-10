@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
-      <head>
+      <head><link rel="icon" href="/robot_hi.png" />
       </head>
       <body className="page-backdrop min-h-screen text-ink antialiased">
         <CustomCursor />
