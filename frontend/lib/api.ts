@@ -133,7 +133,8 @@ export function updateRequirement(
 }
 
 export function confirmRequirements(tenderId: string, officerId: string) {
-  return post<Tender>(`/tenders/${tenderId}/confirm-requirements?officer_id=${officerId}`, {});
+  // Send officer ID in request body to avoid 422 errors when query params are rejected
+  return post<Tender>(`/tenders/${tenderId}/confirm-requirements`, { officer_id: officerId });
 }
 
 async function patch<T>(path: string, body: unknown): Promise<T> {
