@@ -11,11 +11,23 @@ import {
   uploadNit,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { BackButton } from "@/components/ui/BackButton";
-import Loader from "@/components/layout/Loader";
+import { Identifier } from "@/components/ui/status";
 import type { Requirement, Tender } from "@/types/api";
+import {
+  ArrowLeft,
+  UploadCloud,
+  FileCheck,
+  CheckCircle2,
+  Lock,
+  ArrowRight,
+  AlertCircle,
+  Save,
+  RotateCw,
+  Sparkles,
+  Layers,
+} from "lucide-react";
 
-const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
+const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "CPCL-PROC-OFFICER";
 
 type Stage =
   | { kind: "tender" }
@@ -39,7 +51,9 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
     getTender(tenderId)
       .then((t) => {
         setTender(t);
-        if (t.status === "requirements_extracted") {
+        if (t.status === "requirements_confirmed") {
+          setStage({ kind: "confirmed" });
+        } else if (t.status === "requirements_extracted") {
           return getRequirements(tenderId).then((rows) => {
             setRequirements(rows);
             if (rows.length > 0) {
@@ -55,7 +69,7 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
   async function handleUpload(event: React.FormEvent) {
     event.preventDefault();
     if (!nitFile) {
-      setError("Choose the NIT file to upload.");
+      setError("Please select the official NIT PDF document to upload.");
       return;
     }
     setError(null);
@@ -81,14 +95,14 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
       setRequirements(rows);
       setStage({ kind: "review", requirements: rows, saving: false });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Requirements could not be extracted.");
+      setError(e instanceof Error ? e.message : "Requirements extraction failed. Verify LLM configuration.");
       setStage({ kind: "tender" });
     }
   }
 
   async function handleConfirm() {
     if (!officerId) {
-      setError("No officer is signed in (NEXT_PUBLIC_OFFICER_ID is unset).");
+      setError("No officer ID detected. Set NEXT_PUBLIC_OFFICER_ID to record statutory confirmation.");
       return;
     }
     setError(null);
@@ -105,388 +119,430 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
   }
 
   if (!tender && !error) {
-    return <Skeleton />;
-  }
-
-  if (error && !tender) {
     return (
-      <div className="page-backdrop min-h-screen">
+      <div className="min-h-screen bg-paper">
         <SiteHeader />
-        <main className="mx-auto max-w-[62ch] px-6 py-24">
-          <h1 className="text-[24px]">This tender could not be loaded</h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">{error}</p>
+        <main className="mx-auto max-w-[800px] px-6 py-20 text-center">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 w-48 bg-rule rounded mx-auto" />
+            <div className="h-10 w-96 bg-rule rounded mx-auto" />
+            <div className="h-32 w-full bg-rule rounded" />
+          </div>
         </main>
       </div>
     );
   }
 
-  const confirmed = tender?.status === "requirements_confirmed";
+  if (error && !tender) {
+    return (
+      <div className="min-h-screen bg-paper">
+        <SiteHeader />
+        <main className="mx-auto max-w-[640px] px-6 py-20">
+          <div className="rounded-[4px] border border-failed-border bg-failed-bg p-6">
+            <h1 className="font-serif text-[20px] font-semibold text-failed">
+              Tender Setup Unavailable
+            </h1>
+            <p className="mt-2 text-[14px] text-ink-muted leading-relaxed">{error}</p>
+            <div className="mt-4">
+              <Link href="/tenders" className="text-[13px] font-medium text-seal hover:underline">
+                ← Return to tender registry
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="page-backdrop min-h-screen">
+    <div className="min-h-screen bg-paper text-ink selection:bg-seal/15 selection:text-seal">
       <SiteHeader />
-      <main className="mx-auto max-w-[900px] px-6 py-10">
-        <BackButton />
-        <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Tender setup</p>
-        <h1 className="mt-2 font-serif text-[28px] leading-tight">{tender?.title}</h1>
-        <p className="mt-2 text-[13px] text-ink-muted">
-          {tender?.bid_number && <span className="identifier">{tender.bid_number} · </span>}
-          {tender?.bid_due_date && (
-            <>
-              bid due <span className="identifier">{tender.bid_due_date}</span>
-            </>
-          )}
-        </p>
 
-        <div className="mt-8 space-y-8">
-          {confirmed ? (
-            <ConfirmedStage tenderId={tenderId} />
-          ) : stage.kind === "confirmed" ? (
-            <ConfirmedStage tenderId={tenderId} />
-          ) : (
-            <>
-              <UploadStage
-                uploaded={uploaded}
-                uploading={uploading}
-                nitFile={nitFile}
-                setNitFile={setNitFile}
-                onUpload={handleUpload}
-                extracted={tender?.status === "requirements_extracted"}
-                onExtract={handleExtract}
-                extracting={stage.kind === "extracting"}
-                hasDrafts={requirements.length > 0}
-              />
+      <main className="mx-auto max-w-[1140px] px-6 py-10">
+        {/* Navigation Breadcrumb */}
+        <div className="mb-4">
+          <Link
+            href="/tenders"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-muted hover:text-seal transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to tender registry</span>
+          </Link>
+        </div>
 
-              {stage.kind === "review" && (
-                <>
-                  <ReviewStage
-                    requirements={stage.requirements}
-                    onPatch={async (id, patch) => {
-                      const updated = await updateRequirement(id, patch);
-                      setRequirements((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
-                      setStage((s) =>
-                        s.kind === "review"
-                          ? { ...s, requirements: s.requirements.map((r) => (r.id === updated.id ? updated : r)) }
-                          : s,
-                      );
-                    }}
-                  />
-                  <ConfirmBar saving={stage.saving} onConfirm={handleConfirm} />
-                </>
+        {/* Header particulars */}
+        <div className="border-b border-rule pb-6 mb-8 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-seal" />
+              <p className="text-[11px] font-mono uppercase font-bold tracking-[0.14em] text-ink-faint">
+                Tender Setup & Checklist Lock
+              </p>
+            </div>
+            <h1 className="mt-1 font-serif text-[26px] font-semibold text-ink leading-tight">
+              {tender?.title}
+            </h1>
+            <p className="mt-1 text-[13px] text-ink-muted">
+              {tender?.bid_number && <span className="identifier mr-2">{tender.bid_number}</span>}
+              {tender?.buyer_organisation && <span>· {tender.buyer_organisation}</span>}
+              {tender?.bid_due_date && <span> · Due: {tender.bid_due_date}</span>}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-[3px] border px-2.5 py-1 text-[11px] font-mono font-semibold uppercase ${
+                tender?.status === "requirements_confirmed"
+                  ? "border-verified-border bg-verified-bg text-verified"
+                  : "border-review-border bg-review-bg text-review"
+              }`}
+            >
+              {tender?.status?.replace(/_/g, " ")}
+            </span>
+          </div>
+        </div>
+
+        {/* 3-Step Setup Stepper */}
+        <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div
+            className={`rounded-[3px] border p-3.5 transition-colors ${
+              stage.kind === "tender"
+                ? "border-seal bg-seal-tint text-seal font-semibold"
+                : uploaded || stage.kind === "review" || stage.kind === "confirmed"
+                  ? "border-verified-border bg-verified-bg text-verified"
+                  : "border-rule bg-surface text-ink-muted"
+            }`}
+          >
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span>STEP 01</span>
+              {uploaded || stage.kind === "review" || stage.kind === "confirmed" ? (
+                <span>✓ Uploaded</span>
+              ) : (
+                <span>Active</span>
               )}
-            </>
-          )}
+            </div>
+            <p className="text-[13px] font-medium">Upload Notice Inviting Tender (NIT)</p>
+          </div>
+
+          <div
+            className={`rounded-[3px] border p-3.5 transition-colors ${
+              stage.kind === "extracting"
+                ? "border-seal bg-seal-tint text-seal font-semibold"
+                : stage.kind === "review" || stage.kind === "confirmed"
+                  ? "border-verified-border bg-verified-bg text-verified"
+                  : "border-rule bg-surface text-ink-muted"
+            }`}
+          >
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span>STEP 02</span>
+              {stage.kind === "review" || stage.kind === "confirmed" ? (
+                <span>✓ Extracted</span>
+              ) : stage.kind === "extracting" ? (
+                <span>Extracting…</span>
+              ) : (
+                <span>Pending</span>
+              )}
+            </div>
+            <p className="text-[13px] font-medium">AI Clause Extraction & Codification</p>
+          </div>
+
+          <div
+            className={`rounded-[3px] border p-3.5 transition-colors ${
+              stage.kind === "confirmed"
+                ? "border-verified-border bg-verified-bg text-verified font-semibold"
+                : stage.kind === "review"
+                  ? "border-seal bg-seal-tint text-seal font-semibold"
+                  : "border-rule bg-surface text-ink-muted"
+            }`}
+          >
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span>STEP 03</span>
+              {stage.kind === "confirmed" ? <span>✓ Locked</span> : <span>Officer Gate</span>}
+            </div>
+            <p className="text-[13px] font-medium">Review & Lock Checklist</p>
+          </div>
         </div>
 
         {error && (
-          <p
-            className="mt-6 rounded-[4px] border px-4 py-3 text-[14px]"
-            style={{
-              borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
-              color: "var(--failed)",
-            }}
-          >
-            {error}
-          </p>
+          <div className="mb-6 rounded-[4px] border border-failed-border bg-failed-bg p-4 text-[13px] text-failed flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
         )}
 
-        <p className="mt-10 border-t border-rule pt-5 text-[13px] text-ink-faint">
-          Went through the checklist already?{" "}
-          <Link href={`/tenders/${tenderId}`} className="text-seal hover:underline">
-            Compare the bidders on this tender
-          </Link>
-          , or{" "}
-          <Link href={`/tenders/${tenderId}/bidders/new`} className="text-seal hover:underline">
-            add a bidder&rsquo;s documents
-          </Link>
-          .
-        </p>
+        {/* Stage 1: Upload NIT Document */}
+        {stage.kind === "tender" && (
+          <div className="rounded-[4px] border border-rule bg-surface p-7 panel-shadow space-y-6">
+            <div>
+              <h2 className="font-serif text-[18px] font-semibold text-ink">
+                Upload Notice Inviting Tender (NIT / RFP)
+              </h2>
+              <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
+                Upload the complete published tender PDF. Vericore reads the free-text clauses to extract eligibility thresholds, turnover ratios, and statutory requirements.
+              </p>
+            </div>
+
+            <form onSubmit={handleUpload} className="space-y-4">
+              <div className="rounded-[4px] border-2 border-dashed border-rule bg-surface-subtle p-8 text-center hover:border-seal transition-colors">
+                <UploadCloud size={32} className="mx-auto text-ink-faint mb-2" />
+                <label className="block cursor-pointer">
+                  <span className="text-[14px] font-medium text-seal hover:underline">
+                    Choose NIT PDF file
+                  </span>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
+                    className="sr-only"
+                  />
+                </label>
+                <p className="mt-1 text-[12px] text-ink-muted">
+                  {nitFile ? (
+                    <strong className="font-mono text-ink">{nitFile.name} ({(nitFile.size / 1024 / 1024).toFixed(2)} MB)</strong>
+                  ) : (
+                    "Standard PDF document (up to 100 pages supported natively)"
+                  )}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="submit"
+                  disabled={uploading || !nitFile}
+                  className="rounded-[3px] bg-seal px-5 py-2.5 text-[13px] font-medium text-white hover:bg-seal-strong transition-colors disabled:opacity-40"
+                >
+                  {uploading ? "Uploading Document…" : "Upload NIT Document"}
+                </button>
+
+                {uploaded && (
+                  <button
+                    type="button"
+                    onClick={handleExtract}
+                    className="inline-flex items-center gap-1.5 rounded-[3px] bg-verified px-5 py-2.5 text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
+                  >
+                    <Sparkles size={15} />
+                    <span>Run AI Requirement Extraction →</span>
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Stage 2: Extraction in progress */}
+        {stage.kind === "extracting" && (
+          <div className="rounded-[4px] border border-rule bg-surface p-12 text-center panel-shadow space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-seal-tint text-seal animate-spin">
+              <RotateCw size={24} />
+            </div>
+            <h2 className="font-serif text-[20px] font-semibold text-ink">
+              Extracting Clauses from Tender Document
+            </h2>
+            <p className="max-w-[54ch] mx-auto text-[13px] text-ink-muted leading-relaxed">
+              The extraction pipeline is reading the NIT prose, identifying statutory conditions, turnover thresholds, and experience criteria, and structuring them into exact clauses.
+            </p>
+            <p className="text-[11px] font-mono text-ink-faint">
+              Usually completes in 10–25 seconds depending on document length.
+            </p>
+          </div>
+        )}
+
+        {/* Stage 3: Review and Lock Checklist */}
+        {stage.kind === "review" && (
+          <div className="space-y-6">
+            <div className="rounded-[4px] border border-rule bg-surface p-6 panel-shadow flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="font-serif text-[18px] font-semibold text-ink">
+                  Officer Review: Codified Requirements ({stage.requirements.length})
+                </h2>
+                <p className="mt-1 text-[13px] text-ink-muted">
+                  Inspect the extracted clauses, adjust weights or mandatory flags if needed, then confirm the checklist to lock it into the audit log.
+                </p>
+              </div>
+
+              <button
+                onClick={handleConfirm}
+                disabled={stage.saving}
+                className="inline-flex items-center gap-2 rounded-[3px] bg-seal px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-seal-strong transition-colors disabled:opacity-40"
+              >
+                <Lock size={15} />
+                <span>{stage.saving ? "Confirming & Locking…" : "Confirm & Lock Checklist"}</span>
+              </button>
+            </div>
+
+            {/* Editable Requirements Table */}
+            <div className="rounded-[4px] border border-rule bg-surface panel-shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-[13px]">
+                  <thead>
+                    <tr className="border-b border-rule bg-surface-muted text-[11px] font-bold uppercase tracking-[0.1em] text-ink-faint">
+                      <th className="px-5 py-3 w-[90px]">Code</th>
+                      <th className="px-5 py-3">Clause Description</th>
+                      <th className="px-5 py-3 w-[110px]">Mandatory</th>
+                      <th className="px-5 py-3 w-[100px]">Weight</th>
+                      <th className="px-5 py-3 w-[160px]">Scope</th>
+                      <th className="px-5 py-3 w-[160px]">External Portal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule">
+                    {stage.requirements.map((req) => (
+                      <RequirementRow
+                        key={req.id}
+                        req={req}
+                        onChange={(updated) => {
+                          setStage((s) => {
+                            if (s.kind !== "review") return s;
+                            return {
+                              ...s,
+                              requirements: s.requirements.map((r) =>
+                                r.id === updated.id ? updated : r,
+                              ),
+                            };
+                          });
+                        }}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stage 4: Confirmed State */}
+        {stage.kind === "confirmed" && (
+          <div className="rounded-[4px] border border-verified-border bg-verified-bg p-8 panel-shadow text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-verified text-white">
+              <CheckCircle2 size={24} />
+            </div>
+            <h2 className="font-serif text-[22px] font-semibold text-ink">
+              Checklist Confirmed & Locked
+            </h2>
+            <p className="max-w-[56ch] mx-auto text-[14px] text-ink-muted leading-relaxed">
+              The eligibility checklist has been sealed against officer identity <strong className="font-mono text-ink">{officerId}</strong>.
+              You can now add bidder document bundles for automated evidence evaluation.
+            </p>
+
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href={`/tenders/${tenderId}/bidders/new`}
+                className="inline-flex items-center gap-1.5 rounded-[3px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white hover:bg-seal-strong transition-colors"
+              >
+                <span>+ Add Bidder Document Bundle</span>
+                <ArrowRight size={14} />
+              </Link>
+              <Link
+                href={`/tenders/${tenderId}`}
+                className="inline-flex items-center gap-1.5 rounded-[3px] border border-rule bg-surface px-5 py-2.5 text-[14px] font-medium text-ink hover:border-ink transition-colors"
+              >
+                <span>View Comparison Matrix</span>
+              </Link>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
 }
 
-function UploadStage({
-  uploaded,
-  uploading,
-  nitFile,
-  setNitFile,
-  onUpload,
-  extracted,
-  onExtract,
-  extracting,
-  hasDrafts,
+function RequirementRow({
+  req,
+  onChange,
 }: {
-  uploaded: boolean;
-  uploading: boolean;
-  nitFile: File | null;
-  setNitFile: (f: File | null) => void;
-  onUpload: (e: React.FormEvent) => void;
-  extracted: boolean;
-  onExtract: () => void;
-  extracting: boolean;
-  hasDrafts: boolean;
+  req: Requirement;
+  onChange: (updated: Requirement) => void;
 }) {
-  if (extracted && hasDrafts) {
-    return (
-      <section className="rounded-[6px] border border-rule bg-surface p-6 opacity-75">
-        <h2 className="text-[16px] text-seal">✓ Step 1 — upload the NIT</h2>
-        <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-          The notice inviting tender was successfully uploaded and processed.
-        </p>
-      </section>
-    );
-  }
+  const [saving, setSaving] = useState(false);
 
-  if (extracted && !uploaded) {
-    return (
-      <section className="rounded-[6px] border border-rule bg-surface p-6">
-        <h2 className="text-[16px]">No conditions were read from this NIT</h2>
-        <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-          The eligibility section was not found here, so the checklist is empty.
-          Upload a different NIT (or the correct tender document) and extract
-          again.
-        </p>
-        <form onSubmit={onUpload} className="mt-4 space-y-3">
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
-          />
-          {uploading ? (
-            <div className="mt-6 flex flex-col items-center justify-center py-4">
-              <Loader />
-              <p className="mt-6 text-[14px] text-ink-muted">Uploading…</p>
-            </div>
-          ) : (
-            <button
-              type="submit"
-              className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
-            >
-              Upload NIT
-            </button>
-          )}
-        </form>
-      </section>
-    );
-  }
-
-  if (uploaded) {
-    return (
-      <section className="rounded-[6px] border border-rule bg-surface p-6">
-        <h2 className="text-[16px]">NIT uploaded</h2>
-        <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-          {nitFile?.name} is stored. Extract the eligibility conditions into a
-          structured checklist for your review.
-        </p>
-        {extracting ? (
-          <div className="mt-8 flex flex-col items-center justify-center py-4">
-            <Loader />
-            <p className="mt-6 text-[14px] text-ink-muted">Reading the tender…</p>
-          </div>
-        ) : (
-          <button
-            onClick={onExtract}
-            className="mt-4 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
-          >
-            Extract requirements
-          </button>
-        )}
-      </section>
-    );
+  async function handleFieldChange(changes: {
+    name?: string;
+    mandatory?: boolean;
+    weight?: number;
+    applicability_scope?: string;
+    external_check?: string;
+  }) {
+    setSaving(true);
+    try {
+      const updated = await updateRequirement(req.id, changes);
+      onChange(updated);
+    } catch {
+      // Keep state if failed
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <section className="rounded-[6px] border border-rule bg-surface p-6">
-      <h2 className="text-[16px]">Step 1 — upload the NIT</h2>
-      <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-        The notice inviting tender (NIT or RFP). Vericore reads its eligibility
-        conditions into a checklist you will confirm before any bidder is verified.
-      </p>
-      <form onSubmit={onUpload} className="mt-4 space-y-3">
+    <tr className="hover:bg-surface-subtle transition-colors">
+      <td className="px-5 py-3 align-top font-mono text-[11px] font-bold text-ink-muted">
+        {req.code}
+      </td>
+
+      <td className="px-5 py-3 align-top">
         <input
-          type="file"
-          accept="application/pdf"
-          onChange={(e) => setNitFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
+          type="text"
+          value={req.name}
+          onChange={(e) => void handleFieldChange({ name: e.target.value })}
+          className="w-full rounded-[2px] border border-transparent px-2 py-1 text-[13px] font-medium text-ink hover:border-rule focus:border-seal focus:bg-surface outline-none"
         />
-        {uploading ? (
-          <div className="mt-8 flex flex-col items-center justify-center py-4">
-            <Loader />
-            <p className="mt-6 text-[14px] text-ink-muted">Uploading…</p>
-          </div>
-        ) : (
-          <button
-            type="submit"
-            className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
-          >
-            Upload NIT
-          </button>
+        {req.source_clause_ref && (
+          <p className="px-2 text-[11px] text-ink-faint font-mono mt-0.5">
+            NIT Source: {req.source_clause_ref}
+          </p>
         )}
-      </form>
-    </section>
-  );
-}
+      </td>
 
-function ReviewStage({
-  requirements,
-  onPatch,
-}: {
-  requirements: Requirement[];
-  onPatch: (id: string, patch: Parameters<typeof updateRequirement>[1]) => Promise<void>;
-}) {
-  const [savingId, setSavingId] = useState<string | null>(null);
+      <td className="px-5 py-3 align-top">
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={req.mandatory}
+            onChange={(e) => void handleFieldChange({ mandatory: e.target.checked })}
+            className="rounded border-rule text-seal focus:ring-seal"
+          />
+          <span className="text-[12px] text-ink font-medium">
+            {req.mandatory ? "Yes" : "No"}
+          </span>
+        </label>
+      </td>
 
-  return (
-    <section className="rounded-[6px] border border-rule bg-surface">
-      <div className="border-b border-rule px-7 py-5">
-        <h2 className="text-[20px]">Step 2 — confirm the checklist</h2>
-        <p className="mt-1 max-w-[72ch] text-[13px] leading-relaxed text-ink-muted">
-          Each condition was extracted from the NIT beside the source it came
-          from. This is a gate: nothing is verified against a checklist nobody
-          confirmed. A misread threshold here would silently corrupt every
-          downstream verdict.
-        </p>
-      </div>
-      <ul className="divide-y divide-rule">
-        {requirements.map((r) => (
-          <li key={r.id} className="px-7 py-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="max-w-[58ch]">
-                <p className="flex items-center gap-2">
-                  <span className="identifier text-[12px] text-ink-faint">{r.code}</span>
-                  <span
-                    className={`rounded-[3px] px-2 py-0.5 text-[11px] font-medium ${r.mandatory
-                        ? "text-seal"
-                        : "bg-paper text-ink-faint"
-                      }`}
-                    style={
-                      r.mandatory
-                        ? {
-                          background:
-                            "color-mix(in srgb, var(--seal) 14%, transparent)",
-                        }
-                        : undefined
-                    }
-                  >
-                    {r.mandatory ? "Mandatory" : "Optional"}
-                  </span>
-                  {r.edited_by_officer && (
-                    <span className="text-[11px]" style={{ color: "var(--review)" }}>
-                      edited
-                    </span>
-                  )}
-                </p>
-                <input
-                  defaultValue={r.name}
-                  disabled={savingId === r.id}
-                  onBlur={async (e) => {
-                    if (e.target.value.trim() && e.target.value.trim() !== r.name) {
-                      setSavingId(r.id);
-                      try {
-                        await onPatch(r.id, { name: e.target.value.trim() });
-                      } finally {
-                        setSavingId(null);
-                      }
-                    }
-                  }}
-                  className="mt-1 w-full rounded-[4px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] outline-none hover:border-rule focus:border-seal"
-                  aria-label={`Rename ${r.code}`}
-                />
-                {r.raw_clause && (
-                  <p className="mt-2 rounded-[4px] border border-rule bg-paper px-3 py-2 text-[12px] leading-relaxed text-ink-faint">
-                    Source: {r.raw_clause}
-                  </p>
-                )}
-                <p className="mt-2 text-[12px] text-ink-faint">
-                  Accepts: {r.accepts_document_types.length ? r.accepts_document_types.join(", ") : "—"}
-                  {r.external_check ? ` · External check: ${r.external_check}` : ""}
-                </p>
-              </div>
-              <label className="flex items-center gap-2 text-[13px] text-ink-muted">
-                <input
-                  type="checkbox"
-                  defaultChecked={r.mandatory}
-                  disabled={savingId === r.id}
-                  onChange={async (e) => {
-                    setSavingId(r.id);
-                    try {
-                      await onPatch(r.id, { mandatory: e.target.checked });
-                    } finally {
-                      setSavingId(null);
-                    }
-                  }}
-                  className="h-4 w-4"
-                  style={{ accentColor: "var(--seal)" }}
-                />
-                Mandatory
-              </label>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
+      <td className="px-5 py-3 align-top">
+        <input
+          type="number"
+          step="0.1"
+          value={req.weight}
+          onChange={(e) => void handleFieldChange({ weight: parseFloat(e.target.value) || 0 })}
+          className="w-16 rounded-[2px] border border-rule bg-surface px-2 py-1 text-[12px] font-mono text-ink focus:border-seal outline-none"
+        />
+      </td>
 
-function ConfirmBar({ saving, onConfirm }: { saving: boolean; onConfirm: () => void }) {
-  return (
-    <div className="flex items-center justify-between rounded-[6px] border border-rule bg-surface px-7 py-5">
-      <p className="max-w-[54ch] text-[14px] leading-relaxed text-ink-muted">
-        Confirming locks this checklist. Re-extracting later would invalidate any
-        verdict already formed against it.
-      </p>
-      <button
-        onClick={onConfirm}
-        disabled={saving}
-        className="rounded-[4px] bg-seal px-6 py-2.5 text-[14px] font-medium text-white transition-opacity disabled:opacity-50"
-      >
-        {saving ? "Confirming…" : "Confirm checklist"}
-      </button>
-    </div>
-  );
-}
-
-function ConfirmedStage({ tenderId }: { tenderId: string }) {
-  return (
-    <section
-      className="rounded-[6px] border px-7 py-6"
-      style={{
-        borderColor: "color-mix(in srgb, var(--verified) 36%, transparent)",
-        background: "color-mix(in srgb, var(--verified) 12%, transparent)",
-      }}
-    >
-      <h2 className="text-[18px]" style={{ color: "var(--verified)" }}>
-        Checklist confirmed
-      </h2>
-      <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-        The eligibility conditions are locked. You can now add bidders and their
-        documents, then run verification against them.
-      </p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Link
-          href={`/tenders/${tenderId}/bidders/new`}
-          className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white"
+      <td className="px-5 py-3 align-top">
+        <select
+          value={req.applicability_scope}
+          onChange={(e) => void handleFieldChange({ applicability_scope: e.target.value })}
+          className="rounded-[2px] border border-rule bg-surface px-2 py-1 text-[12px] text-ink focus:border-seal outline-none"
         >
-          Add a bidder&rsquo;s documents
-        </Link>
-        <Link
-          href={`/tenders/${tenderId}`}
-          className="rounded-[4px] border border-rule bg-surface px-5 py-2.5 text-[14px] font-medium text-ink-muted hover:text-ink"
-        >
-          Compare bidders
-        </Link>
-      </div>
-    </section>
-  );
-}
+          <option value="all_members">All Members</option>
+          <option value="lead_only">Lead Only</option>
+          <option value="any_member">Any Member</option>
+          <option value="aggregate">Aggregate</option>
+        </select>
+      </td>
 
-function Skeleton() {
-  return (
-    <main className="mx-auto max-w-[900px] px-6 py-10">
-      <div className="skeleton h-6 w-40 rounded" />
-      <div className="skeleton mt-6 h-32 rounded-[6px]" />
-    </main>
+      <td className="px-5 py-3 align-top">
+        <select
+          value={req.external_check ?? ""}
+          onChange={(e) => void handleFieldChange({ external_check: e.target.value || undefined })}
+          className="rounded-[2px] border border-rule bg-surface px-2 py-1 text-[12px] font-mono text-ink focus:border-seal outline-none"
+        >
+          <option value="">None (Doc only)</option>
+          <option value="gstn">GSTN</option>
+          <option value="pan">PAN</option>
+          <option value="udyam">Udyam</option>
+          <option value="mca21">MCA21</option>
+          <option value="debarment">Debarment</option>
+        </select>
+      </td>
+    </tr>
   );
 }

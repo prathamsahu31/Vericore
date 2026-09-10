@@ -2,20 +2,16 @@ import { Masthead } from "@/components/layout/Masthead";
 import { Identifier, SeverityMark } from "@/components/ui/status";
 import { getCompliance, getDocumentFields, getDocuments } from "@/lib/api";
 import type { ExtractedField } from "@/types/api";
+import { AlertOctagon, ShieldAlert, FileText, CheckCircle2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 /**
- * CLAUDE.md §11 screen 4 — findings and the evidence behind them.
- *
- * Cross-document findings get their own list here, deliberately away from the
- * requirement matrix: a mismatch between a bidder's PAN card and their GST
- * certificate is a flag on the submission as a whole, not on one row of a
- * table (§13).
- *
- * Below them sits every value the system read, with the page it came from and
- * whether it could be pinpointed there — the raw material behind every verdict
- * on the compliance screen.
+ * Findings & Extracted Raw Evidence Inspection
+ * Displays:
+ * 1. Cross-document contradictions (PAN vs GSTIN vs Incorporation)
+ * 2. Deterministic counted risk signals
+ * 3. Every value read from documents with bounding box locator accuracy
  */
 export default async function FindingsPage({
   params,
@@ -45,7 +41,7 @@ export default async function FindingsPage({
   );
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-paper text-ink selection:bg-seal/15 selection:text-seal">
       <Masthead
         bidderName={summary.bidder_name}
         dueDate={summary.bid_due_date}
@@ -53,41 +49,60 @@ export default async function FindingsPage({
         bidId={bidId}
       />
 
-      <main className="mx-auto w-full max-w-[1080px] space-y-8 px-6 py-8">
-        {/* Contradictions between the bidder's own documents. */}
-        <section className="rounded-[6px] border border-rule bg-surface">
-          <div className="border-b border-rule px-7 py-4">
-            <h2 className="text-[20px]">Contradictions between documents</h2>
-            <p className="mt-1 max-w-[80ch] text-[13px] leading-relaxed text-ink-muted">
-              The bidder&rsquo;s documents compared against each other — names, tax
-              numbers, dates. These are concerns about the submission as a whole rather
-              than about any single condition, which is why they are listed here and not
-              buried in the checklist.
+      <main className="mx-auto w-full max-w-[1240px] space-y-8 px-6 py-8">
+        {/* Section 1: Contradictions Between Bidder's Own Documents */}
+        <section className="rounded-[4px] border border-rule bg-surface panel-shadow overflow-hidden">
+          <div className="border-b border-rule px-7 py-4.5 bg-surface-subtle">
+            <div className="flex items-center gap-2">
+              <AlertOctagon size={18} className={summary.cross_document_findings.length > 0 ? "text-failed" : "text-verified"} />
+              <h2 className="font-serif text-[18px] font-semibold text-ink">
+                Cross-Document Contradiction Analysis
+              </h2>
+            </div>
+            <p className="mt-1 max-w-[84ch] text-[13px] leading-relaxed text-ink-muted">
+              Identifies contradictions between documents submitted within the same bid bundle (e.g. entity name differences, differing PAN embedded inside GSTIN vs PAN card).
             </p>
           </div>
+
           {summary.cross_document_findings.length === 0 ? (
-            <p className="px-7 py-6 text-[14px] text-ink-muted">
-              <span style={{ color: "var(--verified)" }}>✓</span> No contradictions found.
-              Every identifier and name that appears in more than one document agrees.
-            </p>
+            <div className="px-7 py-6 text-[14px] text-ink flex items-center gap-2.5">
+              <CheckCircle2 size={18} className="text-verified" />
+              <span>
+                <strong>No cross-document contradictions detected.</strong> All names, tax identifiers, and registration dates agree across submitted files.
+              </span>
+            </div>
           ) : (
             <ul className="divide-y divide-rule">
               {summary.cross_document_findings.map((f) => (
                 <li key={f.id} className="px-7 py-5">
-                  <SeverityMark severity={f.severity} />
-                  <p className="mt-1.5 max-w-[86ch] text-[14px] leading-relaxed">
+                  <div className="flex items-center gap-2 mb-2">
+                    <SeverityMark severity={f.severity} />
+                    <span className="font-mono text-[11px] text-ink-faint">
+                      Contradiction #{f.id.slice(0, 8)}
+                    </span>
+                  </div>
+
+                  <p className="text-[14px] font-medium text-ink leading-relaxed">
                     {f.description}
                   </p>
+
                   {(f.value_a || f.value_b) && (
-                    <div className="mt-3 grid max-w-[70ch] grid-cols-[1fr_36px_1fr] items-center gap-y-1 rounded-[4px] border border-rule bg-paper px-4 py-3">
-                      <Identifier value={f.value_a} className="text-[13px]" />
-                      <span className="text-center text-ink-faint" aria-hidden>≠</span>
-                      <Identifier value={f.value_b} className="text-[13px]" />
+                    <div className="mt-3 grid max-w-[720px] grid-cols-[1fr_40px_1fr] items-center rounded-[3px] border border-rule bg-surface-muted p-3 font-mono text-[12px]">
+                      <div>
+                        <span className="text-[10px] uppercase text-ink-faint block">Document A Value</span>
+                        <Identifier value={f.value_a} className="font-semibold text-ink" />
+                      </div>
+                      <span className="text-center text-failed font-bold" aria-hidden="true">≠</span>
+                      <div>
+                        <span className="text-[10px] uppercase text-ink-faint block">Document B Value</span>
+                        <Identifier value={f.value_b} className="font-semibold text-ink" />
+                      </div>
                     </div>
                   )}
+
                   {f.similarity_score !== null && (
-                    <p className="mt-2 text-[12px] text-ink-faint">
-                      Similarity after normalisation: {Math.round(f.similarity_score * 100)}%
+                    <p className="mt-2 text-[11px] font-mono text-ink-faint">
+                      Levenshtein Similarity after normalization: {Math.round(f.similarity_score * 100)}%
                     </p>
                   )}
                 </li>
@@ -96,24 +111,31 @@ export default async function FindingsPage({
           )}
         </section>
 
-        {/* Risk signals — a different question from compliance (§10). */}
-        <section className="rounded-[6px] border border-rule bg-surface">
-          <div className="border-b border-rule px-7 py-4">
-            <h2 className="text-[20px]">Risk signals</h2>
-            <p className="mt-1 max-w-[80ch] text-[13px] leading-relaxed text-ink-muted">
-              A different question from whether the conditions are met: how likely is this
-              bidder to be misrepresenting itself? Counted separately, and never folded
-              into the score.
+        {/* Section 2: Counted Risk Signals */}
+        <section className="rounded-[4px] border border-rule bg-surface panel-shadow overflow-hidden">
+          <div className="border-b border-rule px-7 py-4.5 bg-surface-subtle">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={18} className="text-review" />
+              <h2 className="font-serif text-[18px] font-semibold text-ink">
+                Deterministic Risk Signals
+              </h2>
+            </div>
+            <p className="mt-1 max-w-[84ch] text-[13px] leading-relaxed text-ink-muted">
+              Signals that indicate misrepresentation risk. These are counted separately from the arithmetic compliance score and never blended.
             </p>
           </div>
+
           {summary.risk_flags.length === 0 ? (
-            <p className="px-7 py-6 text-[14px] text-ink-muted">No signals fired.</p>
+            <div className="px-7 py-6 text-[14px] text-ink-muted flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-verified" />
+              <span>No anomaly or risk signals triggered for this bidder.</span>
+            </div>
           ) : (
             <ul className="divide-y divide-rule">
               {summary.risk_flags.map((flag) => (
-                <li key={flag.id} className="px-7 py-5">
+                <li key={flag.id} className="px-7 py-4.5">
                   <SeverityMark severity={flag.severity} />
-                  <p className="mt-1.5 max-w-[86ch] text-[14px] leading-relaxed text-ink-muted">
+                  <p className="mt-1.5 text-[13px] text-ink-muted leading-relaxed">
                     {flag.description}
                   </p>
                 </li>
@@ -122,62 +144,92 @@ export default async function FindingsPage({
           )}
         </section>
 
-        {/* Everything the system read, and where from. */}
-        <section className="rounded-[6px] border border-rule bg-surface">
-          <div className="border-b border-rule px-7 py-4">
-            <h2 className="text-[20px]">Everything read from the documents</h2>
-            <p className="mt-1 max-w-[80ch] text-[13px] leading-relaxed text-ink-muted">
-              {totalFields} values across {documents.length} documents.{" "}
-              {unlocated === 0
-                ? "Every one was pinpointed on its page."
-                : `${unlocated} could not be pinpointed on the page and are marked below; none of those can produce an automatic pass.`}
-            </p>
+        {/* Section 3: Raw Fields Extracted with Bounding Boxes */}
+        <section className="rounded-[4px] border border-rule bg-surface panel-shadow overflow-hidden">
+          <div className="border-b border-rule px-7 py-4.5 bg-surface-subtle flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-seal" />
+                <h2 className="font-serif text-[18px] font-semibold text-ink">
+                  OCR Extracted Fields & Locator Ladder
+                </h2>
+              </div>
+              <p className="mt-1 text-[13px] text-ink-muted">
+                {totalFields} extracted values across {documents.length} submitted documents.{" "}
+                {unlocated === 0 ? (
+                  <span className="text-verified font-medium">All pinpointed with exact coordinates.</span>
+                ) : (
+                  <span className="text-review font-medium">{unlocated} resolved via fallback.</span>
+                )}
+              </p>
+            </div>
+
+            <span className="text-[11px] font-mono text-ink-faint rounded-[2px] bg-surface border border-rule px-2 py-1">
+              Locator Ladder: exact_quote → normalized → fuzzy → page_fallback
+            </span>
           </div>
 
           <div className="divide-y divide-rule">
             {fieldsByDocument.map(({ doc, fields }) => (
-              <div key={doc.id} className="px-7 py-5">
-                <div className="flex flex-wrap items-baseline justify-between gap-3">
-                  <h3 className="text-[15px] font-medium">{doc.original_filename}</h3>
-                  <p className="text-[12px] text-ink-faint">
-                    {doc.page_count} page{doc.page_count === 1 ? "" : "s"} · sha256{" "}
-                    <Identifier value={doc.sha256.slice(0, 16) + "…"} />
-                  </p>
+              <div key={doc.id} className="p-6">
+                <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-rule-subtle pb-3 mb-4">
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-ink">
+                      {doc.original_filename}
+                    </h3>
+                    <p className="text-[11px] font-mono text-ink-faint mt-0.5">
+                      {doc.page_count} page{doc.page_count === 1 ? "" : "s"} · {doc.ingestion_mode} · sha256:{" "}
+                      <Identifier value={doc.sha256} className="text-[11px]" />
+                    </p>
+                  </div>
+                  <span className="rounded-[2px] bg-surface-muted px-2 py-0.5 text-[11px] font-mono text-ink-muted border border-rule">
+                    {fields.length} isolated field{fields.length === 1 ? "" : "s"}
+                  </span>
                 </div>
 
                 {fields.length === 0 ? (
-                  <p className="mt-2 text-[13px] text-ink-faint">
-                    Nothing was read from this document.
+                  <p className="text-[12px] text-ink-faint italic">
+                    No structured fields isolated from this document.
                   </p>
                 ) : (
-                  <table className="mt-3 w-full border-collapse text-left">
-                    <thead>
-                      <tr className="border-b border-rule text-[11px] uppercase tracking-[0.1em] text-ink-faint">
-                        <th scope="col" className="w-[200px] py-2 font-medium">Field</th>
-                        <th scope="col" className="py-2 font-medium">Value read</th>
-                        <th scope="col" className="w-[64px] py-2 font-medium">Page</th>
-                        <th scope="col" className="w-[150px] py-2 font-medium">Located</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fields.map((f) => (
-                        <tr key={f.id} className="border-b border-rule last:border-0">
-                          <td className="py-2.5 pr-4 text-[13px] text-ink-muted">
-                            {f.field_name.replace(/_/g, " ")}
-                          </td>
-                          <td className="py-2.5 pr-4">
-                            <Identifier value={truncate(f.field_value)} className="text-[13px]" />
-                          </td>
-                          <td className="identifier py-2.5 text-[13px] text-ink-muted">
-                            {f.page}
-                          </td>
-                          <td className="py-2.5 text-[12px]">
-                            <LocatorMark status={f.locator_status} />
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[12px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-rule-subtle text-[10px] font-bold uppercase tracking-wider font-mono text-ink-faint">
+                          <th className="py-2 px-3">Field Key</th>
+                          <th className="py-2 px-3">Page</th>
+                          <th className="py-2 px-3">Extracted Value</th>
+                          <th className="py-2 px-3">Locator Status</th>
+                          <th className="py-2 px-3">Bounding Box (x0, y0, x1, y1)</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-rule-subtle font-mono">
+                        {fields.map((f) => (
+                          <tr key={f.id} className="hover:bg-surface-subtle">
+                            <td className="py-2 px-3 font-semibold text-ink">{f.field_name}</td>
+                            <td className="py-2 px-3 text-ink-muted">Page {f.page}</td>
+                            <td className="py-2 px-3 text-ink truncate max-w-[280px]" title={f.field_value ?? undefined}>
+                              {f.field_value ?? "—"}
+                            </td>
+                            <td className="py-2 px-3">
+                              <span
+                                className={`rounded-[2px] px-1.5 py-0.2 text-[10px] font-semibold uppercase ${
+                                  f.locator_status === "exact_quote"
+                                    ? "bg-verified-bg text-verified border border-verified-border"
+                                    : "bg-review-bg text-review border border-review-border"
+                                }`}
+                              >
+                                {f.locator_status}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-ink-faint text-[11px]">
+                              [{Math.round(f.x0)}, {Math.round(f.y0)}, {Math.round(f.x1)}, {Math.round(f.y1)}]
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             ))}
@@ -185,22 +237,5 @@ export default async function FindingsPage({
         </section>
       </main>
     </div>
-  );
-}
-
-function truncate(value: string | null): string | null {
-  if (!value) return null;
-  const flat = value.replace(/\s+/g, " ").trim();
-  return flat.length > 72 ? flat.slice(0, 72) + "…" : flat;
-}
-
-/** Says whether the stored box is a genuine highlight or merely a page (§24). */
-function LocatorMark({ status }: { status: string }) {
-  const located = status !== "page_fallback" && status !== "segment_fallback";
-  return (
-    <span style={{ color: located ? "var(--verified)" : "var(--review)" }}>
-      <span aria-hidden>{located ? "✓" : "○"}</span>{" "}
-      {located ? "on the page" : "page only"}
-    </span>
   );
 }

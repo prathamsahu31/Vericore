@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { SiteHeader } from "./SiteHeader";
-import { BackButton } from "../ui/BackButton";
+import { ArrowLeft } from "lucide-react";
 
 /**
- * Institutional rather than consumer: a ruled header, no logo lockup, the
- * tender's own particulars stated plainly.
+ * Masthead: Institutional context header for bid-level evaluation.
+ * Clean, authoritative layout presenting bidder metadata and sections.
  */
 export function Masthead({
   bidderName,
@@ -20,57 +20,84 @@ export function Masthead({
   bidId: string;
 }) {
   const tabs = [
-    { key: "compliance", label: "Compliance", href: `/bids/${bidId}` },
-    { key: "findings", label: "Findings & evidence", href: `/bids/${bidId}/findings` },
-    { key: "audit", label: "Audit trail", href: `/bids/${bidId}/audit` },
+    { key: "compliance", label: "Compliance Checklist", href: `/bids/${bidId}` },
+    { key: "findings", label: "Cross-Doc Findings & Evidence", href: `/bids/${bidId}/findings` },
+    { key: "audit", label: "Cryptographic Audit Trail", href: `/bids/${bidId}/audit` },
   ] as const;
 
   return (
-    <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
+    <div className="border-b border-rule bg-surface">
       <SiteHeader />
 
-      <div className="mx-auto max-w-[1240px] px-6 pt-6 pb-1">
-        <BackButton />
-        <div className="flex items-baseline justify-between gap-6">
+      <div className="mx-auto max-w-[1240px] px-6 pt-5 pb-0">
+        {/* Breadcrumb / Back */}
+        <div className="flex items-center gap-2 mb-3">
+          <Link
+            href="/tenders"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-muted hover:text-seal transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to tenders</span>
+          </Link>
+          <span className="text-rule text-[12px]">/</span>
+          <span className="text-[12px] text-ink-faint">Bid Evaluation</span>
+        </div>
+
+        {/* Header content */}
+        <div className="flex flex-wrap items-end justify-between gap-6 pb-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-              Bid evaluation
-            </p>
-            <h1 className="mt-1 font-serif text-[24px] leading-tight">{bidderName}</h1>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-seal" />
+              <p className="text-[11px] uppercase tracking-[0.14em] font-medium text-ink-faint">
+                Bidder Evaluation File
+              </p>
+            </div>
+            <h1 className="mt-1 font-serif text-[26px] font-semibold text-ink leading-tight">
+              {bidderName}
+            </h1>
           </div>
-          <dl className="flex shrink-0 gap-8 text-right">
+
+          <dl className="flex shrink-0 gap-6 text-right">
             {bidNumber && (
-              <div>
-                <dt className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">Bid number</dt>
-                <dd className="identifier mt-0.5 text-[13px] text-ink-muted">{bidNumber}</dd>
+              <div className="rounded-[3px] border border-rule bg-surface-muted px-3 py-1.5 text-left">
+                <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Bid Number</dt>
+                <dd className="identifier mt-0.5 text-[13px] font-medium text-ink">{bidNumber}</dd>
               </div>
             )}
             {dueDate && (
-              <div>
-                <dt className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">Bid due</dt>
-                <dd className="identifier mt-0.5 text-[13px] text-ink-muted">{dueDate}</dd>
+              <div className="rounded-[3px] border border-rule bg-surface-muted px-3 py-1.5 text-left">
+                <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Bid Due Date</dt>
+                <dd className="identifier mt-0.5 text-[13px] font-medium text-ink">{dueDate}</dd>
               </div>
             )}
+            <div className="hidden sm:block rounded-[3px] border border-seal/20 bg-seal-tint px-3 py-1.5 text-left">
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-seal">Authority Principle</dt>
+              <dd className="text-[12px] font-medium text-seal">Officer Decides</dd>
+            </div>
           </dl>
         </div>
 
-        <nav className="mt-4 flex gap-1 border-b border-rule" aria-label="Sections">
-          {tabs.map((tab) => (
-            <Link
-              key={tab.key}
-              href={tab.href}
-              aria-current={active === tab.key ? "page" : undefined}
-              className={`-mb-px border-b-2 px-3 py-2.5 text-[14px] transition-colors ${
-                active === tab.key
-                  ? "border-seal bg-seal-tint/60 font-medium text-seal"
-                  : "border-transparent text-ink-muted hover:bg-paper hover:text-ink"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
+        {/* Section Tabs */}
+        <nav className="flex gap-1 border-t border-rule" aria-label="Evaluation Sections">
+          {tabs.map((tab) => {
+            const isCurrent = active === tab.key;
+            return (
+              <Link
+                key={tab.key}
+                href={tab.href}
+                aria-current={isCurrent ? "page" : undefined}
+                className={`border-b-2 px-4 py-3 text-[13px] font-medium transition-colors ${
+                  isCurrent
+                    ? "border-seal text-seal font-semibold bg-surface-subtle"
+                    : "border-transparent text-ink-muted hover:text-ink hover:bg-surface-muted"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
-    </header>
+    </div>
   );
 }

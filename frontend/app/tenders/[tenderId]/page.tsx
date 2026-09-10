@@ -1,21 +1,16 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { BackButton } from "@/components/ui/BackButton";
 import { Identifier, RiskChip, StatusChip } from "@/components/ui/status";
 import { getComparison, tenderReportPageUrl } from "@/lib/api";
 import type { ComparisonBidder, ComparisonRow } from "@/types/api";
+import { ArrowLeft, FileDown, CheckCircle2, AlertCircle, Eye } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Bidders side by side, conditions as rows — the shortlisting view
- * (architecture.md §9.4).
- *
- * Deliberately not a ranking. The bidders appear in the order they bid, and
- * nothing here sorts by score: ordering them would be the system expressing a
- * preference between bidders, and it does not have one. What it does offer is
- * the ability to hide the conditions on which everyone lands in the same
- * place, because those are not what a shortlisting decision turns on.
+ * Shortlisting & Cross-Bidder Comparison Matrix
+ * Displays all bidders side-by-side across codified tender requirements.
+ * Design Principle: Ordering preserves submission order; system never ranks bidders.
  */
 export default async function ComparisonPage({
   params,
@@ -33,12 +28,27 @@ export default async function ComparisonPage({
     data = await getComparison(tenderId);
   } catch {
     return (
-      <main className="mx-auto max-w-[62ch] px-6 py-24">
-        <h1 className="text-[24px]">This tender could not be loaded</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-          The backend may not be running, or this tender may not exist.
-        </p>
-      </main>
+      <div className="min-h-screen bg-paper">
+        <SiteHeader />
+        <main className="mx-auto max-w-[640px] px-6 py-24">
+          <div className="rounded-[4px] border border-rule bg-surface p-6">
+            <h1 className="font-serif text-[20px] font-semibold text-ink">
+              Tender Comparison Unavailable
+            </h1>
+            <p className="mt-2 text-[14px] text-ink-muted leading-relaxed">
+              This tender could not be loaded. Ensure the backend API is active and this tender ID exists.
+            </p>
+            <div className="mt-4">
+              <Link
+                href="/tenders"
+                className="text-[13px] font-medium text-seal hover:underline"
+              >
+                ← Return to tender registry
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
     );
   }
 
@@ -48,219 +58,257 @@ export default async function ComparisonPage({
     : data.requirements;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
-        <SiteHeader />
-        <div className="mx-auto max-w-[1240px] px-6 py-8">
-          <BackButton />
-          <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-            Comparing bidders
-          </p>
-          <h1 className="mt-1 font-serif text-[26px] leading-tight">{data.tender_title}</h1>
-          <p className="mt-2 text-[13px] text-ink-muted">
-            {data.bidders.length} bidders · {data.requirements.length} conditions ·{" "}
-            <strong className="font-medium text-ink">{differing}</strong> where they
-            differ
-            {data.bid_due_date && (
-              <>
-                {" · bid due "}
-                <span className="identifier">{data.bid_due_date}</span>
-              </>
-            )}
-          </p>
-          <p className="mt-4">
-            <a
-              href={tenderReportPageUrl(tenderId)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-[4px] border border-rule bg-surface px-4 py-2 text-[13px] font-medium text-seal transition-colors hover:border-seal hover:bg-seal-tint"
-            >
-              Export report
-            </a>
-          </p>
-        </div>
-      </header>
+    <div className="flex min-h-screen flex-col bg-paper text-ink selection:bg-seal/15 selection:text-seal">
+      <SiteHeader />
 
-      <main className="mx-auto w-full max-w-[1240px] space-y-6 px-6 py-8">
-        <section className="overflow-hidden rounded-[6px] border border-rule bg-surface">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule px-7 py-4">
+      {/* Tender Header Banner */}
+      <div className="border-b border-rule bg-surface">
+        <div className="mx-auto max-w-[1280px] px-6 pt-5 pb-6">
+          <div className="mb-3">
+            <Link
+              href="/tenders"
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-muted hover:text-seal transition-colors"
+            >
+              <ArrowLeft size={14} />
+              <span>Back to tender registry</span>
+            </Link>
+          </div>
+
+          <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <h2 className="text-[20px]">Where the bidders stand</h2>
-              <p className="mt-1 max-w-[74ch] text-[13px] leading-relaxed text-ink-muted">
-                In the order they bid. Nothing here ranks them — the decision on any
-                one bidder is yours, and so is the comparison between them.
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-seal" />
+                <p className="text-[11px] font-mono uppercase font-bold tracking-[0.14em] text-ink-faint">
+                  Tender Evaluation Matrix
+                </p>
+              </div>
+              <h1 className="mt-1 font-serif text-[24px] sm:text-[28px] font-semibold text-ink leading-tight">
+                {data.tender_title}
+              </h1>
+              <p className="mt-1.5 text-[13px] text-ink-muted">
+                {data.bidders.length} bidder{data.bidders.length === 1 ? "" : "s"} evaluated ·{" "}
+                {data.requirements.length} conditions ·{" "}
+                <span className="font-semibold text-ink font-mono">{differing}</span> condition(s) differentiating
+                {data.bid_due_date && (
+                  <>
+                    {" · Bid Due Date: "}
+                    <span className="identifier text-ink font-medium">{data.bid_due_date}</span>
+                  </>
+                )}
               </p>
             </div>
-            <div className="flex gap-1">
-              <Tab href={`/tenders/${tenderId}`} active={!differencesOnly}>
-                All conditions
-              </Tab>
-              <Tab
-                href={`/tenders/${tenderId}?only=differences`}
-                active={differencesOnly}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={tenderReportPageUrl(tenderId)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-[3px] border border-seal bg-seal-tint px-3.5 py-2 text-[13px] font-medium text-seal hover:bg-seal hover:text-white transition-colors"
               >
-                Only where they differ
-              </Tab>
+                <FileDown size={14} />
+                <span>Export Official Audit Report</span>
+              </a>
+
+              <Link
+                href={`/tenders/${tenderId}/bidders/new`}
+                className="inline-flex items-center gap-1 rounded-[3px] bg-seal px-3.5 py-2 text-[13px] font-medium text-white hover:bg-seal-strong transition-colors"
+              >
+                <span>+ Add Another Bidder</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Matrix Container */}
+      <main className="mx-auto w-full max-w-[1280px] space-y-6 px-6 py-8">
+        <section className="rounded-[4px] border border-rule bg-surface panel-shadow overflow-hidden">
+          {/* View Filter Switcher */}
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule bg-surface-subtle px-6 py-3.5">
+            <div>
+              <p className="text-[14px] font-semibold text-ink">
+                Bidder Compliance Comparison
+              </p>
+              <p className="text-[12px] text-ink-muted">
+                Bidders appear in chronological submission order. The system never ranks or scores preference.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5" role="group" aria-label="Matrix Filter">
+              <Link
+                href={`/tenders/${tenderId}`}
+                className={`rounded-[3px] border px-3 py-1 text-[12px] font-medium transition-colors ${
+                  !differencesOnly
+                    ? "border-seal bg-seal text-white font-semibold"
+                    : "border-rule bg-surface text-ink-muted hover:text-ink hover:border-ink-faint"
+                }`}
+              >
+                All Conditions ({data.requirements.length})
+              </Link>
+              <Link
+                href={`/tenders/${tenderId}?only=differences`}
+                className={`rounded-[3px] border px-3 py-1 text-[12px] font-medium transition-colors ${
+                  differencesOnly
+                    ? "border-seal bg-seal text-white font-semibold"
+                    : "border-rule bg-surface text-ink-muted hover:text-ink hover:border-ink-faint"
+                }`}
+              >
+                Differentiating Only ({differing})
+              </Link>
             </div>
           </div>
 
+          {/* Table Container */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
-              <caption className="sr-only">
-                Each condition in the tender and how every bidder stands on it.
-              </caption>
               <thead>
-                <tr className="border-b border-rule">
+                <tr className="border-b border-rule bg-surface-muted">
                   <th
                     scope="col"
-                    className="w-[300px] px-7 py-3 text-[11px] font-medium uppercase tracking-[0.1em] text-ink-faint"
+                    className="w-[320px] min-w-[280px] px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-faint"
                   >
-                    Condition
+                    Codified Requirement
                   </th>
                   {data.bidders.map((b) => (
                     <th
                       key={b.bid_id}
                       scope="col"
-                      className="min-w-[200px] border-l border-rule px-5 py-3 align-bottom"
+                      className="min-w-[220px] border-l border-rule px-5 py-3.5 align-top"
                     >
                       <Link
                         href={`/bids/${b.bid_id}`}
-                        className="text-[14px] font-medium text-seal hover:underline"
+                        className="text-[14px] font-serif font-semibold text-seal hover:underline block leading-tight"
                       >
                         {b.bidder_name}
                       </Link>
-                      <p className="mt-1 text-[12px] font-normal text-ink-faint">
-                        {b.verified ? "verified" : "not verified yet"}
-                      </p>
+                      <div className="mt-1 flex items-center justify-between text-[11px]">
+                        <span className="font-mono text-ink-faint">
+                          {b.verified ? "Pipeline Run Complete" : "Pending Verification"}
+                        </span>
+                        <span className="text-seal hover:underline">Inspect →</span>
+                      </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+
+              <tbody className="divide-y divide-rule">
                 {rows.map((row) => (
-                  <Row key={row.requirement_code} row={row} />
+                  <tr
+                    key={row.requirement_code}
+                    className={`align-top hover:bg-surface-subtle transition-colors ${
+                      row.differentiating ? "bg-review-bg/30" : ""
+                    }`}
+                  >
+                    <th scope="row" className="px-6 py-3.5 font-normal text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Identifier
+                          value={row.requirement_code}
+                          className="rounded-[2px] bg-surface-muted px-1.5 py-0.5 text-[11px] font-bold text-ink-muted border border-rule"
+                        />
+                        {row.mandatory && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-failed">
+                            Mandatory
+                          </span>
+                        )}
+                        {row.differentiating && (
+                          <span className="text-[10px] font-semibold text-review bg-review-bg border border-review-border px-1.5 py-0.2 rounded-[2px]">
+                            Differs
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[13px] font-medium text-ink leading-snug">
+                        {row.requirement_name}
+                      </p>
+                    </th>
+
+                    {row.cells.map((cell) => (
+                      <td key={cell.bid_id} className="border-l border-rule px-5 py-3.5">
+                        {cell.effective_status ? (
+                          <Link
+                            href={`/bids/${cell.bid_id}`}
+                            className="group inline-flex flex-col items-start gap-1"
+                          >
+                            <StatusChip
+                              status={cell.effective_status}
+                              overridden={cell.overridden}
+                              size="compact"
+                            />
+                            <span className="text-[10px] text-seal opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 mt-0.5">
+                              <span>View evidence</span>
+                              <Eye size={10} />
+                            </span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/bids/${cell.bid_id}`}
+                            className="text-[12px] text-ink-faint hover:text-seal font-mono"
+                          >
+                            Unverified · Click to run
+                          </Link>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
               </tbody>
+
+              {/* Bottom Summary Row */}
               <tfoot>
-                <Summary bidders={data.bidders} />
+                <tr className="border-t-2 border-rule bg-surface-muted">
+                  <th scope="row" className="px-6 py-5 text-left align-top font-normal">
+                    <p className="text-[13px] font-semibold text-ink">Summary Evaluation</p>
+                    <p className="mt-1 text-[11px] text-ink-faint leading-relaxed">
+                      Score and risk measure separate vectors and are never conflated.
+                    </p>
+                  </th>
+                  {data.bidders.map((b) => (
+                    <td key={b.bid_id} className="border-l border-rule px-5 py-5 align-top">
+                      <div>
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-ink-faint">
+                          Compliance Score
+                        </span>
+                        <div className="font-serif text-[24px] font-semibold text-ink leading-none mt-0.5">
+                          {b.compliance_score ?? "—"} <span className="text-[12px] font-mono text-ink-faint">/ 100</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5">
+                        <RiskChip level={b.risk_level} />
+                      </div>
+
+                      <div className="mt-3 text-[12px] font-medium">
+                        {b.qualifiable ? (
+                          <span className="text-verified flex items-center gap-1">
+                            <CheckCircle2 size={13} />
+                            <span>Qualifiable</span>
+                          </span>
+                        ) : (
+                          <span className="text-review flex items-center gap-1">
+                            <AlertCircle size={13} />
+                            <span>Pending Determination</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {b.mandatory_failed.length > 0 && (
+                        <p className="mt-1 text-[11px] text-failed font-mono">
+                          {b.mandatory_failed.length} mandatory unmet
+                        </p>
+                      )}
+                      {b.pending_review.length > 0 && (
+                        <p className="mt-0.5 text-[11px] text-review font-mono">
+                          {b.pending_review.length} awaiting officer review
+                        </p>
+                      )}
+                    </td>
+                  ))}
+                </tr>
               </tfoot>
             </table>
           </div>
         </section>
       </main>
     </div>
-  );
-}
-
-function Tab({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "true" : undefined}
-      className={`rounded-[4px] border px-3 py-1.5 text-[13px] transition-colors ${active
-        ? "border-seal bg-seal-tint font-medium text-seal"
-        : "border-rule text-ink-muted hover:text-ink"
-        }`}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function Row({ row }: { row: ComparisonRow }) {
-  return (
-    <tr
-      className={`border-b border-rule align-top last:border-0 ${row.differentiating ? "bg-paper" : ""
-        }`}
-    >
-      <th scope="row" className="px-7 py-4 text-left font-normal">
-        <Identifier value={row.requirement_code} className="text-[12px] text-ink-faint" />
-        <p className="mt-0.5 text-[14px] leading-snug">{row.requirement_name}</p>
-        <p className="mt-1 text-[11px] text-ink-faint">
-          {row.mandatory ? "Mandatory" : "Not mandatory"}
-          {row.differentiating && (
-            <span className="ml-2 text-ink-muted">· bidders differ here</span>
-          )}
-        </p>
-      </th>
-      {row.cells.map((cell) => (
-        <td key={cell.bid_id} className="border-l border-rule px-5 py-4">
-          {cell.effective_status ? (
-            <Link
-              href={`/bids/${cell.bid_id}`}
-              title={`Open ${cell.effective_status.replace(/_/g, " ").toLowerCase()} — ${row.requirement_name} — see evidence and review`}
-              className="group relative inline-flex rounded-[4px] focus:outline-none focus-visible:ring-2 focus-visible:ring-seal focus-visible:ring-offset-2"
-            >
-              <span className="transition-transform group-hover:scale-[1.02] group-hover:brightness-[0.98] cursor-pointer">
-                <StatusChip status={cell.effective_status} overridden={cell.overridden} />
-              </span>
-              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block group-focus-visible:block">
-                View evidence →
-              </span>
-            </Link>
-          ) : (
-            <Link
-              href={`/bids/${cell.bid_id}`}
-              className="group relative text-[13px] text-ink-faint hover:text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-seal"
-              title="Open bidder — see evidence"
-            >
-              not verified
-              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block">
-                View evidence →
-              </span>
-            </Link>
-          )}
-        </td>
-      ))}
-    </tr>
-  );
-}
-
-function Summary({ bidders }: { bidders: ComparisonBidder[] }) {
-  return (
-    <tr className="border-t-2 border-rule bg-surface">
-      <th scope="row" className="px-7 py-5 text-left align-top font-normal">
-        <p className="text-[13px] font-medium">Where each bid stands</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-ink-faint">
-          Score and risk answer different questions and are not combined.
-        </p>
-      </th>
-      {bidders.map((b) => (
-        <td key={b.bid_id} className="border-l border-rule px-5 py-5 align-top">
-          <p className="font-serif text-[24px] leading-none">
-            {b.compliance_score ?? "—"}
-          </p>
-          <p className="mt-2">
-            <RiskChip level={b.risk_level} />
-          </p>
-          <p
-            className="mt-3 text-[13px]"
-            style={{
-              color: b.qualifiable ? "var(--verified)" : "var(--ink-muted)",
-            }}
-          >
-            {b.qualifiable ? "✓ Can be qualified" : "Not yet qualifiable"}
-          </p>
-          {b.mandatory_failed.length > 0 && (
-            <p className="mt-1.5 text-[12px]" style={{ color: "var(--failed)" }}>
-              {b.mandatory_failed.length} mandatory not met
-            </p>
-          )}
-          {b.pending_review.length > 0 && (
-            <p className="mt-1 text-[12px]" style={{ color: "var(--review)" }}>
-              {b.pending_review.length} awaiting you
-            </p>
-          )}
-        </td>
-      ))}
-    </tr>
   );
 }

@@ -1,8 +1,8 @@
 import { Masthead } from "@/components/layout/Masthead";
-import { BackButton } from "@/components/ui/BackButton";
 import { Identifier } from "@/components/ui/status";
 import { getAudit, getCompliance } from "@/lib/api";
 import AuditTimelineClient from "./AuditTimelineClient";
+import { ShieldCheck, ShieldAlert, Lock, CheckCircle2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function AuditPage({
   const ok = trail.integrity.intact;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-paper text-ink selection:bg-seal/15 selection:text-seal">
       <Masthead
         bidderName={summary.bidder_name}
         dueDate={summary.bid_due_date}
@@ -25,157 +25,76 @@ export default async function AuditPage({
       />
 
       <main className="mx-auto w-full max-w-[1240px] space-y-6 px-6 py-8">
-        <BackButton />
-
-        {/* Integrity banner — plain language first, technical second */}
+        {/* Cryptographic Integrity Certificate */}
         <section
-          className="overflow-hidden rounded-[6px] border"
-          style={{
-            borderColor: ok
-              ? "color-mix(in srgb, var(--verified) 26%, transparent)"
-              : "color-mix(in srgb, var(--failed) 26%, transparent)",
-            background: ok
-              ? "color-mix(in srgb, var(--verified) 8%, transparent)"
-              : "color-mix(in srgb, var(--failed) 8%, transparent)",
-          }}
+          className={`rounded-[4px] border p-6 panel-shadow ${
+            ok
+              ? "border-verified-border bg-verified-bg/50"
+              : "border-failed-border bg-failed-bg/50"
+          }`}
         >
-          <div className="px-7 py-5">
-            <div className="flex items-start gap-3">
-              <span
-                aria-hidden
-                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[14px] font-medium"
-                style={{
-                  color: ok ? "var(--verified)" : "var(--failed)",
-                  borderColor: ok ? "var(--verified)" : "var(--failed)",
-                  background: "white",
-                }}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[3px] border ${
+                  ok
+                    ? "border-verified-border bg-verified text-white"
+                    : "border-failed-border bg-failed text-white"
+                }`}
               >
-                {ok ? "✓" : "✕"}
-              </span>
+                {ok ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
+              </div>
+
               <div>
-                <h1
-                  className="font-serif text-[18px] leading-tight"
-                  style={{ color: ok ? "var(--verified)" : "var(--failed)" }}
-                >
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-[0.14em] text-ink-faint">
+                    PostgreSQL Append-Only Audit Ledger
+                  </span>
+                  <span
+                    className={`rounded-[2px] px-1.5 py-0.2 text-[10px] font-mono font-bold uppercase ${
+                      ok ? "bg-verified text-white" : "bg-failed text-white"
+                    }`}
+                  >
+                    {ok ? "Chain Intact" : "Integrity Failure"}
+                  </span>
+                </div>
+
+                <h1 className="mt-1 font-serif text-[20px] font-semibold text-ink">
                   {ok
-                    ? "This record is intact"
-                    : `This record is broken from entry #${trail.integrity.first_broken_seq} onward`}
+                    ? "Cryptographic Audit Continuity Verified"
+                    : `Hash Chain Compromised at Seq #${trail.integrity.first_broken_seq}`}
                 </h1>
-                <p className="mt-1 max-w-[78ch] text-[13px] leading-relaxed text-ink-muted">
+
+                <p className="mt-1.5 max-w-[78ch] text-[13px] leading-relaxed text-ink-muted">
                   {ok ? (
                     <>
-                      <span className="font-medium text-ink">No one has altered this bid&apos;s history.</span>{" "}
-                      Every action — from the first document upload to the last officer decision — is sealed to the
-                      one before it. If anyone changed or deleted a past entry, the seal on every later entry would
-                      break and this banner would turn red. The database itself refuses <span className="identifier">UPDATE</span>{" "}
-                      and <span className="identifier">DELETE</span> on this log, so even an admin cannot edit it.
+                      Every operational event — document ingestion, OCR extraction, deterministic evaluation, and officer adjudication —
+                      is linked via SHA-256 hash chains. The underlying database enforces an append-only trigger that rejects all
+                      <span className="identifier font-semibold"> UPDATE</span> and <span className="identifier font-semibold">DELETE</span> statements.
                     </>
                   ) : (
                     <>
-                      Someone (or a database error) altered an early entry. Because each entry&apos;s seal includes
-                      the seal before it, every later entry now fails its check. Treat this trail as
-                      <span className="font-medium text-ink"> compromised from #{trail.integrity.first_broken_seq} onward</span> and
-                      verify the bid&apos;s documents again.
+                      A prior log record failed cryptographic hash validation. The audit trail cannot be certified from entry
+                      #{trail.integrity.first_broken_seq} onward. Independent re-verification of source documents required.
                     </>
                   )}
                 </p>
-                <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
-                  {trail.integrity.total_events} entries · sealed chain ·{" "}
-                  {trail.events.length > 0 && (
-                    <>
-                      first {formatDate(trail.events[0].created_at)} · last{" "}
-                      {formatDate(trail.events[trail.events.length - 1].created_at)}
-                    </>
-                  )}
-                </p>
-                {trail.integrity.head_hash && (
-                  <details className="mt-3">
-                    <summary className="cursor-pointer text-[12px] text-ink-faint hover:text-ink">
-                      Show technical seal (for auditors)
-                    </summary>
-                    <p className="mt-2 rounded-[4px] border border-rule bg-white px-3 py-2 text-[11px] leading-relaxed text-ink-faint">
-                      Head <Identifier value={trail.integrity.head_hash} className="text-ink-muted" /> · every row stores
-                      its own <span className="identifier">row_hash</span> and the previous row&apos;s{" "}
-                      <span className="identifier">prev_hash</span>. Verified by{" "}
-                      <span className="identifier">vericore_audit_chain_verify()</span> on read.
-                    </p>
-                  </details>
-                )}
+
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-[12px] font-mono text-ink-faint">
+                  <span>Entries: <strong className="text-ink">{trail.integrity.total_events}</strong></span>
+                  <span>·</span>
+                  <span>Head Hash: <Identifier value={trail.integrity.head_hash?.slice(0, 16) + "…"} className="text-ink font-semibold" /></span>
+                  <span>·</span>
+                  <span>Verified via: <span className="text-ink">vericore_audit_chain_verify()</span></span>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Quick stats — now with clearer labels */}
-          {trail.events.length > 0 && (
-            <div className="grid grid-cols-3 divide-x divide-rule border-t border-rule bg-white/70">
-              <div className="px-7 py-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">System checks</p>
-                <p className="mt-0.5 font-serif text-[20px] leading-none">
-                  {trail.events.filter((e) => e.actor_type === "system").length}
-                </p>
-                <p className="mt-1 text-[11px] text-ink-faint">automatic verification runs</p>
-              </div>
-              <div className="px-7 py-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">Officer actions</p>
-                <p className="mt-0.5 font-serif text-[20px] leading-none">
-                  {trail.events.filter((e) => e.actor_type === "officer").length}
-                </p>
-                <p className="mt-1 text-[11px] text-ink-faint">accepts & overrides (with reason)</p>
-              </div>
-              <div className="px-7 py-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">For this bidder</p>
-                <p className="mt-0.5 text-[14px] font-medium leading-none">{summary.bidder_name}</p>
-                <p className="mt-1 text-[11px] text-ink-faint">
-                  {summary.compliance_score ?? "—"} score · {summary.risk_level ?? "—"} risk · bid due{" "}
-                  {summary.bid_due_date ?? "—"}
-                </p>
-              </div>
-            </div>
-          )}
         </section>
 
-        {/* Improved timeline — interactive filters, search, export */}
+        {/* Interactive Timeline & Filters */}
         <AuditTimelineClient trail={trail} summary={summary} />
-
-        <section className="rounded-[6px] border border-rule bg-paper px-7 py-4">
-          <h3 className="text-[13px] font-medium">How to read this trail</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-[12px] leading-relaxed text-ink-muted">
-            <li>
-              <span className="font-medium text-ink">System checks</span> are automatic and never decide — they
-              only read your documents, run arithmetic (turnover averaging, date comparison, ID matching), and leave
-              prose judgements as <span className="identifier">NEEDS_HUMAN_REVIEW</span>.
-            </li>
-            <li>
-              <span className="font-medium text-ink">Officer actions</span> are the only decisions:{" "}
-              <span className="identifier">Accept</span> (“I read this and it satisfies me”) and{" "}
-              <span className="identifier">Override</span> (“I substitute a different verdict”). Both keep the
-              machine&apos;s verdict alongside yours — nothing is erased.
-            </li>
-            <li>
-              <span className="font-medium text-ink">Every entry is permanent.</span> The database refuses{" "}
-              <span className="identifier">UPDATE</span> and <span className="identifier">DELETE</span> on this
-              table. A payload hash chains each row to the previous, verified on every read.
-            </li>
-            <li className="text-ink-faint">
-              Tip: use the search and filters above to isolate officer overrides, or export the filtered trail as JSON
-              for your file. The Compliance tab is where you act; this trail is where every act is sealed.
-            </li>
-          </ul>
-        </section>
       </main>
     </div>
   );
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
 }

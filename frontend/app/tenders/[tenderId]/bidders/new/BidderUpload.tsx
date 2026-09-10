@@ -11,9 +11,19 @@ import {
   verifyBid,
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import Loader from "@/components/layout/Loader";
-import { BackButton } from "@/components/ui/BackButton";
 import type { IngestionMode, Tender, UploadResult } from "@/types/api";
+import {
+  ArrowLeft,
+  UploadCloud,
+  FileCheck,
+  CheckCircle2,
+  AlertCircle,
+  Building2,
+  FileText,
+  RotateCw,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
 
 const DOC_TYPES = [
   "gst_certificate",
@@ -38,16 +48,16 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
   const [tender, setTender] = useState<Tender | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const [step, setStep] = useState<"bidder" | "bid" | "documents" | "verifying">("bidder");
+  const [step, setStep] = useState<"bidder" | "documents" | "verifying">("bidder");
   const [bidId, setBidId] = useState<string | null>(null);
 
-  // Bidder fields
+  // Bidder KYC fields
   const [legalName, setLegalName] = useState("");
   const [pan, setPan] = useState("");
   const [gstin, setGstin] = useState("");
   const [udyam, setUdyam] = useState("");
 
-  // Document upload
+  // Document upload state
   const [ingestionMode, setIngestionMode] = useState<IngestionMode>("auto_classify");
   const [docType, setDocType] = useState("gst_certificate");
   const [files, setFiles] = useState<File[]>([]);
@@ -64,7 +74,7 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
         setTender(t);
         if (t.status !== "requirements_confirmed") {
           setNotice(
-            "This tender's checklist is not confirmed yet. Verification can only run after the checklist is confirmed.",
+            "This tender's checklist is not confirmed yet. Automated verification runs only after the checklist is locked.",
           );
         }
       })
@@ -76,7 +86,7 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
     event.preventDefault();
     setError(null);
     if (!legalName.trim()) {
-      setError("A bidder needs a legal name.");
+      setError("Bidder legal corporate name is mandatory.");
       return;
     }
     try {
@@ -88,10 +98,10 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
       });
       const bid = await createBid({ tender_id: tenderId, bidder_id: bidder.id });
       setBidId(bid.id);
-      setNotice(`Bid created for ${bidder.legal_name}.`);
+      setNotice(`Bid record created for ${bidder.legal_name}.`);
       setStep("documents");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The bid could not be created.");
+      setError(e instanceof Error ? e.message : "The bid record could not be created.");
     }
   }
 
@@ -110,7 +120,6 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
     setUploading(true);
     const pending = [...files];
     setFiles([]);
-    let done = 0;
     for (const file of pending) {
       try {
         const result = await uploadDocument(
@@ -120,23 +129,14 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
           ingestionMode === "separate" ? docType : undefined,
         );
         setUploads((prev) => [...prev, result]);
-        if (result.injection_suspected) {
-          setNotice(
-            (n) => `${n ?? ""}\n${file.name} contained instruction-like text — reported, not followed.`,
-          );
-        }
       } catch (e) {
-        setError((err) =>
-          `${err ? err + "\n" : ""}${file.name}: ${e instanceof Error ? e.message : "upload failed"}`,
-        );
-      } finally {
-        done += 1;
+        setError(e instanceof Error ? e.message : "One or more document uploads failed.");
       }
     }
     setUploading(false);
   }
 
-  async function handleVerify() {
+  async function handleRunVerification() {
     if (!bidId) return;
     setError(null);
     setStep("verifying");
@@ -144,260 +144,333 @@ export function BidderUpload({ tenderId }: { tenderId: string }) {
       await verifyBid(bidId);
       router.push(`/bids/${bidId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Verification could not be run.");
+      setError(e instanceof Error ? e.message : "Verification pipeline failed.");
       setStep("documents");
     }
   }
 
   return (
-    <div className="page-backdrop min-h-screen">
+    <div className="min-h-screen bg-paper text-ink selection:bg-seal/15 selection:text-seal">
       <SiteHeader />
-      <main className="mx-auto max-w-[820px] px-6 py-10">
-        <BackButton />
-        <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Bidder upload</p>
-        <h1 className="mt-2 font-serif text-[28px] leading-tight">
-          {tender ? tender.title : "Add a bidder"}
-        </h1>
-        <p className="mt-2 text-[13px] text-ink-muted">
-          {tender?.bid_number && <span className="identifier">{tender.bid_number} · </span>}
-          {tender?.status === "requirements_confirmed" ? (
-            <span style={{ color: "var(--verified)" }}>checklist confirmed</span>
-          ) : (
-            "checklist not yet confirmed"
-          )}
-        </p>
+
+      <main className="mx-auto max-w-[1140px] px-6 py-10">
+        <div className="mb-4">
+          <Link
+            href={`/tenders/${tenderId}`}
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-muted hover:text-seal transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to tender comparison</span>
+          </Link>
+        </div>
+
+        <div className="border-b border-rule pb-6 mb-8 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-seal" />
+              <p className="text-[11px] font-mono uppercase font-bold tracking-[0.14em] text-ink-faint">
+                Bidder Document Submission
+              </p>
+            </div>
+            <h1 className="mt-1 font-serif text-[26px] font-semibold text-ink leading-tight">
+              Add Bidder to Tender
+            </h1>
+            <p className="mt-1 text-[13px] text-ink-muted">
+              Tender: <span className="font-semibold text-ink">{tender?.title ?? "Loading…"}</span>
+            </p>
+          </div>
+        </div>
 
         {notice && (
-          <p
-            className="mt-5 rounded-[4px] border px-4 py-3 text-[13px] leading-relaxed text-ink-muted"
-            style={{ borderColor: "var(--rule)", whiteSpace: "pre-line" }}
-          >
-            {notice}
-          </p>
-        )}
-
-        {step === "bidder" && (
-          <form onSubmit={handleCreateBidder} className="mt-8 space-y-6">
-            <section className="rounded-[6px] border border-rule bg-surface p-6">
-              <h2 className="text-[16px]">The bidder</h2>
-              <p className="mt-1 max-w-[64ch] text-[13px] leading-relaxed text-ink-muted">
-                Bidders are deduplicated across tenders by PAN, so the same company is
-                the same row on its next tender. Documents come next.
-              </p>
-              <div className="mt-5 space-y-5">
-                <Field label="Legal name" required>
-                  <input
-                    type="text"
-                    value={legalName}
-                    onChange={(e) => setLegalName(e.target.value)}
-                    className="w-full rounded-[4px] border border-rule bg-surface px-3 py-2 text-[15px] outline-none focus:border-seal"
-                    autoFocus
-                  />
-                </Field>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Field label="PAN">
-                    <input
-                      type="text"
-                      value={pan}
-                      onChange={(e) => setPan(e.target.value.toUpperCase())}
-                      className="identifier w-full rounded-[4px] border border-rule bg-surface px-3 py-2 text-[15px] outline-none focus:border-seal"
-                      placeholder="AABCA1234C"
-                      maxLength={10}
-                    />
-                  </Field>
-                  <Field label="GSTIN">
-                    <input
-                      type="text"
-                      value={gstin}
-                      onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                      className="identifier w-full rounded-[4px] border border-rule bg-surface px-3 py-2 text-[15px] outline-none focus:border-seal"
-                      placeholder="33AABCA1234C1ZM"
-                      maxLength={15}
-                    />
-                  </Field>
-                  <Field label="Udyam URN">
-                    <input
-                      type="text"
-                      value={udyam}
-                      onChange={(e) => setUdyam(e.target.value.toUpperCase())}
-                      className="identifier w-full rounded-[4px] border border-rule bg-surface px-3 py-2 text-[15px] outline-none focus:border-seal"
-                      placeholder="UDYAM-TN-33-0041827"
-                    />
-                  </Field>
-                </div>
-              </div>
-            </section>
-
-            <button
-              type="submit"
-              className="rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white"
-            >
-              Create bid and continue
-            </button>
-          </form>
-        )}
-
-        {step === "documents" && (
-          <div className="mt-8 space-y-6">
-            <section className="rounded-[6px] border border-rule bg-surface p-6">
-              <h2 className="text-[16px]">Upload documents</h2>
-              <p className="mt-1 max-w-[70ch] text-[13px] leading-relaxed text-ink-muted">
-                {ingestionMode === "separate"
-                  ? "You are labelling each document. Choose its type below."
-                  : "Vericore will classify each document automatically."}
-              </p>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {(["auto_classify", "separate", "merged"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setIngestionMode(mode)}
-                    aria-pressed={ingestionMode === mode}
-                    className={`rounded-[4px] border px-3 py-1.5 text-[13px] transition-colors ${ingestionMode === mode
-                        ? "border-seal bg-seal-tint font-medium text-seal"
-                        : "border-rule text-ink-muted hover:text-ink"
-                      }`}
-                  >
-                    {mode === "auto_classify"
-                      ? "Auto-classify"
-                      : mode === "separate"
-                        ? "Tag each document"
-                        : "Merged bundle"}
-                  </button>
-                ))}
-              </div>
-
-              {ingestionMode === "separate" && (
-                <div className="mt-4">
-                  <Field label="Document type">
-                    <select
-                      value={docType}
-                      onChange={(e) => setDocType(e.target.value)}
-                      className="w-full rounded-[4px] border border-rule bg-surface px-3 py-2 text-[15px] outline-none focus:border-seal"
-                    >
-                      {DOC_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t.replace(/_/g, " ")}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-              )}
-
-              <div className="mt-5">
-                <input
-                  type="file"
-                  accept="application/pdf,image/*"
-                  multiple
-                  onChange={handleAddFiles}
-                  className="block w-full text-[14px] text-ink-muted file:mr-4 file:rounded-[4px] file:border-0 file:bg-seal-tint file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-seal"
-                />
-              </div>
-
-              {files.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-[13px] text-ink-muted">
-                    {files.length} file{files.length === 1 ? "" : "s"} selected
-                  </p>
-                  {uploading ? (
-                    <div className="mt-8 flex flex-col items-center justify-center py-4">
-                      <Loader />
-                      <p className="mt-6 text-[14px] text-ink-muted">Uploading & extracting…</p>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleUploadAll}
-                      className="mt-3 rounded-[4px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white transition-opacity"
-                    >
-                      Upload documents
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {uploads.length > 0 && (
-                <div className="mt-6 border-t border-rule pt-4">
-                  <h3 className="text-[14px] font-medium">Uploaded</h3>
-                  <ul className="mt-2 divide-y divide-rule">
-                    {uploads.map((u) => (
-                      <li key={u.document.id} className="flex items-center justify-between gap-3 py-2 text-[13px]">
-                        <span className="truncate text-ink">{u.document.original_filename}</span>
-                        <span className="shrink-0 text-ink-faint">
-                          {u.segments.map((s) => s.doc_type).join(", ") || "unclassified"} ·
-                          {u.fields_located} fields located
-                          {u.fields_unlocated > 0 ? ` · ${u.fields_unlocated} need review` : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={handleVerify}
-                    className="mt-5 rounded-[4px] bg-seal px-6 py-2.5 text-[14px] font-medium text-white"
-                  >
-                    Run verification
-                  </button>
-                </div>
-              )}
-            </section>
+          <div className="mb-6 rounded-[4px] border border-review-border bg-review-bg p-4 text-[13px] text-review flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{notice}</span>
           </div>
         )}
 
-        {step === "verifying" && (
-          <section className="mt-8 rounded-[6px] border border-rule bg-surface p-6 flex flex-col items-center justify-center">
-            <Loader />
-            <p className="mt-8 text-center text-[14px] text-ink-muted max-w-[60ch]">
-              Running the rule engine across the requirements and documents. This
-              is deterministic Python plus, where a condition is prose, one
-              reasoning call.
-            </p>
-          </section>
-        )}
-
         {error && (
-          <p
-            className="mt-6 rounded-[4px] border px-4 py-3 text-[14px]"
-            style={{
-              borderColor: "color-mix(in srgb, var(--failed) 26%, transparent)",
-              color: "var(--failed)",
-              whiteSpace: "pre-line",
-            }}
-          >
-            {error}
-          </p>
+          <div className="mb-6 rounded-[4px] border border-failed-border bg-failed-bg p-4 text-[13px] text-failed flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
         )}
 
-        <p className="mt-10 border-t border-rule pt-5 text-[13px] text-ink-faint">
-          <Link href={`/tenders/${tenderId}`} className="text-seal hover:underline">
-            Back to the comparison
-          </Link>
-          {" · "}
-          <Link href={`/tenders/${tenderId}/setup`} className="text-seal hover:underline">
-            Tender setup
-          </Link>
-        </p>
+        {/* Step 1: Bidder KYC Particulars */}
+        {step === "bidder" && (
+          <div className="rounded-[4px] border border-rule bg-surface p-7 panel-shadow space-y-6">
+            <div>
+              <h2 className="font-serif text-[18px] font-semibold text-ink">
+                Step 1: Bidder Identification & Statutory KYC
+              </h2>
+              <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
+                Provide the statutory identifiers declared by the bidder in their bid submission.
+                These identifiers are cross-referenced with certificates uploaded in Step 2.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateBidder} className="space-y-5">
+              <div>
+                <label htmlFor="bidder-legal-name" className="block text-[13px] font-semibold text-ink mb-1">
+                  Legal Corporate Entity Name <span className="text-failed">*</span>
+                </label>
+                <input
+                  id="bidder-legal-name"
+                  type="text"
+                  required
+                  value={legalName}
+                  onChange={(e) => setLegalName(e.target.value)}
+                  placeholder="e.g. Larsen & Toubro Hydrocarbon Engineering Limited"
+                  className="w-full rounded-[3px] border border-rule bg-surface px-3 py-2 text-[14px] text-ink placeholder:text-ink-faint focus:border-seal outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div>
+                  <label htmlFor="bidder-pan" className="block text-[13px] font-semibold text-ink mb-1">
+                    Permanent Account Number (PAN)
+                  </label>
+                  <input
+                    id="bidder-pan"
+                    type="text"
+                    maxLength={10}
+                    value={pan}
+                    onChange={(e) => setPan(e.target.value.toUpperCase())}
+                    placeholder="e.g. AAACL1234F"
+                    className="identifier w-full rounded-[3px] border border-rule bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-faint focus:border-seal outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-faint">10-character alphanumeric</p>
+                </div>
+
+                <div>
+                  <label htmlFor="bidder-gstin" className="block text-[13px] font-semibold text-ink mb-1">
+                    GSTIN Registration Number
+                  </label>
+                  <input
+                    id="bidder-gstin"
+                    type="text"
+                    maxLength={15}
+                    value={gstin}
+                    onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                    placeholder="e.g. 07AAACL1234F1Z5"
+                    className="identifier w-full rounded-[3px] border border-rule bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-faint focus:border-seal outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-faint">15-character GSTIN format</p>
+                </div>
+
+                <div>
+                  <label htmlFor="bidder-udyam" className="block text-[13px] font-semibold text-ink mb-1">
+                    Udyam Registration Number
+                  </label>
+                  <input
+                    id="bidder-udyam"
+                    type="text"
+                    value={udyam}
+                    onChange={(e) => setUdyam(e.target.value.toUpperCase())}
+                    placeholder="e.g. UDYAM-MH-12-0012345"
+                    className="identifier w-full rounded-[3px] border border-rule bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-faint focus:border-seal outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-faint">For MSME preference / EMD relaxation</p>
+                </div>
+              </div>
+
+              <div className="pt-3 flex justify-end">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-[3px] bg-seal px-5 py-2.5 text-[14px] font-medium text-white hover:bg-seal-strong transition-colors"
+                >
+                  <span>Proceed to Document Upload</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Step 2: Upload Documents */}
+        {step === "documents" && (
+          <div className="space-y-6">
+            <div className="rounded-[4px] border border-rule bg-surface p-7 panel-shadow space-y-5">
+              <div>
+                <h2 className="font-serif text-[18px] font-semibold text-ink">
+                  Step 2: Upload Bidder Evidence Documents
+                </h2>
+                <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
+                  Upload bidder PDFs. You can upload a single combined bundle (auto-classified by PyMuPDF / LLM) or individual classified files.
+                </p>
+              </div>
+
+              {/* Mode Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label
+                  className={`rounded-[3px] border p-4 cursor-pointer transition-colors ${
+                    ingestionMode === "auto_classify"
+                      ? "border-seal bg-seal-tint"
+                      : "border-rule bg-surface hover:bg-surface-subtle"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-medium text-[13px] text-ink">
+                    <input
+                      type="radio"
+                      name="ingestion_mode"
+                      value="auto_classify"
+                      checked={ingestionMode === "auto_classify"}
+                      onChange={() => setIngestionMode("auto_classify")}
+                      className="text-seal"
+                    />
+                    <span>Auto-Classify Bundle (Recommended)</span>
+                  </div>
+                  <p className="mt-1 text-[12px] text-ink-muted pl-5">
+                    Upload a 50–100 page consolidated PDF. Vericore isolates segments, bookmarks, and doc types automatically.
+                  </p>
+                </label>
+
+                <label
+                  className={`rounded-[3px] border p-4 cursor-pointer transition-colors ${
+                    ingestionMode === "separate"
+                      ? "border-seal bg-seal-tint"
+                      : "border-rule bg-surface hover:bg-surface-subtle"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-medium text-[13px] text-ink">
+                    <input
+                      type="radio"
+                      name="ingestion_mode"
+                      value="separate"
+                      checked={ingestionMode === "separate"}
+                      onChange={() => setIngestionMode("separate")}
+                      className="text-seal"
+                    />
+                    <span>Separate Named Files</span>
+                  </div>
+                  <p className="mt-1 text-[12px] text-ink-muted pl-5">
+                    Upload individual documents with declared types (GST, PAN, Audited Accounts, Work Orders).
+                  </p>
+                </label>
+              </div>
+
+              {ingestionMode === "separate" && (
+                <div className="rounded-[3px] border border-rule bg-surface-subtle p-3.5">
+                  <label htmlFor="doc-type-select" className="block text-[12px] font-semibold text-ink mb-1">
+                    Document Classification Type for Selected Files
+                  </label>
+                  <select
+                    id="doc-type-select"
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="rounded-[3px] border border-rule bg-surface px-3 py-1.5 text-[13px] text-ink focus:border-seal outline-none"
+                  >
+                    {DOC_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t.replace(/_/g, " ").toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Upload Drop Area */}
+              <div className="rounded-[4px] border-2 border-dashed border-rule bg-surface-subtle p-8 text-center hover:border-seal transition-colors">
+                <UploadCloud size={32} className="mx-auto text-ink-faint mb-2" />
+                <label className="block cursor-pointer">
+                  <span className="text-[14px] font-medium text-seal hover:underline">
+                    Select PDF files to upload
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf"
+                    onChange={handleAddFiles}
+                    className="sr-only"
+                  />
+                </label>
+                <p className="mt-1 text-[12px] text-ink-muted">
+                  {files.length > 0 ? (
+                    <strong className="font-mono text-ink">{files.length} file(s) queued for upload</strong>
+                  ) : (
+                    "Supports multiple PDF documents or bundles"
+                  )}
+                </p>
+              </div>
+
+              {files.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-ink-faint font-mono">
+                    {files.map((f) => f.name).join(", ")}
+                  </span>
+                  <button
+                    onClick={handleUploadAll}
+                    disabled={uploading}
+                    className="rounded-[3px] bg-seal px-4 py-2 text-[13px] font-medium text-white hover:bg-seal-strong transition-colors disabled:opacity-50"
+                  >
+                    {uploading ? "Uploading…" : `Upload ${files.length} Document(s)`}
+                  </button>
+                </div>
+              )}
+
+              {/* Uploaded Documents List */}
+              {uploads.length > 0 && (
+                <div className="border-t border-rule pt-4 space-y-2">
+                  <p className="text-[11px] uppercase tracking-wider font-mono font-semibold text-ink-faint">
+                    Processed Documents ({uploads.length})
+                  </p>
+                  <div className="divide-y divide-rule border border-rule rounded-[3px]">
+                    {uploads.map((u, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-surface text-[12px]">
+                        <div className="flex items-center gap-2">
+                          <FileCheck size={16} className="text-verified" />
+                          <span className="font-medium text-ink">{u.document.original_filename}</span>
+                        </div>
+                        <span className="font-mono text-ink-faint text-[11px]">
+                          {u.document.page_count} pp · {u.segments.length} segment(s) · {u.extracted_fields.length} fields isolated
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button: Run Verification */}
+              <div className="pt-4 border-t border-rule flex items-center justify-between">
+                <p className="text-[12px] text-ink-faint">
+                  {uploads.length > 0
+                    ? "Documents ready. Run the deterministic compliance engine."
+                    : "Upload at least one document bundle to trigger verification."}
+                </p>
+                <button
+                  onClick={handleRunVerification}
+                  disabled={uploads.length === 0}
+                  className="inline-flex items-center gap-2 rounded-[3px] bg-verified px-6 py-2.5 text-[14px] font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-40 shadow-xs"
+                >
+                  <ShieldCheck size={16} />
+                  <span>Execute Verification Pipeline →</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Verifying State */}
+        {step === "verifying" && (
+          <div className="rounded-[4px] border border-rule bg-surface p-14 text-center panel-shadow space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-seal-tint text-seal animate-spin">
+              <RotateCw size={28} />
+            </div>
+            <h2 className="font-serif text-[22px] font-semibold text-ink">
+              Executing Multi-Layer Verification Pipeline
+            </h2>
+            <div className="max-w-[58ch] mx-auto text-[13px] text-ink-muted leading-relaxed space-y-1">
+              <p>1. Document segmentation & OCR coordinate extraction</p>
+              <p>2. Deterministic threshold and financial average evaluation</p>
+              <p>3. Cross-document identity & contradiction checking</p>
+              <p>4. Multi-portal adapter validation (live / simulated)</p>
+            </div>
+            <p className="text-[11px] font-mono text-ink-faint pt-2">
+              Redirecting to Officer Inspection Workspace upon completion…
+            </p>
+          </div>
+        )}
       </main>
     </div>
-  );
-}
-
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-[13px] font-medium text-ink-muted">
-        {label}
-        {required && <span className="text-ink-faint"> *</span>}
-      </span>
-      {children}
-    </label>
   );
 }

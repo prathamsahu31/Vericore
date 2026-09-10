@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter, Source_Serif_4 } from "next/font/google";
 import "@/styles/globals.css";
-import { CustomCursor } from "@/components/ui/CustomCursor";
 
 // Three roles, chosen for this brief specifically (CLAUDE.md §11).
 const serif = Source_Serif_4({
@@ -31,10 +30,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
-      <head>
-      </head>
-      <body className="page-backdrop min-h-screen text-ink antialiased">
-        <CustomCursor />
+      <head />
+      <body className="min-h-screen bg-paper text-ink antialiased selection:bg-seal/15 selection:text-seal">
         {children}
       </body>
     </html>

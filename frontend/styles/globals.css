@@ -1,39 +1,54 @@
 @import "tailwindcss";
 
-
-
 /* ─────────────────────────────────────────────────────────────────────────
-   Design tokens — CLAUDE.md §11, verbatim.
+   VERICORE DESIGN SYSTEM — Editorial Enterprise & Institutional Precision
 
-   The brief is an officer at a desk producing decisions that may face RTI or
-   CVC scrutiny. Institutional, not consumer: hairlines rather than shadows,
-   6px radii rather than 12, and status colour used only where status is the
-   message.
+   Designed for public procurement officers under legal scrutiny (RTI/CAG/CVC).
+   Core Principles:
+   - Precision over decoration
+   - Typography over gradients
+   - Authentic workflow over illustrations
+   - 1px hairline rules over floating shadows
+   - Monospaced identifiers for character-by-character verification
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --ink: #141e32;
-  --ink-muted: #4b5563;
-  --ink-faint: #9ca3af;
-  --paper: #fbfbf9;
-  /* slightly warm, not pure white */
-  --surface: #e6f0fa;
-  --rule: #e5e3de;
-  --seal: #1e3a5f;
-  /* deep official navy */
-  --seal-strong: #0d2846;
-  /* pressed / hover shade of the seal */
-  --seal-tint: #eef2f7;
-  --verified: #086733;
-  --review: #934306;
-  --failed: #860404;
-  --inactive: #64666c;
+  --paper: #F7F7F5;
+  --surface: #FFFFFF;
+  --surface-muted: #F1F3F5;
+  --surface-subtle: #F8F9FA;
+  --rule: #D9DDE3;
+  --rule-subtle: #E9ECEF;
+  --ink: #111827;
+  --ink-muted: #4B5563;
+  --ink-faint: #667085;
+  
+  /* Restrained Official Vericore Navy */
+  --seal: #0F4C81;
+  --seal-strong: #092C4D;
+  --seal-tint: #EEF4F9;
+  
+  /* Semantic Status Tokens */
+  --verified: #16803C;
+  --verified-bg: #F0FDF4;
+  --verified-border: #BBF7D0;
+  
+  --review: #B7791F;
+  --review-bg: #FEFCE8;
+  --review-border: #FEF08A;
+  
+  --failed: #C53030;
+  --failed-bg: #FEF2F2;
+  --failed-border: #FECACA;
+  
+  --inactive: #64748B;
+  --inactive-bg: #F8FAFC;
+  --inactive-border: #E2E8F0;
 
-  --radius: 6px;
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-md: 6px;
   --step: 8px;
-  /* everything sits on an 8px grid */
 }
-
-
 
 @theme inline {
   --color-ink: var(--ink);
@@ -41,20 +56,28 @@
   --color-ink-faint: var(--ink-faint);
   --color-paper: var(--paper);
   --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-subtle: var(--surface-subtle);
   --color-rule: var(--rule);
+  --color-rule-subtle: var(--rule-subtle);
   --color-seal: var(--seal);
   --color-seal-strong: var(--seal-strong);
   --color-seal-tint: var(--seal-tint);
   --color-verified: var(--verified);
+  --color-verified-bg: var(--verified-bg);
+  --color-verified-border: var(--verified-border);
   --color-review: var(--review);
+  --color-review-bg: var(--review-bg);
+  --color-review-border: var(--review-border);
   --color-failed: var(--failed);
+  --color-failed-bg: var(--failed-bg);
+  --color-failed-border: var(--failed-border);
   --color-inactive: var(--inactive);
 
-  --font-serif: var(--font-source-serif), Georgia, serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-serif: var(--font-source-serif), Georgia, Cambria, serif;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-plex-mono), "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
-  /* Scale 32 / 24 / 20 / 16 / 15 / 13 / 11 */
   --text-display: 32px;
   --text-title: 24px;
   --text-heading: 20px;
@@ -70,124 +93,79 @@ html {
   font-family: var(--font-sans);
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   background: var(--paper);
+  color: var(--ink);
 }
 
-/* A very subtle ruled-paper texture on the page background, and a soft
-   seal-tinted bloom behind the mastheads. Reads official, not flat. */
+/* Subtle architectural page backdrop: clean paper tint without noisy gradients */
 .page-backdrop {
-  background-image: url('/bg1.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   background-color: var(--paper);
+  min-height: 100vh;
 }
 
-
-
-/* Hairline rule cap used to finish off hero panels. */
+/* Top accent rule for authoritative document panels */
 .rule-top-seal {
   border-top: 3px solid var(--seal);
 }
 
-/* Smooth theme transition only when the toggle flips it — prefers-reduced-motion
-   still disables this block via the rule below. */
-html.theme-transitioning,
-html.theme-transitioning * {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-h1,
-h2,
-h3 {
+/* Typography styles */
+h1, h2, h3 {
   font-family: var(--font-serif);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  color: var(--ink);
 }
 
-/* Every GSTIN, PAN, Udyam URN and CIN in the interface is monospaced. Officers
-   read these character by character to spot mismatches, and monospace both
-   disambiguates 0/O and 1/I and aligns them vertically for column comparison.
-   §11 calls this the most important typographic decision in the project. */
+/* Monospaced identifiers: GSTIN, PAN, Udyam URN, CIN, Hashes, Coordinates */
 .identifier {
   font-family: var(--font-mono);
   font-variant-ligatures: none;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
 }
 
-/* Visible keyboard focus, everywhere. */
-:where(a, button, [tabindex]):focus-visible {
-  outline: 1px solid var(--seal);
-  outline-offset: 2px;
-  border-radius: 3px;
+/* Institutional focus ring */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 1px;
+  border-radius: var(--radius);
 }
 
-/* Shadow is used exactly once in the whole interface: to lift the decision bar
-   off the page. Everything else is a 1px hairline. */
+/* Subtle elevation shadow reserved for the floating decision bar and pinned toolbars */
 .decision-bar-shadow {
-  box-shadow: 0 -1px 16px rgb(17 24 39 / 0.10);
+  box-shadow: 0 -2px 12px rgba(17, 24, 39, 0.06), 0 -1px 2px rgba(17, 24, 39, 0.04);
 }
 
+.panel-shadow {
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04), 0 1px 2px rgba(17, 24, 39, 0.02);
+}
 
-
+/* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-* {
-  cursor: none !important;
-}
-
-/* Skeletons, not spinners, for content areas. */
-@keyframes sheen {
-  0% {
-    opacity: 0.55
+/* Clean skeleton state */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
   }
-
   50% {
-    opacity: 0.9
-  }
-
-  100% {
-    opacity: 0.55
+    opacity: 0.45;
   }
 }
 
 .skeleton {
-  background: var(--rule);
-  animation: sheen 1.6s ease-in-out infinite;
-}
-
-@keyframes fade-up {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes typing-bounce {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px);
-  }
+  background-color: var(--rule-subtle);
+  animation: pulse-subtle 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
