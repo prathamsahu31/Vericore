@@ -5,7 +5,8 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import extraction_provider, reasoning_provider
@@ -39,6 +40,20 @@ def get_tender(tender_id: uuid.UUID, db: DbSession) -> TenderOut:
 @router.get("/tenders", response_model=list[TenderOut])
 def list_tenders(db: DbSession) -> list[TenderOut]:
     return [TenderOut.model_validate(t) for t in tenders.list_tenders(db)]
+
+
+@router.delete("/tenders/{tender_id}", status_code=204)
+def delete_tender(tender_id: uuid.UUID, db: DbSession) -> None:
+    """Delete a tender. Will fail if it has an audit trail."""
+    try:
+        tenders.delete_tender(db, tender_id)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete this tender because it has associated audit events or history.",
+        )
 
 
 @router.post("/tenders/{tender_id}/document", response_model=DocumentOut, status_code=201)

@@ -19,7 +19,7 @@ export default function IntroAnimation({ onFinish }: Props) {
 
     return (
         <motion.div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-[url('/bg.svg')] bg-cover bg-center"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-[url('/bg3.svg')] bg-cover bg-center"
             initial={{ opacity: 1 }}
             animate={{
                 opacity: [1, 1, 0],

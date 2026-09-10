@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
       <head>
       </head>
-      <body className="min-h-screen bg-paper text-ink antialiased">
+      <body className="page-backdrop min-h-screen text-ink antialiased">
         <CustomCursor />
         {children}
       </body>

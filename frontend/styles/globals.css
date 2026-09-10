@@ -121,7 +121,7 @@ h3 {
 
 /* Visible keyboard focus, everywhere. */
 :where(a, button, [tabindex]):focus-visible {
-  outline: 2px solid var(--seal);
+  outline: 1px solid var(--seal);
   outline-offset: 2px;
   border-radius: 3px;
 }
@@ -173,6 +173,7 @@ h3 {
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -180,9 +181,12 @@ h3 {
 }
 
 @keyframes typing-bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-4px);
   }

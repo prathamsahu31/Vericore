@@ -71,6 +71,19 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return payload as T;
 }
 
+async function del<T>(path: string): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (response.status === 204) return {} as T;
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.detail ? String(payload.detail) : "Delete failed.");
+  }
+  return payload as T;
+}
+
 export function createTender(body: {
   title: string;
   bid_number?: string;
@@ -84,6 +97,10 @@ export function createTender(body: {
 
 export function getTender(tenderId: string) {
   return get<Tender>(`/tenders/${tenderId}`);
+}
+
+export function deleteTender(tenderId: string) {
+  return del(`/tenders/${tenderId}`);
 }
 
 export function listTenders() {

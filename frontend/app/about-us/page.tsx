@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { User } from "lucide-react";
 import { FaGithub, FaInstagram, FaLinkedin } from "react-icons/fa";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 
 const teamMembers = [
     {
@@ -70,7 +71,9 @@ const teamMembers = [
 
 export default function AboutUsPage() {
     return (
-        <div className="relative min-h-screen overflow-hidden text-white" style={{ backgroundImage: "url('/bg2.svg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
+        <div className="relative min-h-screen overflow-hidden bg-paper text-ink selection:bg-seal/20">
+            {/* Background Texture */}
+            <div className="pointer-events-none absolute inset-0 bg-[url('/bg2.svg')] bg-cover bg-center bg-no-repeat opacity-50 mix-blend-multiply" />
 
             {/* Top Right  Glow */}
             <motion.div
@@ -94,6 +97,9 @@ export default function AboutUsPage() {
                 <SiteHeader />
 
                 <main className="flex-1 flex flex-col items-center justify-center px-4 py-32 sm:px-6 lg:px-8">
+                    <div className="w-full max-w-6xl mx-auto flex justify-start">
+                        <BackButton />
+                    </div>
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}

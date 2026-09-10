@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
+import { DeleteTenderButton } from "./DeleteTenderButton";
 import { listTenders } from "@/lib/api";
 import type { Tender } from "@/types/api";
 
@@ -32,6 +34,7 @@ export default async function TendersPage() {
     <div className="page-backdrop min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-[900px] px-6 py-12">
+        <BackButton />
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
@@ -99,6 +102,7 @@ export default async function TendersPage() {
                   >
                     Compare bidders
                   </Link>
+                  <DeleteTenderButton tenderId={t.id} />
                 </div>
               </li>
             ))}

@@ -9,10 +9,10 @@ export function BackButton() {
   return (
     <button
       onClick={() => router.back()}
-      className="mb-6 flex items-center gap-2 rounded-[4px] border border-rule bg-surface/50 px-4 py-2 text-[14px] font-medium text-ink-muted transition-colors hover:border-seal hover:text-seal backdrop-blur-sm w-fit"
+      className="mb-6 flex items-center justify-center rounded-[4px] border border-rule bg-surface/50 p-2 text-ink-muted transition-colors hover:border-seal hover:text-seal backdrop-blur-sm w-fit"
+      aria-label="Go back"
     >
-      <ArrowLeft size={16} />
-      Back
+      <ArrowLeft size={20} />
     </button>
   );
 }

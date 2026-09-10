@@ -229,11 +229,10 @@ function UploadStage({
 }) {
   if (extracted && hasDrafts) {
     return (
-      <section className="rounded-[6px] border border-rule bg-surface p-6">
-        <h2 className="text-[16px]">Step 2 — confirm the checklist</h2>
+      <section className="rounded-[6px] border border-rule bg-surface p-6 opacity-75">
+        <h2 className="text-[16px] text-seal">✓ Step 1 — upload the NIT</h2>
         <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-muted">
-          The checklist below was read from the NIT. Review each condition and
-          correct anything that is wrong before confirming.
+          The notice inviting tender was successfully uploaded and processed.
         </p>
       </section>
     );

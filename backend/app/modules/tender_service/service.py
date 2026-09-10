@@ -64,6 +64,12 @@ def list_tenders(db: Session) -> list[Tender]:
     return list(rows)
 
 
+def delete_tender(db: Session, tender_id: uuid.UUID) -> None:
+    tender = get_tender(db, tender_id)
+    db.delete(tender)
+    db.flush()
+
+
 def upload_nit(
     db: Session, *, tender_id: uuid.UUID, content: bytes, filename: str, mime_type: str
 ) -> Document:

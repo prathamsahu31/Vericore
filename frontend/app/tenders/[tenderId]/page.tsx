@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import { Identifier, RiskChip, StatusChip } from "@/components/ui/status";
 import { getComparison, tenderReportPageUrl } from "@/lib/api";
 import type { ComparisonBidder, ComparisonRow } from "@/types/api";
@@ -51,6 +52,7 @@ export default async function ComparisonPage({
       <header className="border-b border-rule bg-surface/80 backdrop-blur-sm">
         <SiteHeader />
         <div className="mx-auto max-w-[1240px] px-6 py-8">
+          <BackButton />
           <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
             Comparing bidders
           </p>
