@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ComplianceMatrix } from "@/components/analysis/ComplianceMatrix";
 import { DecisionBar } from "@/components/analysis/DecisionBar";
 import { EvidenceLedger } from "@/components/analysis/EvidenceLedger";
@@ -21,6 +21,19 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
   const [open, setOpen] = useState<ComplianceRow | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barHeight, setBarHeight] = useState(72);
+
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) => {
+      if (entry) setBarHeight(Math.ceil(entry.contentRect.height));
+    });
+    obs.observe(el);
+    setBarHeight(el.getBoundingClientRect().height || 72);
+    return () => obs.disconnect();
+  }, []);
 
   function refresh(next: VerificationSummary) {
     setSummary(next);
@@ -138,14 +151,16 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
         </p>
       </main>
 
-      <EvidenceLedger row={open} bidId={summary.bid_id} onClose={() => setOpen(null)} />
+      <EvidenceLedger row={open} bidId={summary.bid_id} onClose={() => setOpen(null)} barHeight={barHeight} />
 
-      <DecisionBar
-        bidId={summary.bid_id}
-        summary={summary}
-        selected={open}
-        onUpdated={refresh}
-      />
+      <div ref={barRef}>
+        <DecisionBar
+          bidId={summary.bid_id}
+          summary={summary}
+          selected={open}
+          onUpdated={refresh}
+        />
+      </div>
     </>
   );
 }
