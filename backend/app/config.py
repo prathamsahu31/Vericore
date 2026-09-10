@@ -66,14 +66,6 @@ class Settings(BaseSettings):
 
     # ── Storage ──────────────────────────────────────────────────────────
     storage_path: Path = Path("./storage")
-    supabase_url: str | None = None
-    supabase_key: str | None = None
-    supabase_storage_bucket: str = "documents"
-
-    @property
-    def use_supabase_storage(self) -> bool:
-        """Whether Supabase Storage is configured."""
-        return bool(self.supabase_url and self.supabase_key)
 
     # ── Verification adapters ────────────────────────────────────────────
     portal_mode: Literal["simulated", "hybrid"] = "simulated"
@@ -82,15 +74,8 @@ class Settings(BaseSettings):
     # Pin the bid due date so certificate-expiry checks are reproducible.
     bid_due_date_override: date | None = None
 
-    # ── App & CORS ───────────────────────────────────────────────────────
+    # ── App ──────────────────────────────────────────────────────────────
     api_base_url: str = "http://localhost:8000"
-    cors_origins: str = "http://localhost:3000"
-
-    @property
-    def cors_origins_list(self) -> list[str]:
-        """Comma-separated origins parsed into a list."""
-        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
-        return origins or ["http://localhost:3000"]
 
     @field_validator("bid_due_date_override", mode="before")
     @classmethod

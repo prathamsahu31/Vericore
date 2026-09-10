@@ -51,12 +51,6 @@ class UnknownModelError(KeyError):
 
 
 def resolve_model_id(provider: str, role: LLMRole) -> str:
-    import os
-    if provider == "openai":
-        if role == LLMRole.EXTRACTION and os.environ.get("OPENAI_EXTRACTION_MODEL"):
-            return os.environ["OPENAI_EXTRACTION_MODEL"]
-        if role == LLMRole.REASONING and os.environ.get("OPENAI_REASONING_MODEL"):
-            return os.environ["OPENAI_REASONING_MODEL"]
     try:
         return MODEL_IDS[(provider, role)]
     except KeyError as exc:
@@ -64,4 +58,3 @@ def resolve_model_id(provider: str, role: LLMRole) -> str:
             f"No model configured for provider {provider!r} and role {role}. "
             f"Add a row to MODEL_IDS in app/llm/config.py — see CLAUDE.md §7.3."
         ) from exc
-
