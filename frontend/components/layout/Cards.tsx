@@ -118,7 +118,8 @@ export const MinimalCarousel: React.FC<MinimalCarouselProps> = ({
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     className={`relative flex flex-col justify-between cursor-pointer
                              rounded-[22px] sm:rounded-[28px] p-3 sm:p-4 text-white shadow-lg
-                             border border-black/[0.08] bg-white/[0.1] backdrop-blur-md hover:bg-black/[0.15] transition-colors
+                             border border-black/[0.08] bg-white/[0.1] backdrop-blur-md hover:bg-indigo-600/30 transition-colors duration-300 ease-in-out
+
                              ${activeId ? "h-24 sm:h-28" : "h-28 sm:h-32"}`}
                                 >
                                     <div className="flex justify-between items-start">

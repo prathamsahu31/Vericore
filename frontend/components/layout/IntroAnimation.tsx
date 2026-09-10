@@ -58,7 +58,7 @@ export default function IntroAnimation({ onFinish }: Props) {
                     }}
                 >
                     <Image
-                        src="/logo.png"
+                        src="/robot_hi.png"
                         alt="Vericore"
                         width={56}
                         height={56}

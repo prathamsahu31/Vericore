@@ -25,9 +25,6 @@ export default function Cards() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-20 text-center">
-          <p className="text-xs mt-200px font-medium text-black uppercase tracking-widest mb-4">
-            The Process
-          </p>
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-blue">
             How it works
           </h2>
