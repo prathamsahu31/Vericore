@@ -1,193 +1,166 @@
 @import "tailwindcss";
 
-
-
 /* ─────────────────────────────────────────────────────────────────────────
-   Design tokens — CLAUDE.md §11, verbatim.
-
-   The brief is an officer at a desk producing decisions that may face RTI or
-   CVC scrutiny. Institutional, not consumer: hairlines rather than shadows,
-   6px radii rather than 12, and status colour used only where status is the
-   message.
+   Bidly Design Tokens & Global Styles
+   Modern, sleek, high-trust SaaS theme inspired by Bidly.
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --ink: #141e32;
-  --ink-muted: #4b5563;
-  --ink-faint: #9ca3af;
-  --paper: #fbfbf9;
-  /* slightly warm, not pure white */
-  --surface: #e6f0fa;
-  --rule: #e5e3de;
-  --seal: #1e3a5f;
-  /* deep official navy */
-  --seal-strong: #0d2846;
-  /* pressed / hover shade of the seal */
-  --seal-tint: #eef2f7;
-  --verified: #086733;
-  --review: #934306;
-  --failed: #860404;
-  --inactive: #64666c;
+  --brand-primary: #0084ff;
+  --brand-primary-hover: #0070db;
+  --brand-primary-light: #eff6ff;
+  --brand-primary-dark: #005bb5;
 
-  --radius: 6px;
-  --step: 8px;
-  /* everything sits on an 8px grid */
+  --surface-bg: #f8fafc;
+  --surface-card: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --surface-hover: #f8fafc;
+
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+
+  --status-active-bg: #ecfdf5;
+  --status-active-text: #047857;
+  --status-active-border: #a7f3d0;
+
+  --status-urgent-bg: #fef2f2;
+  --status-urgent-text: #b91c1c;
+  --status-urgent-border: #fecaca;
+
+  --status-pending-bg: #fffbeb;
+  --status-pending-text: #b45309;
+  --status-pending-border: #fde68a;
+
+  --status-info-bg: #eff6ff;
+  --status-info-text: #1d4ed8;
+  --status-info-border: #bfdbfe;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
 }
 
-
-
 @theme inline {
-  --color-ink: var(--ink);
-  --color-ink-muted: var(--ink-muted);
-  --color-ink-faint: var(--ink-faint);
-  --color-paper: var(--paper);
-  --color-surface: var(--surface);
-  --color-rule: var(--rule);
-  --color-seal: var(--seal);
-  --color-seal-strong: var(--seal-strong);
-  --color-seal-tint: var(--seal-tint);
-  --color-verified: var(--verified);
-  --color-review: var(--review);
-  --color-failed: var(--failed);
-  --color-inactive: var(--inactive);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-primary-dark: var(--brand-primary-dark);
 
-  --font-serif: var(--font-source-serif), Georgia, serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --color-surface-bg: var(--surface-bg);
+  --color-surface-card: var(--surface-card);
+  --color-surface-subtle: var(--surface-subtle);
 
-  /* Scale 32 / 24 / 20 / 16 / 15 / 13 / 11 */
-  --text-display: 32px;
-  --text-title: 24px;
-  --text-heading: 20px;
-  --text-lead: 16px;
-  --text-body: 15px;
-  --text-small: 13px;
-  --text-micro: 11px;
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 html {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface-bg);
+  color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--paper);
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
 }
 
-/* A very subtle ruled-paper texture on the page background, and a soft
-   seal-tinted bloom behind the mastheads. Reads official, not flat. */
-.page-backdrop {
-  background-image: url('/bg1.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  background-color: var(--paper);
+/* Ensure default cursor works smoothly across all elements */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-
-
-/* Hairline rule cap used to finish off hero panels. */
-.rule-top-seal {
-  border-top: 3px solid var(--seal);
+button, a, input, select, textarea, [role="button"] {
+  cursor: pointer;
 }
 
-/* Smooth theme transition only when the toggle flips it — prefers-reduced-motion
-   still disables this block via the rule below. */
-html.theme-transitioning,
-html.theme-transitioning * {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  cursor: not-allowed;
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* Every GSTIN, PAN, Udyam URN and CIN in the interface is monospaced. Officers
-   read these character by character to spot mismatches, and monospace both
-   disambiguates 0/O and 1/I and aligns them vertically for column comparison.
-   §11 calls this the most important typographic decision in the project. */
-.identifier {
-  font-family: var(--font-mono);
-  font-variant-ligatures: none;
-  letter-spacing: 0.01em;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* Visible keyboard focus, everywhere. */
-:where(a, button, [tabindex]):focus-visible {
-  outline: 1px solid var(--seal);
-  outline-offset: 2px;
-  border-radius: 3px;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 
-/* Shadow is used exactly once in the whole interface: to lift the decision bar
-   off the page. Everything else is a 1px hairline. */
-.decision-bar-shadow {
-  box-shadow: 0 -1px 16px rgb(17 24 39 / 0.10);
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-
-
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+/* Card lift and interactive shadow classes */
+.bidly-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  transition: all 0.2s ease;
 }
 
-* {
-  cursor: none !important;
+.bidly-card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
-/* Skeletons, not spinners, for content areas. */
-@keyframes sheen {
-  0% {
-    opacity: 0.55
-  }
-
-  50% {
-    opacity: 0.9
-  }
-
-  100% {
-    opacity: 0.55
-  }
+.bidly-card-interactive {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  transition: all 0.2s ease;
 }
 
-.skeleton {
-  background: var(--rule);
-  animation: sheen 1.6s ease-in-out infinite;
+.bidly-card-interactive:hover {
+  border-color: #0084ff;
+  box-shadow: 0 8px 16px -4px rgb(0 132 255 / 0.12), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  transform: translateY(-2px);
 }
 
-@keyframes fade-up {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Subtle glow gradients */
+.bidly-glow-blue {
+  background: radial-gradient(circle at 50% 0%, rgba(0, 132, 255, 0.12), transparent 70%);
 }
 
-@keyframes typing-bounce {
+.bidly-gradient-primary {
+  background: linear-gradient(135deg, #0084ff 0%, #0066cc 100%);
+}
 
-  0%,
-  100% {
-    transform: translateY(0);
-  }
+.bidly-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
 
-  50% {
-    transform: translateY(-4px);
-  }
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s infinite ease-in-out;
 }
