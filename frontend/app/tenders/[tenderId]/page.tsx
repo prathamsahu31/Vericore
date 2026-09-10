@@ -197,18 +197,25 @@ function Row({ row }: { row: ComparisonRow }) {
             <Link
               href={`/bids/${cell.bid_id}`}
               title={`Open ${cell.effective_status.replace(/_/g, " ").toLowerCase()} — ${row.requirement_name} — see evidence and review`}
-              className="inline-flex rounded-[4px] focus:outline-none focus-visible:ring-2 focus-visible:ring-seal focus-visible:ring-offset-2"
+              className="group relative inline-flex rounded-[4px] focus:outline-none focus-visible:ring-2 focus-visible:ring-seal focus-visible:ring-offset-2"
             >
-              <span className="transition-transform hover:scale-[1.02] hover:brightness-[0.98] cursor-pointer">
+              <span className="transition-transform group-hover:scale-[1.02] group-hover:brightness-[0.98] cursor-pointer">
                 <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+              </span>
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block group-focus-visible:block">
+                View evidence →
               </span>
             </Link>
           ) : (
             <Link
               href={`/bids/${cell.bid_id}`}
-              className="text-[13px] text-ink-faint hover:text-ink hover:underline"
+              className="group relative text-[13px] text-ink-faint hover:text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-seal"
+              title="Open bidder — see evidence"
             >
               not verified
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block">
+                View evidence →
+              </span>
             </Link>
           )}
         </td>

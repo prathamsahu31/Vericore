@@ -189,7 +189,12 @@ export function ComplianceMatrix({
                     )}
                   </td>
                   <td className="px-7 py-4">
-                    <StatusChip status={effective} overridden={overridden} />
+                    <span className="group relative inline-flex">
+                      <StatusChip status={effective} overridden={overridden} />
+                      <span className="pointer-events-none absolute left-0 top-full z-10 mt-1.5 hidden whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block">
+                        View evidence →
+                      </span>
+                    </span>
                     <p className="mt-2 text-[11px] font-medium text-seal opacity-80">Click row to see document →</p>
                     {overridden && (
                       <p className="mt-1.5 text-[11px] text-ink-faint">
