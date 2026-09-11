@@ -12,19 +12,5 @@
 
 ## Video Demonstration Links
 
-- **YouTube Video Link:** [Add your YouTube video link here](https://youtube.com/)
-- **Google Drive Backup Video Link:** [Add your Google Drive video link here](https://drive.google.com/)
-
----
-
-## Video Walkthrough Highlights
-
-| Timestamp | Topic / Feature Demonstrated |
-|---|---|
-| **00:00 - 00:45** | Problem statement overview: GeM tender evaluation complexity & document bundles |
-| **00:45 - 01:30** | Ingestion of Notice Inviting Tender (NIT) & automated clause checklist extraction |
-| **01:30 - 02:30** | Bidder document bundle processing, OCR extraction, and bounding-box evidence mapping |
-| **02:30 - 03:30** | Multi-portal external verification (GSTN, PAN, MCA21, Udyam) with simulated/live tags |
-| **03:30 - 04:30** | Cross-document contradiction detection (mismatched entity names and PAN identifiers) |
-| **04:40 - 05:30** | Two-gate evaluation system, officer decision ledger, and override with mandatory audit reason |
-| **05:30 - 06:00** | SHA-256 hash-chained Postgres audit log verification & exportable evaluation report |
+- **Google Drive Demo Video Link:** [Vericore Video Demonstration (Google Drive)](https://drive.google.com/drive/folders/1s349utNy1AN2U3Vqu7gzFLQX6H1dwMES)
+- **Direct Drive URL:** `https://drive.google.com/drive/folders/1s349utNy1AN2U3Vqu7gzFLQX6H1dwMES`

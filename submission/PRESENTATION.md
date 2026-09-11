@@ -14,10 +14,11 @@
 
 ## Presentation Links
 
-- **Google Drive / Viewer Link:** [Add your public viewable presentation link here](https://drive.google.com/)
-- **Alternative Link (Canva / Slides / OneDrive):** [Add alternative slide link here](https://onedrive.live.com/)
+- **Google Drive / Viewer Link:** [Vericore Final Presentation (Google Drive)](https://drive.google.com/drive/folders/1SJl4-hgV8KyzcWRJqaH-aouzYmXXAPHH)
+- **Direct Drive URL:** `https://drive.google.com/drive/folders/1SJl4-hgV8KyzcWRJqaH-aouzYmXXAPHH`
+- **Repository Direct PDF:** [submission/vericore.pdf](vericore.pdf)
 
-> **Note for Reviewers:** If the direct presentation PDF/PPTX is committed to this repository, it is located in this directory (`submission/vericore_final_presentation.pptx` or `.pdf`). Otherwise, use the viewable cloud links above.
+> **Note for Reviewers:** The direct presentation PDF is committed to this repository at [submission/vericore.pdf](vericore.pdf). For online viewing and slides, use the Google Drive viewer link above.
 
 ---
 

@@ -12,6 +12,10 @@ This repository contains the official implementation of **Vericore**, an AI-powe
 - **Organization:** Ministry of Petroleum & Natural Gas
 - **Department:** Chennai Petroleum Corporation Limited (CPCL)
 
+> 🔗 **Submission Links:**
+> - 📺 **Demo Video:** [Google Drive Demo Folder](https://drive.google.com/drive/folders/1s349utNy1AN2U3Vqu7gzFLQX6H1dwMES) | [Walkthrough Guide](submission/DEMO.md)
+> - 📊 **Presentation (PPT/PDF):** [Google Drive Slides Folder](https://drive.google.com/drive/folders/1SJl4-hgV8KyzcWRJqaH-aouzYmXXAPHH) | [Direct PDF](submission/vericore.pdf) | [Presentation Details](submission/PRESENTATION.md)
+
 ## 2. Problem Statement
 
 Government procurement through the Government e-Marketplace (GeM) requires rigorous verification of statutory, regulatory, and technical eligibility requirements across multiple bidders. Procurement officers must manually examine and validate dense tender documents (NIT/RFP) and massive bidder document bundles containing:
@@ -135,28 +139,25 @@ Vericore/
 
 ### What goes where?
 
-| Item | Location |
+| Item | Location / Link |
 |---|---|
 | Source code | `backend/` and `frontend/` |
 | Architecture / technical documentation | `docs/` |
-| Project screenshots / hardware photos | `assets/screenshots/` |
-| Final PPT / presentation | `submission/` |
-| Demo video link | `submission/DEMO.md` |
+| Project screenshots / prototype visuals | `assets/screenshots/` |
+| Final PPT / presentation | [Google Drive Folder](https://drive.google.com/drive/folders/1SJl4-hgV8KyzcWRJqaH-aouzYmXXAPHH) \| [Direct PDF](submission/vericore.pdf) \| [submission/PRESENTATION.md](submission/PRESENTATION.md) |
+| Demo video | [Google Drive Folder](https://drive.google.com/drive/folders/1s349utNy1AN2U3Vqu7gzFLQX6H1dwMES) \| [submission/DEMO.md](submission/DEMO.md) |
 | Project overview | `README.md` |
 
 ## 8. Final Presentation
 
-Keep your final SIH presentation in the repository whenever the file size allows it.
-
-See [submission/PRESENTATION.md](submission/PRESENTATION.md) for the required format.
-
-If the PPT is too large for GitHub, use Google Drive/OneDrive and put the accessible viewer link in `submission/PRESENTATION.md`.
+- **Google Drive Presentation Folder:** [Vericore Final Presentation (Google Drive)](https://drive.google.com/drive/folders/1SJl4-hgV8KyzcWRJqaH-aouzYmXXAPHH)
+- **Repository Direct PDF:** [submission/vericore.pdf](submission/vericore.pdf)
+- Detailed breakdown & slide structure: [submission/PRESENTATION.md](submission/PRESENTATION.md)
 
 ## 9. Demo Video
 
-A demo video is **optional**, but recommended.
-
-Add the YouTube/Google Drive link in [submission/DEMO.md](submission/DEMO.md).
+- **Google Drive Demo Video:** [Vericore Demo Video (Google Drive)](https://drive.google.com/drive/folders/1s349utNy1AN2U3Vqu7gzFLQX6H1dwMES)
+- Video walkthrough timestamps & feature breakdown: [submission/DEMO.md](submission/DEMO.md)
 
 ## 10. Screenshots / Prototype Photos
 
