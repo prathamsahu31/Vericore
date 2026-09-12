@@ -1,4 +1,7 @@
 import { Masthead } from "@/components/layout/Masthead";
+import { BackendWakeFallback } from "@/components/BackendHealthGate";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import { getCompliance } from "@/lib/api";
 import { BidWorkspace } from "./BidWorkspace";
 
@@ -15,13 +18,22 @@ export default async function BidPage({
   try {
     summary = await getCompliance(bidId);
   } catch {
-    // Empty and failure states give direction, not an error code (§11).
+    // Cold start on Render takes ~60s — show warm-up UI, not a bare error (§11 failure states give direction).
     return (
-      <Unavailable
-        title="This bid could not be loaded"
-        body="The backend may not be running, or verification may not have been run on this bid yet."
-        hint="Start the API with uvicorn app.main:app --reload, then run POST /bids/{id}/verify."
-      />
+      <div className="page-backdrop min-h-screen">
+        <SiteHeader />
+        <main className="mx-auto max-w-[560px] px-6 py-12">
+          <BackButton />
+          <h1 className="mt-4 font-serif text-[24px] leading-tight">This bid could not be loaded</h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-ink-muted">
+            We couldn&apos;t reach the backend, or verification hasn&apos;t been run on this bid yet. On Render&apos;s
+            free tier the first request after idle takes ~50–60s — keep this tab open and we&apos;ll retry automatically.
+          </p>
+          <div className="mt-6">
+            <BackendWakeFallback message="If verification was never run, start the API with uvicorn app.main:app --reload then POST /bids/{id}/verify." />
+          </div>
+        </main>
+      </div>
     );
   }
 

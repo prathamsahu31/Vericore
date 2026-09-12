@@ -10,10 +10,31 @@ import type {
   VerificationSummary,
 } from "../types/api";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const BASE = API_BASE;
 
 export function tenderReportPageUrl(tenderId: string) {
   return `${BASE}/tenders/${tenderId}/report.html`;
+}
+
+// ── Health / warm-up ───────────────────────────────────────────────────────
+// Used by BackendHealthGate and per-page fallbacks to explain Render cold starts.
+// Keep timeout short so the UI can explain rather than hang on a cold fetch.
+export async function checkHealth(timeoutMs = 5000): Promise<boolean> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${BASE}/health?_=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal,
+      keepalive: true,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 async function get<T>(path: string): Promise<T> {

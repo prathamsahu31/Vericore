@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { BackButton } from "@/components/ui/BackButton";
+import { BackendWakeFallback } from "@/components/BackendHealthGate";
 import Loader from "@/components/layout/Loader";
 import type { Requirement, Tender } from "@/types/api";
 
@@ -109,12 +110,21 @@ export function TenderSetup({ tenderId }: { tenderId: string }) {
   }
 
   if (error && !tender) {
+    const isWakeError =
+      /fetch|network|load|timeout|Failed|ECONNREFUSED|500|502|503|504/i.test(error) ||
+      error.toLowerCase().includes("could not be loaded");
     return (
       <div className="page-backdrop min-h-screen">
         <SiteHeader />
-        <main className="mx-auto max-w-[62ch] px-6 py-24">
-          <h1 className="text-[24px]">This tender could not be loaded</h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">{error}</p>
+        <main className="mx-auto max-w-[560px] px-6 py-12">
+          <BackButton />
+          <h1 className="mt-4 font-serif text-[24px] leading-tight">This tender could not be loaded</h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-ink-muted">{error}</p>
+          {isWakeError && (
+            <div className="mt-6">
+              <BackendWakeFallback />
+            </div>
+          )}
         </main>
       </div>
     );

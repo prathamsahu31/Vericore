@@ -10,10 +10,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+import os
+
 from app.config import get_settings
 from app.errors import register_exception_handlers
 
 settings = get_settings()
+
+# ── CORS: Render free-tier cold start + deployed frontend ──────────────────
+# Local dev needs http://localhost:3000. Deployed frontend (Vercel, etc.)
+# needs its origin allowed or the browser will block /health polling and
+# the warm-up banner never resolves. Keep localhost, add env-configured
+# origins, and allow common deploy hosts via regex.
+_cors_extra = os.getenv("CORS_ALLOW_ORIGINS") or os.getenv("FRONTEND_URL") or ""
+_extra_origins = [o.strip().rstrip("/") for o in _cors_extra.split(",") if o.strip()]
+_allow_origins = ["http://localhost:3000", "http://localhost:3001", *_extra_origins]
+# Vercel preview/production + Render itself. Narrow enough to be intentional,
+# broad enough that an evaluator's fork still works.
+_allow_origin_regex = r"https://.*\.vercel\.app|https://.*\.onrender\.com|https://.*\.netlify\.app"
 
 
 def create_app() -> FastAPI:
@@ -30,7 +44,8 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=_allow_origins,
+        allow_origin_regex=_allow_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

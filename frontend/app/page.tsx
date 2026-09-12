@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import Cards from "@/components/layout/HomeCarousel";
 import IntroAnimation from "@/components/layout/IntroAnimation";
 import GlassBox from "@/components/layout/GlassBox";
+import { useBackendHealthContext } from "@/components/BackendHealthGate";
 
 
 
@@ -48,6 +49,7 @@ export default function Home() {
                   Open your workspace
                 </Link>
               </div>
+              <HomeBackendHint />
             </div>
             <HeroPanel isActive={!showIntro} />
           </section>
@@ -73,6 +75,19 @@ export default function Home() {
       </div>
     </div>
 
+  );
+}
+
+function HomeBackendHint() {
+  const health = useBackendHealthContext();
+  if (!health || health.isOnline) return null;
+  const s = Math.floor(health.elapsedMs / 1000);
+  return (
+    <p className="mt-3 flex items-center gap-2 text-[12px] leading-relaxed text-ink-muted" role="status" aria-live="polite">
+      <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-seal" aria-hidden />
+      Workspace is waking — first load takes ~50–60s on Render&apos;s free tier
+      {health.elapsedMs > 1000 ? ` · ${s}s elapsed` : ""} · keep this tab open.
+    </p>
   );
 }
 
