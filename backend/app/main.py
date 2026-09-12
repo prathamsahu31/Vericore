@@ -17,18 +17,6 @@ from app.errors import register_exception_handlers
 
 settings = get_settings()
 
-# ── CORS: Render free-tier cold start + deployed frontend ──────────────────
-# Local dev needs http://localhost:3000. Deployed frontend (Vercel, etc.)
-# needs its origin allowed or the browser will block /health polling and
-# the warm-up banner never resolves. Keep localhost, add env-configured
-# origins, and allow common deploy hosts via regex.
-_cors_extra = os.getenv("CORS_ALLOW_ORIGINS") or os.getenv("FRONTEND_URL") or ""
-_extra_origins = [o.strip().rstrip("/") for o in _cors_extra.split(",") if o.strip()]
-_allow_origins = ["http://localhost:3000", "http://localhost:3001", *_extra_origins]
-# Vercel preview/production + Render itself. Narrow enough to be intentional,
-# broad enough that an evaluator's fork still works.
-_allow_origin_regex = r"https://.*\.vercel\.app|https://.*\.onrender\.com|https://.*\.netlify\.app"
-
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -42,11 +30,23 @@ def create_app() -> FastAPI:
         ),
     )
 
+    # ── CORS: Render cold start + deployed frontends ─────────────────────
+    # settings.cors_origins_list is the primary source (CORS_ORIGINS env). Also
+    # honor legacy CORS_ALLOW_ORIGINS / FRONTEND_URL so the warm-up banner's
+    # /health polling isn't CORS-blocked on Render/Vercel.
+    origins = settings.cors_origins_list
+    _legacy = os.getenv("CORS_ALLOW_ORIGINS") or os.getenv("FRONTEND_URL") or ""
+    for _o in [o.strip().rstrip("/") for o in _legacy.split(",") if o.strip()]:
+        if _o not in origins:
+            origins.append(_o)
+    allow_all = "*" in origins
+    # Allow common deploy hosts even if not explicitly listed — helps evaluator forks.
+    _allow_origin_regex = r"https://.*\.vercel\.app|https://.*\.onrender\.com|https://.*\.netlify\.app"
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_allow_origins,
-        allow_origin_regex=_allow_origin_regex,
-        allow_credentials=True,
+        allow_origins=["*"] if allow_all else origins,
+        allow_origin_regex=None if allow_all else _allow_origin_regex,
+        allow_credentials=not allow_all,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -62,6 +62,10 @@ def create_app() -> FastAPI:
     app.include_router(bids_router)
     app.include_router(verification_router)
     app.include_router(reports_router)
+
+    @app.get("/", tags=["meta"])
+    def root() -> dict:
+        return {"service": "vericore-api", "version": app.version, "docs": "/docs", "health": "/health"}
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:

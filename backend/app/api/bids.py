@@ -147,10 +147,12 @@ def list_fields(document_id: uuid.UUID, db: DbSession) -> list[ExtractedFieldOut
 @router.get("/documents/{document_id}/file")
 def get_document_file(document_id: uuid.UUID, db: DbSession):
     """Serve the original PDF so the officer can verify a citation in one click (CLAUDE.md §11)."""
+    from app.storage import ensure_local_copy
+
     doc = db.get(Document, document_id)
     if doc is None:
         raise NotFoundError(f"Document {document_id} not found")
-    path = Path(doc.storage_path)
+    path = ensure_local_copy(doc.storage_path)
     if not path.exists():
-        raise NotFoundError(f"File for document {document_id} not found on disk")
+        raise NotFoundError(f"File for document {document_id} not found on disk or storage")
     return FileResponse(str(path), media_type=doc.mime_type or "application/pdf", filename=doc.original_filename)
