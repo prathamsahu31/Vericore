@@ -105,6 +105,7 @@ export interface AuditEvent {
   actor_type: string;
   actor_id: string | null;
   actor_component: string | null;
+  requirement_id: string | null;
   previous_state: string | null;
   new_state: string | null;
   reason: string | null;

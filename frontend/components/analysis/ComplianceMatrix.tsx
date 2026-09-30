@@ -42,15 +42,23 @@ export function ComplianceMatrix({
   onSelect: (row: ComplianceRow) => void;
   selectedCode: string | null;
 }) {
-  const [filter, setFilter] = useState<"all" | "outstanding" | "mandatory">("all");
+  const [filter, setFilter] = useState<"all" | "outstanding" | "mandatory" | "compliant" | "review">("all");
 
   const grouped = useMemo(() => {
     const rows = summary.requirements.filter((r) => {
+      const effective = r.effective_status ?? r.status;
       if (filter === "mandatory") return r.mandatory;
       if (filter === "outstanding") {
-        const effective = r.effective_status ?? r.status;
         return effective !== "COMPLIANT" && effective !== "NOT_APPLICABLE";
       }
+      if (filter === "compliant") return effective === "COMPLIANT";
+      if (filter === "review")
+        return (
+          effective === "NEEDS_HUMAN_REVIEW" ||
+          effective === "MISSING_EVIDENCE" ||
+          effective === "UNVERIFIED" ||
+          effective === "PARTIALLY_COMPLIANT"
+        );
       return true;
     });
     const buckets = new Map<string, ComplianceRow[]>();
@@ -80,12 +88,14 @@ export function ComplianceMatrix({
             {outstanding === 0 ? "all met" : `${outstanding} outstanding`}
           </p>
         </div>
-        <div className="flex gap-1" role="group" aria-label="Filter conditions">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Filter conditions">
           {(
             [
               ["all", "All"],
               ["outstanding", "Outstanding"],
               ["mandatory", "Mandatory"],
+              ["compliant", "Compliant"],
+              ["review", "Your review"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -153,7 +163,7 @@ export function ComplianceMatrix({
                   <td className="px-4 py-4">
                     <p className="text-[15px] leading-snug">{row.requirement_name}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-faint">
-                      {row.mandatory && <span>Mandatory</span>}
+                      {row.mandatory && <span className="font-medium" style={{ color: "var(--ink-muted)" }}>Mandatory</span>}
                       {Number(row.weight) > 0 && <span>Weight {Number(row.weight)}</span>}
                       {row.external_check_portal && (
                         <span className="flex items-center gap-1.5">
@@ -162,16 +172,39 @@ export function ComplianceMatrix({
                         </span>
                       )}
                     </p>
+                    {row.reasoning && (
+                      <p className="mt-2 line-clamp-2 max-w-[52ch] text-[13px] leading-relaxed text-ink-muted">
+                        {row.reasoning}
+                      </p>
+                    )}
                   </td>
-                  <td className="px-4 py-4 text-[13px] text-ink-muted">
-                    {SCOPE_LABEL[row.applicability_scope] ?? row.applicability_scope}
+                  <td className="px-4 py-4">
+                    <p className="text-[13px] text-ink-muted">
+                      {SCOPE_LABEL[row.applicability_scope] ?? row.applicability_scope}
+                    </p>
+                    {row.verification_method && (
+                      <p className="mt-1 text-[11px] text-ink-faint">
+                        {row.verification_method.replace(/_/g, " ")}
+                      </p>
+                    )}
                   </td>
                   <td className="px-7 py-4">
-                    <StatusChip status={effective} overridden={overridden} />
+                    <span className="group relative inline-flex">
+                      <StatusChip status={effective} overridden={overridden} />
+                      <span className="pointer-events-none absolute left-0 top-full z-10 mt-1.5 hidden whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block">
+                        View evidence →
+                      </span>
+                    </span>
+                    <p className="mt-2 text-[11px] font-medium text-seal opacity-80">Click row to see document →</p>
                     {overridden && (
                       <p className="mt-1.5 text-[11px] text-ink-faint">
                         Recorded by you. System said{" "}
                         {row.status.replace(/_/g, " ").toLowerCase()}.
+                      </p>
+                    )}
+                    {row.confidence !== null && (
+                      <p className="mt-1 text-[11px] text-ink-faint">
+                        {Math.round(row.confidence * 100)}% confidence
                       </p>
                     )}
                   </td>

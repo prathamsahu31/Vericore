@@ -67,7 +67,7 @@ export function DecisionBar({
   }
 
   return (
-    <div className="decision-bar-shadow sticky bottom-0 z-10 border-t border-rule bg-surface">
+    <div className="decision-bar-shadow sticky bottom-0 z-40 border-t border-rule bg-surface">
       <div className="mx-auto max-w-[1240px] px-6 py-3">
         {open && selected && (
           <form

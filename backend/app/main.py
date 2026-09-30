@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+import os
+
 from app.config import get_settings
 from app.errors import register_exception_handlers
 
@@ -28,10 +30,23 @@ def create_app() -> FastAPI:
         ),
     )
 
+    # ── CORS: Render cold start + deployed frontends ─────────────────────
+    # settings.cors_origins_list is the primary source (CORS_ORIGINS env). Also
+    # honor legacy CORS_ALLOW_ORIGINS / FRONTEND_URL so the warm-up banner's
+    # /health polling isn't CORS-blocked on Render/Vercel.
+    origins = settings.cors_origins_list
+    _legacy = os.getenv("CORS_ALLOW_ORIGINS") or os.getenv("FRONTEND_URL") or ""
+    for _o in [o.strip().rstrip("/") for o in _legacy.split(",") if o.strip()]:
+        if _o not in origins:
+            origins.append(_o)
+    allow_all = "*" in origins
+    # Allow common deploy hosts even if not explicitly listed — helps evaluator forks.
+    _allow_origin_regex = r"https://.*\.vercel\.app|https://.*\.onrender\.com|https://.*\.netlify\.app"
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
-        allow_credentials=True,
+        allow_origins=["*"] if allow_all else origins,
+        allow_origin_regex=None if allow_all else _allow_origin_regex,
+        allow_credentials=not allow_all,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -47,6 +62,10 @@ def create_app() -> FastAPI:
     app.include_router(bids_router)
     app.include_router(verification_router)
     app.include_router(reports_router)
+
+    @app.get("/", tags=["meta"])
+    def root() -> dict:
+        return {"service": "vericore-api", "version": app.version, "docs": "/docs", "health": "/health"}
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:

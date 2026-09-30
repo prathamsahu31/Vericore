@@ -396,7 +396,9 @@ def _presence(verdict, requirement, evidence, routing, provider) -> Verdict:
 
     A requirement whose wording is inherently prose is the only place §7.4 lets
     a model form an opinion — and even then the answer is advisory, so the
-    verdict is NEEDS_HUMAN_REVIEW rather than the model's own word.
+    verdict is NEEDS_HUMAN_REVIEW rather than the model's own word. When a
+    provider is available, its ``judge`` reasoning is used to make the
+    referral explainable (improvement_roadmap §2).
     """
     segment = routing.segments[0]
     present = evidence.fields(segment)
@@ -412,19 +414,46 @@ def _presence(verdict, requirement, evidence, routing, provider) -> Verdict:
 
     is_prose = requirement.category == "technical"
     if is_prose:
-        # Quote the descriptive field, not whichever happened to be extracted
-        # first. A prose specification is answered by the longest prose value —
-        # a model number tells the officer nothing about materials.
+        # Try the LLM judge for a richer advisory, but always stay advisory:
+        # the verdict remains NEEDS_HUMAN_REVIEW (CLAUDE.md §7.4).
         quoted = max(present, key=lambda f: len(f.field_value or ""))
+        advisory: str | None = None
+        confidence_override: float | None = None
+        if provider is not None:
+            try:
+                evidence_payload = [
+                    {"field_name": f.field_name, "field_value": f.field_value, "source_span": f.source_span}
+                    for f in present
+                ]
+                judged = provider.judge(
+                    requirement.normalized_clause or requirement.raw_clause or requirement.name or "",
+                    evidence_payload,
+                )
+                if judged and getattr(judged, "reasoning", None):
+                    advisory = judged.reasoning
+                    confidence_override = getattr(judged, "confidence", None)
+            except Exception:
+                advisory = None
+
         verdict.status = ComplianceStatus.NEEDS_HUMAN_REVIEW
         verdict.verification_method = "semantic_judgement"
-        verdict.reasoning = (
-            f"This requirement is worded as a judgement rather than a measurement, so it "
-            f"is referred to you by policy. The {humanise_doc_type(segment.doc_type)} states "
-            f"under '{quoted.field_name.replace('_', ' ')}': "
-            f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
-        )
-        verdict.confidence = quoted.confidence
+        if advisory:
+            verdict.reasoning = advisory
+            # Keep quoting the descriptive field for traceability alongside advice
+            if len(advisory) < 260 or "states under" not in advisory:
+                verdict.reasoning += (
+                    f" The {humanise_doc_type(segment.doc_type)} states under "
+                    f"'{quoted.field_name.replace('_', ' ')}': "
+                    f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
+                )
+        else:
+            verdict.reasoning = (
+                f"This requirement is worded as a judgement rather than a measurement, so it "
+                f"is referred to you by policy. The {humanise_doc_type(segment.doc_type)} states "
+                f"under '{quoted.field_name.replace('_', ' ')}': "
+                f"\"{' '.join((quoted.field_value or '').split())[:200]}\"."
+            )
+        verdict.confidence = confidence_override if confidence_override is not None else quoted.confidence
         _cite(verdict, evidence, quoted)
         return verdict
 

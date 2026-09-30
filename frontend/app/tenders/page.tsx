@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { BackButton } from "@/components/ui/BackButton";
+import { BackendWakeFallback } from "@/components/BackendHealthGate";
 import { DeleteTenderButton } from "./DeleteTenderButton";
 import { listTenders } from "@/lib/api";
 import type { Tender } from "@/types/api";
@@ -20,13 +21,23 @@ export default async function TendersPage() {
     tenders = await listTenders();
   } catch {
     return (
-      <main className="mx-auto max-w-[62ch] px-6 py-24">
-        <h1 className="text-[24px]">No tenders could be loaded</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-          The backend may not be running. Start it with{" "}
-          <span className="identifier">uvicorn app.main:app --reload</span>.
-        </p>
-      </main>
+      <div className="page-backdrop min-h-screen">
+        <SiteHeader />
+        <main className="mx-auto max-w-[560px] px-6 py-12">
+          <BackButton />
+          <h1 className="mt-4 font-serif text-[24px] leading-tight">Workspace is waking</h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-ink-muted">
+            We couldn&apos;t reach the backend on this attempt. On Render&apos;s free tier the
+            service sleeps after ~15 min idle and takes ~50–60s to start — your tenders are safe.
+          </p>
+          <div className="mt-6">
+            <BackendWakeFallback message="The page will reload automatically once the backend answers /health. You can also retry manually." />
+          </div>
+          <p className="mt-6 text-[12px] text-ink-faint">
+            Running locally? Start it with <span className="identifier">uvicorn app.main:app --reload</span>.
+          </p>
+        </main>
+      </div>
     );
   }
 

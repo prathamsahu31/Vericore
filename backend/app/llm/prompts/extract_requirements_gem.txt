@@ -30,6 +30,7 @@ JSON shape:
       "weight": 0,
       "applicability_scope": "lead_only",
       "accepts_document_types": ["<from the vocabulary below>"],
+      "required_fields": ["<field names from the document schemas that this requirement checks>"],
       "external_check": null,
       "source_page": <page number>,
       "source_clause_ref": "<the metadata field name or ATC clause number>",
@@ -38,21 +39,36 @@ JSON shape:
   ]
 }}
 
+normalized_clause — one plain-English sentence for a non-technical officer.
+Always include the figure and period when present:
+  "Average annual turnover of at least Rs. 100 crore over the last 3 financial years."
+  "Valid and active GST registration in the name of the bidding entity."
+
 CONDITION — only when a figure or period is actually stated:
   {{"field": "average_annual_turnover", "operator": ">=", "threshold": <integer rupees>,
     "unit": "INR", "period_years": <n>}}
   {{"field": "emd_amount", "operator": ">=", "threshold": <integer rupees>, "unit": "INR"}}
   {{"field": "order_value", "operator": ">=", "threshold": <integer rupees>,
     "unit": "INR", "min_count": <n>, "within_years": <n>}}
+  {{"field": "rated_throughput_tpd", "operator": ">=", "threshold": <integer>, "unit": "TPD"}}
+  {{"field": "local_content_percent", "operator": ">=", "threshold": <integer>, "unit": "percent"}}
+  {{"field": "valid_until", "operator": "not_expired_at_due_date"}}
 Otherwise null. A GeM bid frequently names a required DOCUMENT without stating
 a threshold; that is a real requirement with a null condition, not a reason to
 invent a number.
+
+Rupee figures: convert to plain integers. "INR 500 Crore" is 5000000000.
+Use Indian numbering faithfully: "Rs. 62,00,00,000" is 620000000.
 
 A relaxation flag ("MSE Relaxation: No") is NOT itself a requirement. Record it
 only if it changes a stated condition.
 
 accepts_document_types — use ONLY these values:
 {allowed_types}
+
+required_fields — the specific field names that must be present for this
+requirement to be judged (e.g. turnover -> ["turnover_fy1","turnover_fy2"]).
+If only document presence matters, use an empty list.
 
 Do NOT invent thresholds. If the document states that experience or turnover
 criteria apply but gives no figure, set condition to null and say so in

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function ProblemStatementPage() {
     return (
@@ -12,6 +13,7 @@ export default function ProblemStatementPage() {
             <SiteHeader />
 
             <main className="relative z-10 mx-auto max-w-4xl px-6 py-20 sm:py-32">
+                <BackButton />
                 <motion.article
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

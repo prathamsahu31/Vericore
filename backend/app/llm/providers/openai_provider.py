@@ -63,6 +63,7 @@ _REQUIREMENT_ITEM = {
             "enum": ["lead_only", "any_member", "all_members", "aggregate"],
         },
         "accepts_document_types": {"type": "array", "items": {"type": "string"}},
+        "required_fields": {"type": "array", "items": {"type": "string"}},
         "external_check": {"type": ["string", "null"]},
         "source_page": {"type": ["integer", "null"]},
         "source_clause_ref": {"type": ["string", "null"]},
@@ -79,11 +80,65 @@ _REQUIREMENT_ITEM = {
         "weight",
         "applicability_scope",
         "accepts_document_types",
+        "required_fields",
         "external_check",
         "source_page",
         "source_clause_ref",
         "confidence",
     ],
+}
+
+EXTRACTION_SCHEMA = {
+    "name": "extraction_result",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "fields": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "field_name": {"type": "string"},
+                        "value": {"type": "string"},
+                        "source_span": {"type": "string"},
+                        "page": {"type": "integer", "minimum": 1},
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                    "required": ["field_name", "value", "source_span", "page", "confidence"],
+                },
+            },
+            "injection_suspected": {"type": "boolean"},
+        },
+        "required": ["fields", "injection_suspected"],
+    },
+}
+
+CLASSIFY_SCHEMA = {
+    "name": "page_classification",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "pages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "page": {"type": "integer", "minimum": 1},
+                        "doc_type": {"type": "string"},
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                    "required": ["page", "doc_type", "confidence"],
+                },
+            }
+        },
+        "required": ["pages"],
+    },
 }
 
 REQUIREMENT_SCHEMA = {
@@ -162,6 +217,8 @@ class OpenAIProvider:
     def _call(self, *, role: LLMRole, prompt: str, content: str, schema: dict | None) -> dict:
         body: dict[str, Any] = {
             "model": self.model_id_for(role),
+            "temperature": 0,
+            "top_p": 1,
             "messages": [
                 {"role": "system", "content": _read_prompt("system_untrusted_content.txt")},
                 {"role": "user", "content": f"{prompt}\n\n{content}"},
@@ -255,7 +312,7 @@ class OpenAIProvider:
                     accepts_document_types=[
                         t for t in (raw.get("accepts_document_types") or []) if t in allowed
                     ],
-                    required_fields=[],
+                    required_fields=[str(f) for f in (raw.get("required_fields") or []) if str(f).strip()],
                     external_check=raw.get("external_check") or None,
                     source_page=raw.get("source_page"),
                     source_clause_ref=raw.get("source_clause_ref"),
@@ -274,7 +331,10 @@ class OpenAIProvider:
             .replace("{document_text}", "")
         )
         payload = self._call(
-            role=LLMRole.EXTRACTION, prompt=prompt, content=doc.text or "", schema=None
+            role=LLMRole.EXTRACTION,
+            prompt=prompt,
+            content=doc.text or "",
+            schema=EXTRACTION_SCHEMA,
         )
         fields: list[ExtractedFieldResult] = []
         for raw in payload.get("fields", []):
@@ -296,7 +356,10 @@ class OpenAIProvider:
             .replace("{document_text}", "")
         )
         payload = self._call(
-            role=LLMRole.EXTRACTION, prompt=prompt, content=doc.text or "", schema=None
+            role=LLMRole.EXTRACTION,
+            prompt=prompt,
+            content=doc.text or "",
+            schema=CLASSIFY_SCHEMA,
         )
         out: list[PageClassification] = []
         for raw in payload.get("pages", []):

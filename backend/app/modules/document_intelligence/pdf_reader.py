@@ -71,6 +71,9 @@ class PdfDocument:
 
 def read_pdf(path: str | Path) -> PdfDocument:
     """Extract text and word geometry from every page, with OCR fallback."""
+    from app.storage import ensure_local_copy
+
+    path = ensure_local_copy(path)
     path = Path(path)
     pages: list[PdfPage] = []
     with pymupdf.open(path) as doc:

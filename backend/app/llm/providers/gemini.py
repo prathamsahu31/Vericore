@@ -63,6 +63,7 @@ REQUIREMENT_SCHEMA: dict[str, Any] = {
                         "enum": ["lead_only", "any_member", "all_members", "aggregate"],
                     },
                     "accepts_document_types": {"type": "ARRAY", "items": {"type": "STRING"}},
+                    "required_fields": {"type": "ARRAY", "items": {"type": "STRING"}},
                     "external_check": {"type": "STRING"},
                     "source_page": {"type": "INTEGER"},
                     "source_clause_ref": {"type": "STRING"},
@@ -91,6 +92,20 @@ RECOMMENDATION_SCHEMA: dict[str, Any] = {
         "cited_requirement_codes": {"type": "ARRAY", "items": {"type": "STRING"}},
     },
     "required": ["summary", "action", "cited_requirement_codes"],
+}
+
+JUDGMENT_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "status": {
+            "type": "STRING",
+            "enum": ["NEEDS_HUMAN_REVIEW", "PARTIALLY_COMPLIANT", "COMPLIANT", "NON_COMPLIANT"],
+        },
+        "confidence": {"type": "NUMBER"},
+        "reasoning": {"type": "STRING"},
+        "cited_field_names": {"type": "ARRAY", "items": {"type": "STRING"}},
+    },
+    "required": ["status", "confidence", "reasoning"],
 }
 
 
@@ -263,7 +278,9 @@ class GeminiProvider:
                     accepts_document_types=[
                         t for t in (raw.get("accepts_document_types") or []) if t in allowed
                     ],
-                    required_fields=[],
+                    required_fields=[
+                        f for f in (raw.get("required_fields") or []) if isinstance(f, str) and f.strip()
+                    ],
                     external_check=raw.get("external_check") or None,
                     source_page=raw.get("source_page"),
                     source_clause_ref=raw.get("source_clause_ref"),
@@ -333,6 +350,53 @@ class GeminiProvider:
             payload, results=results, provenance=self._provenance(LLMRole.REASONING)
         )
 
-    # ── Not yet used; present so the Protocol is satisfied ───────────────
     def judge(self, requirement: str, evidence: list[dict]) -> JudgmentResult:
-        raise LLMError("GeminiProvider.judge is not implemented yet.")
+        """Semantic judgement for prose requirements (§7.4). Advisory — caller
+        routes the verdict to NEEDS_HUMAN_REVIEW regardless, but the reasoning
+        is the useful output (improvement_roadmap §2)."""
+        evidence_block = json.dumps(evidence, indent=2, default=str) if evidence else "(no evidence extracted)"
+        prompt = (
+            _read_prompt("judge.txt")
+            .replace("{requirement}", requirement)
+            .replace("{evidence}", evidence_block)
+        )
+        doc = DocumentInput(text=prompt, file_bytes=None, mime_type=None, page_range=None)
+        try:
+            payload = self._call(
+                role=LLMRole.REASONING,
+                prompt=prompt,
+                doc=doc,
+                response_schema=JUDGMENT_SCHEMA,
+            )
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(f"judge call failed: {exc}") from exc
+
+        status = str(payload.get("status") or "NEEDS_HUMAN_REVIEW").strip().upper()
+        if status not in {"NEEDS_HUMAN_REVIEW", "PARTIALLY_COMPLIANT", "COMPLIANT", "NON_COMPLIANT"}:
+            status = "NEEDS_HUMAN_REVIEW"
+        # Prose judgement is advisory by policy (§7.4) — never emit a hard
+        # COMPLIANT/NON_COMPLIANT as an automated verdict.
+        if status in {"COMPLIANT", "NON_COMPLIANT", "PARTIALLY_COMPLIANT"}:
+            status = "NEEDS_HUMAN_REVIEW"
+
+        reasoning = str(payload.get("reasoning") or "").strip()
+        if not reasoning:
+            reasoning = "The requirement is worded as a judgement rather than a measurement, so it was referred to you by policy."
+
+        cited = [str(c) for c in (payload.get("cited_field_names") or []) if isinstance(c, str) and c.strip()]
+        confidence = payload.get("confidence")
+        try:
+            confidence_f = float(confidence) if confidence is not None else 0.5
+        except Exception:
+            confidence_f = 0.5
+        confidence_f = max(0.0, min(1.0, confidence_f))
+
+        return JudgmentResult(
+            status=status,
+            confidence=confidence_f,
+            reasoning=reasoning,
+            cited_field_names=cited,
+            provenance=self._provenance(LLMRole.REASONING),
+        )

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { BackButton } from "@/components/ui/BackButton";
+import { BackendWakeFallback } from "@/components/BackendHealthGate";
 import { Identifier, RiskChip, StatusChip } from "@/components/ui/status";
 import { getComparison, tenderReportPageUrl } from "@/lib/api";
 import type { ComparisonBidder, ComparisonRow } from "@/types/api";
@@ -33,12 +34,25 @@ export default async function ComparisonPage({
     data = await getComparison(tenderId);
   } catch {
     return (
-      <main className="mx-auto max-w-[62ch] px-6 py-24">
-        <h1 className="text-[24px]">This tender could not be loaded</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-          The backend may not be running, or this tender may not exist.
-        </p>
-      </main>
+      <div className="page-backdrop min-h-screen">
+        <SiteHeader />
+        <main className="mx-auto max-w-[560px] px-6 py-12">
+          <BackButton />
+          <h1 className="mt-4 font-serif text-[24px] leading-tight">This tender could not be loaded</h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-ink-muted">
+            We couldn&apos;t reach the backend. If the service was idle, Render needs ~50–60s to wake — your data is
+            safe. If the tender ID is wrong, check the workspace list.
+          </p>
+          <div className="mt-6">
+            <BackendWakeFallback />
+          </div>
+          <p className="mt-4 text-[13px]">
+            <Link href="/tenders" className="font-medium text-seal hover:underline">
+              ← Back to tenders
+            </Link>
+          </p>
+        </main>
+      </div>
     );
   }
 
@@ -194,9 +208,29 @@ function Row({ row }: { row: ComparisonRow }) {
       {row.cells.map((cell) => (
         <td key={cell.bid_id} className="border-l border-rule px-5 py-4">
           {cell.effective_status ? (
-            <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+            <Link
+              href={`/bids/${cell.bid_id}`}
+              title={`Open ${cell.effective_status.replace(/_/g, " ").toLowerCase()} — ${row.requirement_name} — see evidence and review`}
+              className="group relative inline-flex rounded-[4px] focus:outline-none focus-visible:ring-2 focus-visible:ring-seal focus-visible:ring-offset-2"
+            >
+              <span className="transition-transform group-hover:scale-[1.02] group-hover:brightness-[0.98] cursor-pointer">
+                <StatusChip status={cell.effective_status} overridden={cell.overridden} />
+              </span>
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block group-focus-visible:block">
+                View evidence →
+              </span>
+            </Link>
           ) : (
-            <span className="text-[13px] text-ink-faint">not verified</span>
+            <Link
+              href={`/bids/${cell.bid_id}`}
+              className="group relative text-[13px] text-ink-faint hover:text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-seal"
+              title="Open bidder — see evidence"
+            >
+              not verified
+              <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-ink px-2.5 py-1 text-[11px] font-medium text-white shadow-md group-hover:block">
+                View evidence →
+              </span>
+            </Link>
           )}
         </td>
       ))}
