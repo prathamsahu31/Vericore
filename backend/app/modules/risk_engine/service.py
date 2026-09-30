@@ -10,6 +10,7 @@ Driven by counted red flags, not by pass rate. The UI always lists which fired.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import date
 

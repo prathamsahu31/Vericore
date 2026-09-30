@@ -3,6 +3,9 @@ from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 
+import io
+from PIL import Image, ImageChops, ImageStat
+
 @dataclass
 class ForgerySignal:
     risk_level: str  # "LOW", "MEDIUM", "HIGH", "CRITICAL"
@@ -65,9 +68,11 @@ def analyze_document_forgery(pdf_path: str | Path) -> list[ForgerySignal]:
             # 3. Hidden / Overlaid Elements Check (e.g. pasted signatures)
             # We count images per page. If a document has exactly 1 large image (scanned page) 
             # and then 1 tiny image overlaid on top (a pasted fake signature), that's a red flag.
+                        # 3. Hidden Elements & Error Level Analysis (ELA)
             for page_num, page in enumerate(doc, start=1):
                 images = page.get_images()
                 
+                # Check for tiny overlays (pasted signatures)
                 if len(images) > 1:
                     image_sizes = []
                     for img in images:
@@ -88,6 +93,37 @@ def analyze_document_forgery(pdf_path: str | Path) -> list[ForgerySignal]:
                                 reason="Suspicious Image Overlays Detected",
                                 details=f"Page {page_num} contains a full-page scan overlaid with tiny image patches. This is a strong indicator of a pasted signature or altered text."
                             ))
+                
+                # Check 4: Error Level Analysis (ELA) for digital splicing
+                for img in images:
+                    xref = img[0]
+                    base_image_data = doc.extract_image(xref)
+                    if base_image_data:
+                        try:
+                            # Load the image and save a compressed version
+                            original = Image.open(io.BytesIO(base_image_data["image"])).convert("RGB")
+                            buffer = io.BytesIO()
+                            original.save(buffer, "JPEG", quality=90)
+                            buffer.seek(0)
+                            compressed = Image.open(buffer)
+                            
+                            # Subtract the images to expose the error levels
+                            ela = ImageChops.difference(original, compressed).convert("L")
+                            stat = ImageStat.Stat(ela)
+                            
+                            max_diff = stat.extrema[0][1]  # The brightest pixel in the difference map
+                            avg_diff = stat.mean[0]        # The average difference
+                            
+                            # If there's an extreme outlier spike in compression errors 
+                            # (max diff is huge but average is low), it's highly likely spliced.
+                            if max_diff > 70 and avg_diff < 15:
+                                signals.append(ForgerySignal(
+                                    risk_level="CRITICAL",
+                                    reason="ELA Anomaly Detected (Splicing/Tampering)",
+                                    details=f"Error Level Analysis found severe localized compression anomalies on page {page_num}. Parts of this image appear to have been digitally pasted in."
+                                ))
+                        except Exception:
+                            pass # If image format is unsupported, skip ELA
 
     except Exception as e:
         signals.append(ForgerySignal(
