@@ -67,8 +67,9 @@ def engine() -> Engine:
 
     # Bring the schema to head so the suite tests the migration, not a
     # hand-built copy of it.
+    alembic_bin = "Scripts" if os.name == "nt" else "bin"
     result = subprocess.run(
-        [str(BACKEND_ROOT / ".venv" / "bin" / "alembic"), "upgrade", "head"],
+        [str(BACKEND_ROOT / ".venv" / alembic_bin / "alembic"), "upgrade", "head"],
         cwd=BACKEND_ROOT,
         capture_output=True,
         text=True,

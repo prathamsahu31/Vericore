@@ -10,8 +10,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pymupdf
-import pytesseract
 from PIL import Image
+import numpy as np
+import logging
+
+logging.getLogger("ppocr").setLevel(logging.WARNING)
+
+try:
+    from paddleocr import PaddleOCR
+    _ocr_model = PaddleOCR(use_textline_orientation=True, lang='en')
+except ImportError:
+    _ocr_model = None
 
 
 
@@ -62,6 +71,7 @@ class PdfDocument:
     def page_count(self) -> int:
         return len(self.pages)
 
+
     def page(self, number: int) -> PdfPage | None:
         for p in self.pages:
             if p.number == number:
@@ -87,37 +97,43 @@ def read_pdf(path: str | Path) -> PdfDocument:
                 pix = page.get_pixmap(dpi=150)
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 
-                # Get word-level bounding boxes and text from Tesseract
-                ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
-                
                 ocr_words = []
                 ocr_text = []
                 
-                # Tesseract returns coordinates in pixels (at 150 DPI). 
-                # We must scale them back to PDF points (72 DPI) for the UI highlighter.
-                scale = 72.0 / 150.0
-                
-                for i in range(len(ocr_data['text'])):
-                    word_text = str(ocr_data['text'][i]).strip()
-                    if word_text:
-                        x0 = float(ocr_data['left'][i]) * scale
-                        y0 = float(ocr_data['top'][i]) * scale
-                        w = float(ocr_data['width'][i]) * scale
-                        h = float(ocr_data['height'][i]) * scale
+                if _ocr_model:
+                    # Convert PIL image to NumPy array for PaddleOCR
+                    img_np = np.array(img)
+                    result = _ocr_model.ocr(img_np, cls=True)
+                    
+                    scale = 72.0 / 150.0
+                    lines = result[0] if result and result[0] else []
+                    
+                    for line_idx, line in enumerate(lines):
+                        box, (text, confidence) = line
+                        word_text = text.strip()
                         
-                        ocr_words.append(
-                            WordBox(
-                                page=index,
-                                x0=x0,
-                                y0=y0,
-                                x1=x0 + w,
-                                y1=y0 + h,
-                                text=word_text,
-                                block=int(ocr_data['block_num'][i]),
-                                line=int(ocr_data['line_num'][i]),
+                        if word_text:
+                            x_coords = [point[0] for point in box]
+                            y_coords = [point[1] for point in box]
+                            
+                            x0 = min(x_coords) * scale
+                            y0 = min(y_coords) * scale
+                            x1 = max(x_coords) * scale
+                            y1 = max(y_coords) * scale
+                            
+                            ocr_words.append(
+                                WordBox(
+                                    page=index,
+                                    x0=x0,
+                                    y0=y0,
+                                    x1=x1,
+                                    y1=y1,
+                                    text=word_text,
+                                    block=line_idx,
+                                    line=0,
+                                )
                             )
-                        )
-                        ocr_text.append(word_text)
+                            ocr_text.append(word_text)
                 
                 words = tuple(ocr_words)
                 extracted_text = " ".join(ocr_text)
