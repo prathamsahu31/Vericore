@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
+from app.modules.risk_engine.cartel_detector import detect_cartel_rings
+
 from app.db.enums import ComplianceStatus, RiskLevel, Severity
 from app.modules.compliance_engine.evidence_index import BidEvidence, parse_date
 
@@ -295,3 +297,33 @@ def _rationale(flags: list[RiskFlag]) -> str:
         counts[str(f.severity)] = counts.get(str(f.severity), 0) + 1
     parts = ", ".join(f"{n} {sev}" for sev, n in sorted(counts.items()))
     return f"{len(flags)} signal(s) fired: {parts}."
+
+
+def run_tender_cartel_sweep(db, tender_id: uuid.UUID):
+    """
+    Runs after all bids are submitted. Sweeps the entire tender for cartel rings.
+    """
+    from app.db.models import Bid, Bidder, BidMember
+    from sqlalchemy import select
+    
+    # 1. Fetch all bidders for this specific tender
+    stmt = (
+        select(Bidder, Bid.id)
+        .join(BidMember, BidMember.bidder_id == Bidder.id)
+        .join(Bid, Bid.id == BidMember.bid_id)
+        .where(Bid.tender_id == tender_id)
+    )
+    results = db.execute(stmt).all()
+    
+    bidders = [row[0] for row in results]
+    bidder_to_bid_id = {row[0].id: row[1] for row in results}
+    
+    # 2. Run your powerful Graph Engine!
+    cartel_findings = detect_cartel_rings(bidders)
+    
+    # 3. Log CRITICAL risk flags for any caught bidders
+    for (name1, name2, reason) in cartel_findings:
+        print(f"🚨 CARTEL DETECTED: {name1} and {name2} are colluding! Reason: {reason}")
+        
+        # Here, you would normally insert a RiskFlag into the DB 
+        # for both Bid IDs to alert the officer on the frontend.

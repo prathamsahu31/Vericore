@@ -10,6 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pymupdf
+import pytesseract
+from PIL import Image
+
 
 
 @dataclass(frozen=True)
@@ -67,32 +70,77 @@ class PdfDocument:
 
 
 def read_pdf(path: str | Path) -> PdfDocument:
-    """Extract text and word geometry from every page."""
+    """Extract text and word geometry from every page, with OCR fallback."""
     path = Path(path)
     pages: list[PdfPage] = []
     with pymupdf.open(path) as doc:
         for index, page in enumerate(doc, start=1):
             raw = page.get_text("words")  # (x0, y0, x1, y1, word, block, line, word_no)
-            words = tuple(
-                WordBox(
-                    page=index,
-                    x0=float(w[0]),
-                    y0=float(w[1]),
-                    x1=float(w[2]),
-                    y1=float(w[3]),
-                    text=str(w[4]),
-                    block=int(w[5]),
-                    line=int(w[6]),
+            extracted_text = page.get_text("text")
+            
+            # --- START OCR FALLBACK ---
+            if not raw:
+                # Page has no native text. Render to image at 150 DPI for OCR
+                pix = page.get_pixmap(dpi=150)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                
+                # Get word-level bounding boxes and text from Tesseract
+                ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+                
+                ocr_words = []
+                ocr_text = []
+                
+                # Tesseract returns coordinates in pixels (at 150 DPI). 
+                # We must scale them back to PDF points (72 DPI) for the UI highlighter.
+                scale = 72.0 / 150.0
+                
+                for i in range(len(ocr_data['text'])):
+                    word_text = str(ocr_data['text'][i]).strip()
+                    if word_text:
+                        x0 = float(ocr_data['left'][i]) * scale
+                        y0 = float(ocr_data['top'][i]) * scale
+                        w = float(ocr_data['width'][i]) * scale
+                        h = float(ocr_data['height'][i]) * scale
+                        
+                        ocr_words.append(
+                            WordBox(
+                                page=index,
+                                x0=x0,
+                                y0=y0,
+                                x1=x0 + w,
+                                y1=y0 + h,
+                                text=word_text,
+                                block=int(ocr_data['block_num'][i]),
+                                line=int(ocr_data['line_num'][i]),
+                            )
+                        )
+                        ocr_text.append(word_text)
+                
+                words = tuple(ocr_words)
+                extracted_text = " ".join(ocr_text)
+            else:
+                # --- NATIVE PDF EXTRACTION (Original Logic) ---
+                words = tuple(
+                    WordBox(
+                        page=index,
+                        x0=float(w[0]),
+                        y0=float(w[1]),
+                        x1=float(w[2]),
+                        y1=float(w[3]),
+                        text=str(w[4]),
+                        block=int(w[5]),
+                        line=int(w[6]),
+                    )
+                    for w in raw
+                    if str(w[4]).strip()
                 )
-                for w in raw
-                if str(w[4]).strip()
-            )
+
             pages.append(
                 PdfPage(
                     number=index,
                     width=float(page.rect.width),
                     height=float(page.rect.height),
-                    text=page.get_text("text"),
+                    text=extracted_text,
                     words=words,
                 )
             )
