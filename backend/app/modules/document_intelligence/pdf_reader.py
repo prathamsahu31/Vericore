@@ -154,12 +154,15 @@ def read_pdf(path: str | Path) -> PdfDocument:
                     if str(w[4]).strip()
                 )
 
+            from app.modules.document_intelligence.bhashini import translate_to_english
+            translated_text = translate_to_english(extracted_text)
+
             pages.append(
                 PdfPage(
                     number=index,
                     width=float(page.rect.width),
                     height=float(page.rect.height),
-                    text=extracted_text,
+                    text=translated_text,
                     words=words,
                 )
             )

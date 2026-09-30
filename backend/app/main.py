@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 import os
-
+from app.api.chat import router as chat_router
 from app.config import get_settings
 from app.errors import register_exception_handlers
 
@@ -62,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(bids_router)
     app.include_router(verification_router)
     app.include_router(reports_router)
+    app.include_router(chat_router)
 
     @app.get("/", tags=["meta"])
     def root() -> dict:

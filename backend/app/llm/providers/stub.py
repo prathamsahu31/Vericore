@@ -688,3 +688,6 @@ class StubProvider:
             cited_requirement_codes=[],
             provenance=self._provenance(LLMRole.REASONING),
         )
+
+    def generate_chat(self, prompt: str, doc: DocumentInput) -> str:
+        return "This is a stubbed chat response. The StubProvider does not generate actual chat responses."

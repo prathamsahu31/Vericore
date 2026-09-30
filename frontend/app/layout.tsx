@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter, Source_Serif_4 } from "next/font/google";
 import "@/styles/globals.css";
-import { CustomCursor } from "@/components/ui/CustomCursor";
 import { BackendHealthGate } from "@/components/BackendHealthGate";
+import Chatbot from "@/components/Chatbot";
 
 // Three roles, chosen for this brief specifically (CLAUDE.md §11).
 const serif = Source_Serif_4({
@@ -35,8 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
       </head>
       <body className="page-backdrop min-h-screen text-ink antialiased">
-        <CustomCursor />
         <BackendHealthGate mode="banner">{children}</BackendHealthGate>
+        <Chatbot />
       </body>
     </html>
   );

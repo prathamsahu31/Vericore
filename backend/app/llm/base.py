@@ -53,6 +53,11 @@ class LLMProvider(Protocol):
 
     def classify_pages(self, doc: DocumentInput) -> list[PageClassification]: ...
 
+    def generate_chat(self, prompt: str, doc: DocumentInput) -> str:
+        """Free-text chat generation (used by the chatbot)."""
+        ...
+
+
 
 class LLMError(Exception):
     """A provider could not produce a usable result.

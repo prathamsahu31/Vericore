@@ -143,6 +143,33 @@ class GeminiProvider:
     def _provenance(self, role: LLMRole) -> CallProvenance:
         return CallProvenance(provider=self.name, model_id=self.model_id_for(role), role=str(role))
 
+    def generate_chat(self, prompt: str, doc: DocumentInput) -> str:
+        """Makes a free-text call to Gemini (bypassing the strict JSON requirement)."""
+        import json
+        import urllib.request
+        
+        parts = [{"text": prompt}]
+        if doc.text:
+            parts.append({"text": doc.text})
+            
+        body = {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {"temperature": 0.3}
+        }
+        
+        request = urllib.request.Request(
+            ENDPOINT.format(model=self.model_id_for(LLMRole.REASONING)),
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
+            method="POST",
+        )
+        
+        with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            payload = json.load(response)
+            
+        return payload["candidates"][0]["content"]["parts"][0]["text"]
+
+
     # ── Transport ────────────────────────────────────────────────────────
     def _call(
         self,
