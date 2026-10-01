@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 import os
-from app.api.chat import router as chat_router
 from app.config import get_settings
 from app.errors import register_exception_handlers
 
@@ -54,6 +53,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     from app.api.bids import router as bids_router
+    from app.api.chat import router as chat_router
     from app.api.reports import router as reports_router
     from app.api.tenders import router as tenders_router
     from app.api.verification import router as verification_router

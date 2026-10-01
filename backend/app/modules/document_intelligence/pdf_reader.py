@@ -82,6 +82,7 @@ class PdfDocument:
 def read_pdf(path: str | Path) -> PdfDocument:
     """Extract text and word geometry from every page, with OCR fallback."""
     from app.storage import ensure_local_copy
+    from app.modules.document_intelligence.bhashini import translate_to_english
 
     path = ensure_local_copy(path)
     path = Path(path)
@@ -154,7 +155,8 @@ def read_pdf(path: str | Path) -> PdfDocument:
                     if str(w[4]).strip()
                 )
 
-            from app.modules.document_intelligence.bhashini import translate_to_english
+            # Translate non-English text; English pages are skipped automatically
+            # by the _looks_english heuristic inside translate_to_english.
             translated_text = translate_to_english(extracted_text)
 
             pages.append(

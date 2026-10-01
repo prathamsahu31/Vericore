@@ -319,12 +319,17 @@ def run_tender_cartel_sweep(db, tender_id: uuid.UUID):
     bidders = [row[0] for row in results]
     bidder_to_bid_id = {row[0].id: row[1] for row in results}
     
-    # 2. Run your powerful Graph Engine!
+    # 2. Run the Graph Engine
     cartel_findings = detect_cartel_rings(bidders)
     
     # 3. Log CRITICAL risk flags for any caught bidders
+    import logging
+    _log = logging.getLogger(__name__)
     for (name1, name2, reason) in cartel_findings:
-        print(f"🚨 CARTEL DETECTED: {name1} and {name2} are colluding! Reason: {reason}")
+        _log.critical(
+            "CARTEL DETECTED: %s and %s are colluding. Reason: %s",
+            name1, name2, reason,
+        )
         
-        # Here, you would normally insert a RiskFlag into the DB 
-        # for both Bid IDs to alert the officer on the frontend.
+        # TODO: Insert a RiskFlag into the DB for both Bid IDs
+        # to alert the officer on the frontend.

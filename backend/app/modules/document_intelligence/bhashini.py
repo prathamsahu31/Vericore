@@ -1,44 +1,72 @@
 import os
+import re
 import requests
 import logging
 
 logger = logging.getLogger(__name__)
 
-def translate_to_english(text: str) -> str:
+# Simple heuristic: if >60% of characters are ASCII letters/digits/punctuation,
+# the text is very likely English and doesn't need translation.
+_ASCII_LETTER = re.compile(r'[a-zA-Z]')
+
+# Bhashini-supported source languages (ISO 639-1 codes).
+# We try Hindi first since that's the most common non-English language in
+# Indian government procurement documents.
+_SUPPORTED_LANGUAGES = ["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or"]
+
+
+def _looks_english(text: str) -> bool:
+    """Quick heuristic: if most alphabetic characters are ASCII, skip translation."""
+    if not text or len(text.strip()) < 20:
+        return True  # too short to judge — don't waste an API call
+    alpha_chars = [c for c in text if c.isalpha()]
+    if not alpha_chars:
+        return True  # numbers/symbols only
+    ascii_alpha = sum(1 for c in alpha_chars if ord(c) < 128)
+    return (ascii_alpha / len(alpha_chars)) > 0.6
+
+
+def translate_to_english(text: str, source_language: str = "hi") -> str:
     """
     Translates the given text to English using the Bhashini API.
     If the API is not configured or the request fails, it returns the original text.
+
+    Args:
+        text: The text to translate.
+        source_language: ISO 639-1 code for the source language (default: "hi" for Hindi).
+                         Ignored if the text appears to already be in English.
     """
     if not text or not text.strip():
+        return text
+
+    # Skip translation for text that's already English
+    if _looks_english(text):
         return text
 
     # Bhashini credentials
     user_id = os.environ.get("BHASHINI_USER_ID")
     api_key = os.environ.get("BHASHINI_API_KEY")
-    pipeline_id = os.environ.get("BHASHINI_PIPELINE_ID") # Sometimes required by Bhashini
 
     if not user_id or not api_key:
         logger.warning("Bhashini credentials not found in environment. Skipping translation.")
         return text
 
     try:
-        # NOTE: This is a general structure for the Bhashini/ULCA API. 
-        # You will need to replace the URL with the exact inference endpoint 
-        # provided in your Bhashini developer dashboard.
         url = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
-        
+
         headers = {
             "Authorization": api_key,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "userID": user_id,
         }
-        
+
         payload = {
             "pipelineTasks": [
                 {
                     "taskType": "translation",
                     "config": {
                         "language": {
-                            "sourceLanguage": "auto", # Auto-detect source if supported, else you might need a language identifier model first
+                            "sourceLanguage": source_language,
                             "targetLanguage": "en"
                         }
                     }
@@ -51,19 +79,15 @@ def translate_to_english(text: str) -> str:
             }
         }
 
-        # If they use UserID for authentication (like in Dhruva)
-        headers["userID"] = user_id
-
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
         response.raise_for_status()
-        
+
         data = response.json()
-        
+
         # Parse the translated text from the response payload
-        # This parsing logic depends heavily on the specific Bhashini Pipeline output structure
         translated_text = data["pipelineResponse"][0]["output"][0]["target"]
         return translated_text
 
     except Exception as e:
-        logger.error(f"Bhashini translation failed: {e}")
-        return text # Graceful fallback if translation fails
+        logger.error(f"Bhashini translation failed (source_language={source_language}): {e}")
+        return text  # Graceful fallback if translation fails
