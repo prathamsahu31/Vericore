@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from app.llm.types import (
+    ChatAnswer,
     DocumentInput,
     ExtractionResult,
     JudgmentResult,
@@ -53,10 +54,9 @@ class LLMProvider(Protocol):
 
     def classify_pages(self, doc: DocumentInput) -> list[PageClassification]: ...
 
-    def generate_chat(self, prompt: str, doc: DocumentInput) -> str:
-        """Free-text chat generation (used by the chatbot)."""
+    def generate_chat(self, question: str, doc: DocumentInput, *, role: LLMRole) -> ChatAnswer:
+        """Free-text answer for the chat widget, from ``doc.text`` if given."""
         ...
-
 
 
 class LLMError(Exception):

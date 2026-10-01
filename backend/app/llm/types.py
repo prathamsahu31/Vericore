@@ -155,6 +155,35 @@ class Recommendation(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class ChatSource(BaseModel):
+    """Where a chat statement came from: an uploaded file and, if known, a page."""
+
+    document: str
+    page: int | None = None
+
+
+class ChatPoint(BaseModel):
+    text: str
+    sources: list[ChatSource] = Field(default_factory=list)
+
+
+class ChatSection(BaseModel):
+    heading: str
+    points: list[ChatPoint] = Field(default_factory=list)
+
+
+class ChatAnswer(BaseModel):
+    """A chat-widget answer: a direct summary, then grouped, cited points.
+
+    Structured rather than free text so every statement carries its source and
+    the widget can lay it out, the same as every other model output (§7.6).
+    """
+
+    summary: str
+    sections: list[ChatSection] = Field(default_factory=list)
+    injection_suspected: bool = False
+
+
 def recommendation_from_payload(
     payload: dict,
     *,

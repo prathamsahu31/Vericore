@@ -19,6 +19,7 @@ from typing import Any
 
 from app.llm.base import LLMError
 from app.llm.types import (
+    ChatAnswer,
     DocumentInput,
     ExtractionResult,
     JudgmentResult,
@@ -91,8 +92,14 @@ class CachedProvider:
             key = _fingerprint(self._inner.name, item, args, kwargs)
             path = self._dir / f"{key}.json"
             if path.exists():
-                log.debug("llm cache hit method=%s key=%s", item, key[:12])
-                return _rehydrate(item, json.loads(path.read_text()))
+                try:
+                    cached = _rehydrate(item, json.loads(path.read_text()))
+                    log.debug("llm cache hit method=%s key=%s", item, key[:12])
+                    return cached
+                except (ValueError, TypeError):
+                    # Written before the return type changed shape. Treat it as
+                    # a miss and overwrite it, rather than fail a call over it.
+                    log.info("llm cache entry stale method=%s key=%s", item, key[:12])
             result = inner_attr(*args, **kwargs)
             try:
                 path.write_text(json.dumps(_dehydrate(result), default=str))
@@ -114,6 +121,9 @@ RETURN_TYPES: dict[str, tuple[Any, bool]] = {
     "judge": (JudgmentResult, False),
     "narrate": (Recommendation, False),
     "classify_pages": (PageClassification, True),
+    # Cached so the same question about the same documents is free the second
+    # time. The key covers the full prompt, so new documents miss the cache.
+    "generate_chat": (ChatAnswer, False),
 }
 
 

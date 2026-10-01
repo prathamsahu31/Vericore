@@ -19,12 +19,15 @@ import urllib.request
 from pathlib import Path
 from typing import Any, ClassVar
 
+from pydantic import ValidationError
+
 from app.llm.base import LLMError
-from app.llm.config import resolve_model_id
+from app.llm.config import CHAT_MAX_OUTPUT_TOKENS, resolve_model_id
 from app.llm.profiles import PROMPT_FOR_PROFILE, detect_profile
 from app.llm.schemas import KNOWN_DOCUMENT_TYPES, schema_for
 from app.llm.types import (
     CallProvenance,
+    ChatAnswer,
     DocumentInput,
     ExtractionResult,
     JudgmentResult,
@@ -109,6 +112,47 @@ JUDGMENT_SCHEMA: dict[str, Any] = {
 }
 
 
+CHAT_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "summary": {"type": "STRING"},
+        "sections": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "heading": {"type": "STRING"},
+                    "points": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "text": {"type": "STRING"},
+                                "sources": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "OBJECT",
+                                        "properties": {
+                                            "document": {"type": "STRING"},
+                                            "page": {"type": "INTEGER", "nullable": True},
+                                        },
+                                        "required": ["document"],
+                                    },
+                                },
+                            },
+                            "required": ["text", "sources"],
+                        },
+                    },
+                },
+                "required": ["heading", "points"],
+            },
+        },
+        "injection_suspected": {"type": "BOOLEAN"},
+    },
+    "required": ["summary", "sections", "injection_suspected"],
+}
+
+
 def _read_prompt(name: str) -> str:
     return (PROMPTS / name).read_text()
 
@@ -143,32 +187,29 @@ class GeminiProvider:
     def _provenance(self, role: LLMRole) -> CallProvenance:
         return CallProvenance(provider=self.name, model_id=self.model_id_for(role), role=str(role))
 
-    def generate_chat(self, prompt: str, doc: DocumentInput) -> str:
-        """Makes a free-text call to Gemini (bypassing the strict JSON requirement)."""
-        import json
-        import urllib.request
-        
-        parts = [{"text": prompt}]
-        if doc.text:
-            parts.append({"text": doc.text})
-            
-        body = {
-            "contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"temperature": 0.3}
-        }
-        
-        request = urllib.request.Request(
-            ENDPOINT.format(model=self.model_id_for(LLMRole.REASONING)),
-            data=json.dumps(body).encode(),
-            headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
-            method="POST",
-        )
-        
-        with urllib.request.urlopen(request, timeout=self._timeout) as response:
-            payload = json.load(response)
-            
-        return payload["candidates"][0]["content"]["parts"][0]["text"]
+    # ── Chat widget ──────────────────────────────────────────────────────
+    def generate_chat(self, question: str, doc: DocumentInput, *, role: LLMRole) -> ChatAnswer:
+        """Not through ``_call``: chat has its own system prompt and an output cap.
 
+        The output cap, plus the input cap in the chat route, bounds what one
+        question can cost.
+        """
+        content = f"{doc.text}\n\nQUESTION: {question}" if doc.text else question
+        body: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": content}]}],
+            "systemInstruction": {"parts": [{"text": _read_prompt("chat_system.txt")}]},
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": CHAT_MAX_OUTPUT_TOKENS,
+                "responseMimeType": "application/json",
+                "responseSchema": CHAT_SCHEMA,
+            },
+        }
+        text = self._post(self.model_id_for(role), body)
+        try:
+            return ChatAnswer.model_validate_json(text)
+        except ValidationError as exc:
+            raise LLMError(f"Gemini returned an invalid chat answer: {text[:200]}") from exc
 
     # ── Transport ────────────────────────────────────────────────────────
     def _call(
@@ -210,6 +251,14 @@ class GeminiProvider:
         if response_schema:
             body["generationConfig"]["responseSchema"] = response_schema
 
+        text = self._post(model, body)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise LLMError(f"Gemini returned malformed JSON: {text[:200]}") from exc
+
+    def _post(self, model: str, body: dict[str, Any]) -> str:
+        """Send one generateContent request and return the first part's text."""
         request = urllib.request.Request(
             ENDPOINT.format(model=model),
             data=json.dumps(body).encode(),
@@ -227,15 +276,10 @@ class GeminiProvider:
             raise LLMError(f"Gemini call failed: {type(exc).__name__}: {exc}") from exc
 
         try:
-            text = payload["candidates"][0]["content"]["parts"][0]["text"]
+            return payload["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError) as exc:
             finish = (payload.get("candidates") or [{}])[0].get("finishReason")
             raise LLMError(f"Gemini returned no usable content (finishReason={finish}).") from exc
-
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise LLMError(f"Gemini returned malformed JSON: {text[:200]}") from exc
 
     # ── Requirement extraction (layer 1) ─────────────────────────────────
     def extract_requirements(self, doc: DocumentInput) -> RequirementSet:

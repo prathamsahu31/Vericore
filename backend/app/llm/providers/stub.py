@@ -20,6 +20,7 @@ from app.llm.config import resolve_model_id
 from app.llm.schemas import schema_for
 from app.llm.types import (
     CallProvenance,
+    ChatAnswer,
     DocumentInput,
     ExtractedFieldResult,
     ExtractionResult,
@@ -689,5 +690,5 @@ class StubProvider:
             provenance=self._provenance(LLMRole.REASONING),
         )
 
-    def generate_chat(self, prompt: str, doc: DocumentInput) -> str:
-        return "This is a stubbed chat response. The StubProvider does not generate actual chat responses."
+    def generate_chat(self, question: str, doc: DocumentInput, *, role: LLMRole) -> ChatAnswer:
+        return ChatAnswer(summary="StubProvider does not generate chat answers.")

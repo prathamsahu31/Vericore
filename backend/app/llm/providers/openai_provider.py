@@ -19,12 +19,15 @@ import urllib.request
 from pathlib import Path
 from typing import Any, ClassVar
 
+from pydantic import ValidationError
+
 from app.llm.base import LLMError
-from app.llm.config import resolve_model_id
+from app.llm.config import CHAT_MAX_OUTPUT_TOKENS, resolve_model_id
 from app.llm.profiles import PROMPT_FOR_PROFILE, detect_profile
 from app.llm.schemas import KNOWN_DOCUMENT_TYPES, schema_for
 from app.llm.types import (
     CallProvenance,
+    ChatAnswer,
     DocumentInput,
     ExtractedFieldResult,
     ExtractionResult,
@@ -176,6 +179,50 @@ RECOMMENDATION_SCHEMA = {
 }
 
 
+_CHAT_SOURCE = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {"document": {"type": "string"}, "page": {"type": ["integer", "null"]}},
+    "required": ["document", "page"],
+}
+
+_CHAT_POINT = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "text": {"type": "string"},
+        "sources": {"type": "array", "items": _CHAT_SOURCE},
+    },
+    "required": ["text", "sources"],
+}
+
+CHAT_SCHEMA = {
+    "name": "chat_answer",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "summary": {"type": "string"},
+            "sections": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "heading": {"type": "string"},
+                        "points": {"type": "array", "items": _CHAT_POINT},
+                    },
+                    "required": ["heading", "points"],
+                },
+            },
+            "injection_suspected": {"type": "boolean"},
+        },
+        "required": ["summary", "sections", "injection_suspected"],
+    },
+}
+
+
 def _read_prompt(name: str) -> str:
     return (PROMPTS / name).read_text()
 
@@ -228,6 +275,14 @@ class OpenAIProvider:
             {"type": "json_schema", "json_schema": schema} if schema else {"type": "json_object"}
         )
 
+        text = self._post(body)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise LLMError(f"OpenAI returned malformed JSON: {text[:200]}") from exc
+
+    def _post(self, body: dict[str, Any]) -> str:
+        """Send one chat-completions request and return the message content."""
         request = urllib.request.Request(
             ENDPOINT,
             data=json.dumps(body).encode(),
@@ -252,10 +307,32 @@ class OpenAIProvider:
             raise LLMError(
                 f"OpenAI returned no content (finish_reason={choice.get('finish_reason')})."
             )
+        return text
+
+    # ── Chat widget ──────────────────────────────────────────────────────
+    def generate_chat(self, question: str, doc: DocumentInput, *, role: LLMRole) -> ChatAnswer:
+        """Not through ``_call``: chat has its own system prompt and an output cap.
+
+        The output cap, plus the input cap in the chat route, bounds what one
+        question can cost.
+        """
+        content = f"{doc.text}\n\nQUESTION: {question}" if doc.text else question
+        text = self._post(
+            {
+                "model": self.model_id_for(role),
+                "temperature": 0.2,
+                "max_completion_tokens": CHAT_MAX_OUTPUT_TOKENS,
+                "response_format": {"type": "json_schema", "json_schema": CHAT_SCHEMA},
+                "messages": [
+                    {"role": "system", "content": _read_prompt("chat_system.txt")},
+                    {"role": "user", "content": content},
+                ],
+            }
+        )
         try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise LLMError(f"OpenAI returned malformed JSON: {text[:200]}") from exc
+            return ChatAnswer.model_validate_json(text)
+        except ValidationError as exc:
+            raise LLMError(f"OpenAI returned an invalid chat answer: {text[:200]}") from exc
 
     # ── Requirement extraction (layer 1) ─────────────────────────────────
     def extract_requirements(self, doc: DocumentInput) -> RequirementSet:

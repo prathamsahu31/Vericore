@@ -45,6 +45,12 @@ MODEL_IDS: dict[tuple[str, LLMRole], str] = {
     ("gemini", LLMRole.REASONING): "gemini-3.1-flash-lite",
 }
 
+# Ceiling on a chat answer's length, in tokens. With the input capped by the
+# chat route, this bounds the worst-case cost of a single question. Sized for
+# the structured answer the chat prompt allows (four sections of five short
+# points); an answer cut off mid-JSON fails validation, so it must not be tight.
+CHAT_MAX_OUTPUT_TOKENS = 900
+
 
 class UnknownModelError(KeyError):
     """No model is configured for this provider and role."""
