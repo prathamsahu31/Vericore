@@ -45,7 +45,8 @@ from app.db.models import (
 from app.errors import GateNotSatisfiedError, NotFoundError
 from app.modules.compliance_engine import cross_document, engine, scoring
 from app.modules.compliance_engine.evidence_index import BidEvidence
-from app.modules.risk_engine.service import assess
+from app.modules.risk_engine import cartel_detector
+from app.modules.risk_engine.service import assess, band
 
 log = logging.getLogger(__name__)
 
@@ -250,6 +251,12 @@ def _run(db, bid, tender, requirements, run, provider) -> None:
         )
     )
 
+    # Collusion signals compare this bid with every other bid on the tender, so
+    # they are recomputed for all of them now that this one has changed.
+    run.phase = "checking links between bidders"
+    db.flush()
+    sweep_collusion(db, tender.id)
+
     run.status = VerificationRunStatus.SUCCEEDED
     run.phase = "complete"
     run.finished_at = datetime.now(UTC)
@@ -272,6 +279,116 @@ def _lead(db: Session, bid_id: uuid.UUID) -> tuple[Bidder, uuid.UUID | None]:
     if member is None:
         raise NotFoundError(f"Bid {bid_id} has no members")
     return db.get(Bidder, member.bidder_id), member.id
+
+
+def sweep_collusion(db: Session, tender_id: uuid.UUID) -> None:
+    """Recompute the collusion flags of every assessed bid on a tender.
+
+    A link between two bids is a flag on both, so verifying one bid can change
+    another's flags and risk band. A bid not yet assessed is compared against
+    but not flagged; it gets its flags when it is verified. Every bid whose
+    flags change gets an audit event, so a band that moves outside the bid's
+    own verification run is still accounted for (§2 rule 6).
+    """
+    bids = list(
+        db.execute(
+            select(Bid).where(Bid.tender_id == tender_id).order_by(Bid.created_at)
+        ).scalars()
+    )
+    found = cartel_detector.flags([_bid_profile(db, bid) for bid in bids])
+
+    for bid in bids:
+        if bid.risk_level is None:
+            continue
+        stored = list(db.execute(select(RiskFlag).where(RiskFlag.bid_id == bid.id)).scalars())
+        previous = [row for row in stored if row.category == cartel_detector.CATEGORY]
+        current = found.get(bid.id, [])
+        if sorted((f.code, f.description) for f in previous) == sorted(
+            (f.code, f.description) for f in current
+        ):
+            continue
+
+        for row in previous:
+            db.delete(row)
+        for flag in current:
+            db.add(
+                RiskFlag(
+                    bid_id=bid.id,
+                    code=flag.code,
+                    category=flag.category,
+                    severity=flag.severity,
+                    description=flag.description,
+                    evidence_refs=flag.evidence_refs or None,
+                )
+            )
+        db.flush()
+
+        level_before = bid.risk_level
+        bid.risk_level = band(
+            list(db.execute(select(RiskFlag).where(RiskFlag.bid_id == bid.id)).scalars())
+        )
+        db.add(
+            AuditEvent(
+                tender_id=tender_id,
+                bid_id=bid.id,
+                event_type="collusion_signals_updated",
+                actor_type=ActorType.SYSTEM,
+                actor_component="risk_engine",
+                previous_state=str(level_before),
+                new_state=str(bid.risk_level),
+                reason=f"{len(current)} collusion signal(s) after comparing every bid.",
+                payload={
+                    "flags": [f.code for f in current],
+                    "linked_bids": sorted(
+                        {b for f in current for b in f.evidence_refs.get("linked_bids", [])}
+                    ),
+                },
+            )
+        )
+    db.flush()
+
+
+def _bid_profile(db: Session, bid: Bid) -> cartel_detector.BidProfile:
+    """What a bid carries that no other bid on the tender should share."""
+    Mark = cartel_detector.Mark
+    marks: list[cartel_detector.Mark] = []
+    members = db.execute(
+        select(Bidder)
+        .join(BidMember, BidMember.bidder_id == Bidder.id)
+        .where(BidMember.bid_id == bid.id)
+        .order_by(BidMember.member_order)
+    ).scalars()
+    names: list[str] = []
+    for bidder in members:
+        names.append(bidder.legal_name)
+        marks.append(Mark("bidder", str(bidder.id), bidder.legal_name, "bid membership"))
+        for kind in ("pan", "gstin", "udyam_urn", "cin"):
+            if value := getattr(bidder, kind):
+                marks.append(Mark(kind, value, value, "registration"))
+        if bidder.registered_address:
+            address = bidder.registered_address
+            marks.append(Mark("address", address, address, "registration"))
+
+    for doc in db.execute(select(Document).where(Document.bid_id == bid.id)).scalars():
+        marks.append(Mark("document", doc.sha256, doc.original_filename, doc.original_filename))
+
+    fields = db.execute(
+        select(ExtractedField, Document.original_filename)
+        .join(DocumentSegment, DocumentSegment.id == ExtractedField.document_segment_id)
+        .join(Document, Document.id == DocumentSegment.document_id)
+        .where(
+            Document.bid_id == bid.id,
+            ExtractedField.field_name.in_(list(cartel_detector.IDENTIFIER_FIELDS)),
+            ExtractedField.field_value.is_not(None),
+        )
+    ).tuples()
+    for field, filename in fields:
+        value = field.field_value
+        marks.append(Mark(field.field_name, value, value, f"{filename} p.{field.page}"))
+
+    return cartel_detector.BidProfile(
+        bid_id=bid.id, name=names[0] if names else "(unknown bidder)", marks=tuple(marks)
+    )
 
 
 def _clear_previous(db: Session, bid_id: uuid.UUID) -> None:

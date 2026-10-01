@@ -10,11 +10,8 @@ Driven by counted red flags, not by pass rate. The UI always lists which fired.
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
 from datetime import date
-
-from app.modules.risk_engine.cartel_detector import detect_cartel_rings
 
 from app.db.enums import ComplianceStatus, RiskLevel, Severity
 from app.modules.compliance_engine.evidence_index import BidEvidence, parse_date
@@ -61,7 +58,7 @@ def assess(
     flags += _unverifiable(verdicts)
 
     flags = _one_per_code(flags)
-    return RiskAssessment(level=_band(flags), flags=flags, rationale=_rationale(flags))
+    return RiskAssessment(level=band(flags), flags=flags, rationale=_rationale(flags))
 
 
 def _no_evidence(evidence: BidEvidence) -> list[RiskFlag]:
@@ -275,8 +272,12 @@ def _unverifiable(verdicts: list) -> list[RiskFlag]:
     ]
 
 
-def _band(flags: list[RiskFlag]) -> RiskLevel:
-    """CRITICAL on any critical; HIGH on >=2 high; MEDIUM on 1 high or >=3 medium."""
+def band(flags: list) -> RiskLevel:
+    """CRITICAL on any critical; HIGH on >=2 high; MEDIUM on 1 high or >=3 medium.
+
+    Takes anything with a ``severity``, so it bands stored flags as readily as
+    freshly computed ones.
+    """
     critical = sum(1 for f in flags if f.severity is Severity.CRITICAL)
     high = sum(1 for f in flags if f.severity is Severity.HIGH)
     medium = sum(1 for f in flags if f.severity is Severity.WARNING)
@@ -298,38 +299,3 @@ def _rationale(flags: list[RiskFlag]) -> str:
         counts[str(f.severity)] = counts.get(str(f.severity), 0) + 1
     parts = ", ".join(f"{n} {sev}" for sev, n in sorted(counts.items()))
     return f"{len(flags)} signal(s) fired: {parts}."
-
-
-def run_tender_cartel_sweep(db, tender_id: uuid.UUID):
-    """
-    Runs after all bids are submitted. Sweeps the entire tender for cartel rings.
-    """
-    from app.db.models import Bid, Bidder, BidMember
-    from sqlalchemy import select
-    
-    # 1. Fetch all bidders for this specific tender
-    stmt = (
-        select(Bidder, Bid.id)
-        .join(BidMember, BidMember.bidder_id == Bidder.id)
-        .join(Bid, Bid.id == BidMember.bid_id)
-        .where(Bid.tender_id == tender_id)
-    )
-    results = db.execute(stmt).all()
-    
-    bidders = [row[0] for row in results]
-    bidder_to_bid_id = {row[0].id: row[1] for row in results}
-    
-    # 2. Run the Graph Engine
-    cartel_findings = detect_cartel_rings(bidders)
-    
-    # 3. Log CRITICAL risk flags for any caught bidders
-    import logging
-    _log = logging.getLogger(__name__)
-    for (name1, name2, reason) in cartel_findings:
-        _log.critical(
-            "CARTEL DETECTED: %s and %s are colluding. Reason: %s",
-            name1, name2, reason,
-        )
-        
-        # TODO: Insert a RiskFlag into the DB for both Bid IDs
-        # to alert the officer on the frontend.
