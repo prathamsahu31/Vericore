@@ -1,7 +1,6 @@
+import logging
 import os
 import re
-import requests
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +49,10 @@ def translate_to_english(text: str, source_language: str = "hi") -> str:
     if not user_id or not api_key:
         logger.warning("Bhashini credentials not found in environment. Skipping translation.")
         return text
+
+    # Imported here, not at the top: every PDF read passes through this module,
+    # and requests is only needed once Bhashini is configured.
+    import requests
 
     try:
         url = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"

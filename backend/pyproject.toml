@@ -25,6 +25,15 @@ dev = [
     "ruff>=0.8",
     "black>=24.10",
 ]
+# Reads pages with no text layer (scans, photos) so their fields can be
+# highlighted: the ocr rung of CLAUDE.md §24. Optional and large. PaddlePaddle
+# publishes wheels only for some Python versions (none for 3.14 when this was
+# added), so install it on a version it supports. Without it, scanned pages
+# open without a highlight, as before.
+ocr = [
+    "paddleocr>=3.0",
+    "paddlepaddle>=3.0",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

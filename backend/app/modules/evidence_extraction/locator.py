@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from rapidfuzz import fuzz
 
@@ -161,7 +161,19 @@ def _box_for(
 
 
 def _locate_on_page(span: str, page: PdfPage) -> LocatedBox | None:
-    """Where the span sits on this page, or None if it isn't unambiguously here."""
+    """Where the span sits on this page, or None if it isn't unambiguously here.
+
+    On a page whose words were recognised off the image, any match is recorded
+    as ``ocr``: the words came from recognition, not from the file (§24).
+    """
+    box = _match_on_page(span, page)
+    if box is not None and page.ocr:
+        return replace(box, status=LocatorStatus.OCR)
+    return box
+
+
+def _match_on_page(span: str, page: PdfPage) -> LocatedBox | None:
+    """The exact, normalized and fuzzy rungs, tried in order against the page's words."""
     words = list(page.words)
     if not words:
         return None
