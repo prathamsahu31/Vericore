@@ -35,8 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
       </head>
       <body className="page-backdrop min-h-screen text-ink antialiased">
-        <BackendHealthGate mode="banner">{children}</BackendHealthGate>
-        <Chatbot />
+        <BackendHealthGate mode="banner">
+          {children}
+          <Chatbot />
+        </BackendHealthGate>
       </body>
     </html>
   );
