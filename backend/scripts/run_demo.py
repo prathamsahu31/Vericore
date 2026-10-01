@@ -1,4 +1,4 @@
-"""Run the full three-bidder demo end to end and print the comparison.
+"""Run the full four-bidder demo end to end and print the comparison.
 
     python scripts/run_demo.py
 
@@ -32,6 +32,8 @@ BIDDERS = [
     ("bidder_a", "ABC Infrastructure Private Limited", "AABCA1234C", "33AABCA1234C1ZM"),
     ("bidder_b", "ABC Engineers Private Limited", "AABCE5678K", "33AABCE9999K1ZX"),
     ("bidder_c", "Coastal Marine Works Private Limited", "AADCC3344M", "24AADCC3344M1ZP"),
+    # Bidder B's shadow: its turnover certificate is B's file, copied.
+    ("bidder_d", "Sigma Pipeline Services Private Limited", "AAKCS2468L", "33AAKCS2468L1ZY"),
 ]
 
 

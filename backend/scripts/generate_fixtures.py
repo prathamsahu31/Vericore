@@ -12,6 +12,7 @@ Run:  python scripts/generate_fixtures.py
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,6 +60,11 @@ class Company:
     cin_industry: str
     cin_ownership: str
     cin_serial: str
+    # Numbers that identify one certificate or one order. Each company has its
+    # own: two bidders sharing one is a collusion signal, so a shared default
+    # here would flag every demo bidder.
+    iso_certificate_number: str
+    work_order_number: str
 
     # Turnover for the three financial years the tender asks about, most recent
     # first, as printed on the certificate.
@@ -86,6 +92,10 @@ class Company:
     #: threshold but belongs to someone else.
     turnover_entity: str | None = None
     turnover_entity_pan: str | None = None
+    #: Documents copied byte for byte from another bidder's bundle, as
+    #: ``(document, source slug)``. The shadow-bidder case: the copy is the
+    #: same file, so the collusion check flags both bids.
+    copied_documents: tuple[tuple[str, str], ...] = ()
 
     @property
     def gstin(self) -> str:
@@ -122,6 +132,8 @@ BIDDER_A = Company(
     cin_industry="45200",
     cin_ownership="PTC",
     cin_serial="101234",
+    iso_certificate_number="IN-QMS-2023-88141",
+    work_order_number="CPCL/ENG/2022/0417",
     # The local-content certificate is deliberately absent so MISSING_EVIDENCE is
     # exercised for REQ-013 (§6.13, not mandatory).
     omit=("local_content_certificate",),
@@ -154,6 +166,8 @@ BIDDER_B = Company(
     cin_industry="45201",
     cin_ownership="PTC",
     cin_serial="118742",
+    iso_certificate_number="IN-QMS-2021-61207",
+    work_order_number="CPCL/ENG/2021/0288",
     # 62 Cr average against the 100 Cr the tender requires.
     turnover=("Rs. 65,00,00,000", "Rs. 62,00,00,000", "Rs. 59,00,00,000"),
     # Lapsed well before the 15/09/2026 bid due date.
@@ -188,6 +202,8 @@ BIDDER_C = Company(
     cin_industry="45203",
     cin_ownership="PTC",
     cin_serial="109455",
+    iso_certificate_number="IN-QMS-2022-73519",
+    work_order_number="CPCL/ENG/2020/0951",
     # The holding company's figures, on a certificate issued in its name.
     turnover=("Rs. 3,60,00,00,000", "Rs. 3,40,00,00,000", "Rs. 3,20,00,00,000"),
     turnover_entity="Coastal Holdings Limited",
@@ -196,7 +212,38 @@ BIDDER_C = Company(
 )
 
 
-ALL_BIDDERS = (BIDDER_A, BIDDER_B, BIDDER_C)
+# ─────────────────────────────────────────────────────────────────────────────
+# Bidder D — a shadow of Bidder B
+#
+# A properly registered company with its own PAN, GSTIN, CIN and Udyam, all
+# internally consistent, so every check on its own documents passes. But its
+# turnover certificate is Bidder B's file, copied byte for byte: it still names
+# ABC Engineers and carries ABC Engineers' PAN. This is the cover-bid pattern
+# the collusion check exists for, and the only thing planted here.
+# ─────────────────────────────────────────────────────────────────────────────
+BIDDER_D = Company(
+    slug="bidder_d",
+    legal_name="Sigma Pipeline Services Private Limited",
+    trade_name="Sigma Pipeline",
+    pan="AAKCS2468L",
+    state_code="33",
+    state_abbr="TN",
+    address="22 Velachery Main Road, Velachery, Chennai",
+    pincode="600042",
+    incorporated="04/02/2021",
+    udyam_serial="0071442",
+    enterprise_type="Small",
+    cin_industry="45202",
+    cin_ownership="PTC",
+    cin_serial="126630",
+    iso_certificate_number="IN-QMS-2024-90466",
+    work_order_number="CPCL/ENG/2023/0532",
+    copied_documents=(("ca_turnover_certificate", "bidder_b"),),
+)
+
+
+# Bidder B comes before Bidder D, whose bundle copies one of B's files.
+ALL_BIDDERS = (BIDDER_A, BIDDER_B, BIDDER_C, BIDDER_D)
 
 
 def _page(doc: pymupdf.Document) -> pymupdf.Page:
@@ -301,7 +348,7 @@ def work_order(c: Company, out: Path) -> Path:
         [
             (150, 70, "Chennai Petroleum Corporation Limited", 12, "hebo"),
             (180, 94, "Work Order / Completion Certificate", 12, "helv"),
-            (60, 150, "Work Order No. : CPCL/ENG/2022/0417", 11, "cour"),
+            (60, 150, f"Work Order No. : {c.work_order_number}", 11, "cour"),
             (60, 178, "Awarded By : Chennai Petroleum Corporation Limited", 11, "helv"),
             (60, 202, f"Contractor : {c.legal_name}", 11, "helv"),
             (60, 226, f"Order Value : {c.work_order_value}", 11, "helv"),
@@ -386,7 +433,7 @@ def iso_certificate(c: Company, out: Path) -> Path:
         [
             (150, 70, "ISO 9001:2015 Certificate", 14, "hebo"),
             (150, 92, "Quality Management System", 11, "helv"),
-            (60, 150, "Certificate Number : IN-QMS-2023-88141", 11, "cour"),
+            (60, 150, f"Certificate Number : {c.iso_certificate_number}", 11, "cour"),
             (60, 176, f"Name of Organisation : {c.legal_name}", 11, "helv"),
             (60, 200, "Standard : ISO 9001:2015", 11, "helv"),
             (60, 224, "Scope : Fabrication and installation of piping systems", 11, "helv"),
@@ -578,6 +625,11 @@ def generate(company: Company) -> list[Path]:
         if name == "holding_company_undertaking" and not company.turnover_entity:
             continue
         written.append(build(company, out_dir / f"{name}.pdf"))
+    for name, source in company.copied_documents:
+        target = out_dir / f"{name}.pdf"
+        shutil.copyfile(OUT_ROOT / source / f"{name}.pdf", target)
+        if target not in written:
+            written.append(target)
     return written
 
 
@@ -596,5 +648,7 @@ if __name__ == "__main__":
             print(f"  turnover certificate issued to: {c.turnover_entity}  (NOT the bidder)")
         if c.omit:
             print(f"  deliberately absent: {', '.join(c.omit)}")
+        for name, source in c.copied_documents:
+            print(f"  {name} is a byte-for-byte copy of {source}'s")
         for path in generate(c):
             print(f"    {path.relative_to(REPO_ROOT)}")
