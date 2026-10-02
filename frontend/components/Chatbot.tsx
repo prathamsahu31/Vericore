@@ -203,10 +203,19 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    // --decision-bar-height is set by a bid page's sticky decision bar, so the
+    // widget sits above the bar's buttons rather than over them. Elsewhere it
+    // is unset and the widget keeps its usual corner.
+    <div
+      className="fixed right-6 z-50"
+      style={{ bottom: "calc(var(--decision-bar-height, 0px) + 1.5rem)" }}
+    >
       {/* The Chat Window */}
       {isOpen && (
-        <div className="mb-4 flex h-[520px] max-h-[calc(100vh-7rem)] w-[400px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all">
+        <div
+          className="mb-4 flex h-[520px] w-[400px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all"
+          style={{ maxHeight: "calc(100vh - 7rem - var(--decision-bar-height, 0px))" }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between bg-slate-700 px-4 py-3 text-white">
             <div>

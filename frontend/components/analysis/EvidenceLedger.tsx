@@ -50,7 +50,7 @@ export function EvidenceLedger({
         className="flex-1 bg-ink/20"
       />
       <div
-        className="flex w-full max-w-[720px] flex-col overflow-y-auto border-l border-rule bg-surface self-start pb-6"
+        className="flex w-full max-w-[720px] flex-col overflow-y-auto border-l border-rule bg-surface self-start pb-24"
         style={{ height: `calc(100dvh - ${barHeight}px)`, maxHeight: `calc(100dvh - ${barHeight}px)` }}
       >
       <div className="sticky top-0 border-b border-rule bg-surface px-7 py-5">

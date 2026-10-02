@@ -35,6 +35,16 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
     return () => obs.disconnect();
   }, []);
 
+  // Floating widgets (the chat) read this to sit above the decision bar
+  // instead of covering its buttons.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--decision-bar-height", `${barHeight}px`);
+    return () => {
+      root.style.removeProperty("--decision-bar-height");
+    };
+  }, [barHeight]);
+
   function refresh(next: VerificationSummary) {
     setSummary(next);
     setOpen((current) =>
@@ -153,7 +163,12 @@ export function BidWorkspace({ initial }: { initial: VerificationSummary }) {
 
       <EvidenceLedger row={open} bidId={summary.bid_id} onClose={() => setOpen(null)} barHeight={barHeight} />
 
-      <div ref={barRef}>
+      {/* Sticky here, not only inside DecisionBar: a sticky element moves only
+          within its parent, and this wrapper (which exists to measure the bar)
+          is exactly the bar's height, so the bar inside it could never stick.
+          The evidence drawer stops barHeight above the bottom on the
+          assumption that the bar is there. */}
+      <div ref={barRef} className="sticky bottom-0 z-40">
         <DecisionBar
           bidId={summary.bid_id}
           summary={summary}
