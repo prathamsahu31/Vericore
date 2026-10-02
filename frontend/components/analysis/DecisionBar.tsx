@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComplianceRow, VerificationSummary } from "../../types/api";
 import { submitReview } from "../../lib/api";
 
@@ -37,6 +37,21 @@ export function DecisionBar({
   const officerId = process.env.NEXT_PUBLIC_OFFICER_ID ?? "";
   const identified = officerId.length > 0;
 
+  const text = recommendation(summary, selected);
+  const [expanded, setExpanded] = useState(false);
+  // Whether the one-line recommendation is cut off, and so needs "Read in full".
+  const lineRef = useRef<HTMLParagraphElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const el = lineRef.current;
+    if (!el) return;
+    const check = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const obs = new ResizeObserver(check);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [text]);
+
   const effective = selected ? (selected.effective_status ?? selected.status) : null;
   const canAccept =
     effective !== null &&
@@ -68,7 +83,7 @@ export function DecisionBar({
 
   return (
     <div className="decision-bar-shadow sticky bottom-0 z-40 border-t border-rule bg-surface">
-      <div className="mx-auto max-w-[1240px] px-6 py-3">
+      <div className="mx-auto max-w-[1240px] px-6 py-2">
         {open && selected && (
           <form
             className="mb-3 rounded-[6px] border border-rule bg-paper p-4"
@@ -144,28 +159,71 @@ export function DecisionBar({
           </form>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <blockquote className="max-w-[62ch] border-l-2 border-rule pl-3">
-            <p className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">
-              Recommendation — advisory
-            </p>
-            <p className="mt-0.5 text-[13px] italic leading-relaxed text-ink-muted">
-              {recommendation(summary, selected)}
-            </p>
+        {/* The full recommendation, only when asked for. The bar stays on
+            screen over the page, so by default it holds one line. */}
+        {expanded && (
+          <div
+            id="recommendation-full"
+            className="mb-2 max-h-[40vh] overflow-y-auto rounded-[6px] border border-rule bg-paper px-4 py-3"
+          >
+            <p className="text-[13px] italic leading-relaxed text-ink-muted">{text}</p>
             {summary.recommendation_text && (
-              <p className="mt-1 text-[11px] text-ink-faint">
-                Generated from the structured verdicts{summary.recommendation_action ? ` · ${summary.recommendation_action.replace(/_/g, " ").toLowerCase()}` : ""}
+              <p className="mt-2 text-[11px] text-ink-faint">
+                Generated from the structured verdicts
+                {summary.recommendation_action
+                  ? ` · ${summary.recommendation_action.replace(/_/g, " ").toLowerCase()}`
+                  : ""}
               </p>
             )}
             {!identified && (
-              <p className="mt-1 text-[12px]" style={{ color: "var(--review)" }}>
+              <p className="mt-2 text-[12px]" style={{ color: "var(--review)" }}>
                 No officer is signed in, so no decision can be recorded. Set
                 NEXT_PUBLIC_OFFICER_ID until the authentication gate is built.
               </p>
             )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <blockquote className="min-w-[240px] flex-1 border-l-2 border-rule pl-3">
+            <p className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">
+              Recommendation — advisory
+              {!identified && (
+                <span
+                  className="ml-2 normal-case tracking-normal"
+                  style={{ color: "var(--review)" }}
+                  title="Set NEXT_PUBLIC_OFFICER_ID until the authentication gate is built."
+                >
+                  · no officer signed in
+                </span>
+              )}
+            </p>
+            <div className="flex min-w-0 items-baseline gap-2">
+              {/* Hidden while the full text is open above, rather than repeated. */}
+              <p
+                ref={lineRef}
+                className={`min-w-0 truncate text-[13px] italic text-ink-muted ${expanded ? "hidden" : ""}`}
+              >
+                {text}
+              </p>
+              {(overflowing || expanded) && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  aria-expanded={expanded}
+                  aria-controls="recommendation-full"
+                  className="shrink-0 text-[12px] font-medium text-seal hover:underline"
+                >
+                  {expanded ? "Show less" : "Read in full"}
+                </button>
+              )}
+            </div>
           </blockquote>
 
           <div className="flex shrink-0 items-center gap-2">
+            <p className="mr-1 hidden max-w-[26ch] truncate text-[12px] text-ink-faint lg:block">
+              {selected ? `Acting on ${selected.requirement_code}` : "Open a condition to act on it"}
+            </p>
             <button
               onClick={() => setOpen("accept")}
               disabled={!selected || !canAccept || !identified}
@@ -176,14 +234,15 @@ export function DecisionBar({
                     ? undefined
                     : "The system reached a verdict on this one — recording a different view is an override"
               }
-              className="rounded-[4px] border border-rule px-4 py-2 text-[14px] text-ink disabled:opacity-35"
+              className="rounded-[4px] border border-rule px-3.5 py-1.5 text-[13px] text-ink disabled:opacity-35"
             >
               Accept condition
             </button>
             <button
               onClick={() => setOpen("override")}
               disabled={!selected || !identified}
-              className="rounded-[4px] border border-rule px-4 py-2 text-[14px] text-ink disabled:opacity-35"
+              title={!selected ? "Select a condition first" : undefined}
+              className="rounded-[4px] border border-rule px-3.5 py-1.5 text-[13px] text-ink disabled:opacity-35"
             >
               Override verdict
             </button>
