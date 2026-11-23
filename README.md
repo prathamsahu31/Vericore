@@ -14,7 +14,7 @@ This repository contains the official implementation of **Vericore**, an AI-powe
 
 > 🔗 **Submission Links:**
 > - 📺 **Demo Video:** [Google Drive Demo Folder](https://drive.google.com/drive/folders/1s349utNy1AN2U3Vqu7gzFLQX6H1dwMES) | [Walkthrough Guide](submission/DEMO.md)
-> - 📊 **Presentation (PPT/PDF):** [Google Drive Slides Folder](https://drive.google.com/drive/folders/1SJl4-hgV8KyzcWRJqaH-aouzYmXXAPHH) | [Direct PDF](submission/vericore.pdf) | [Presentation Details](submission/PRESENTATION.md)
+> - 📊 **Presentation (PPT/PDF):**  [Direct PDF](https://sih.gov.in/uploads/template/VericoreSIH2026Ideafinal20261005155459.pdf) | [Presentation Details](submission/PRESENTATION.md)
 > - 🌐 **Deployment Link:** [Website URL](https://vericore-mu.vercel.app/) 
 
 ## 2. Problem Statement
